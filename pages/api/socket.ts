@@ -1,4 +1,5 @@
 import { Server as NetServer } from 'http';
+import { Socket } from 'net';
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Server as ServerIO } from 'socket.io';
 
@@ -8,7 +9,18 @@ export const config = {
   }
 };
 
-export default function handler(req: NextApiRequest, res: NextApiResponse) {
+type NextApiResponseWithSocket = NextApiResponse & {
+  socket: Socket & {
+    server: NetServer & {
+      io?: ServerIO;
+    };
+  };
+};
+
+export default function handler(
+  req: NextApiRequest,
+  res: NextApiResponseWithSocket
+) {
   if (!res.socket.server.io) {
     const httpServer: NetServer = res.socket.server as unknown as NetServer;
     const io = new ServerIO(httpServer, {
@@ -27,5 +39,5 @@ export default function handler(req: NextApiRequest, res: NextApiResponse) {
 
     res.socket.server.io = io;
   }
-  res.end();
+  res.status(200).json({ ok: true });
 }

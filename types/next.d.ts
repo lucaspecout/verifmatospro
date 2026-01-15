@@ -16,13 +16,3 @@ declare module 'http' {
     io?: ServerIO;
   }
 }
-
-declare module 'next' {
-  interface NextApiResponse {
-    socket: Socket & {
-      server: NetServer & {
-        io?: ServerIO;
-      };
-    };
-  }
-}

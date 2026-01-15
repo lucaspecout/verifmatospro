@@ -9,7 +9,9 @@ export const emitLineUpdate = async (slug: string, baseUrl?: string | null) => {
   }
   if (!socket) {
     socket = io(url, { path: '/api/socket/io', autoConnect: true });
-    await new Promise((resolve) => socket?.on('connect', resolve));
+    await new Promise<void>((resolve) => {
+      socket?.on('connect', () => resolve());
+    });
   }
   socket.emit('join', slug);
   socket.emit('line-updated', { slug });
