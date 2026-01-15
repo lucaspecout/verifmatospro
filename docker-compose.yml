@@ -15,9 +15,9 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/verifmatospro
       AUTH_SECRET: dev-secret-change-me
-      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_URL: http://localhost:7000
     ports:
-      - "3000:3000"
+      - "7000:3000"
     depends_on:
       - db
 volumes:
