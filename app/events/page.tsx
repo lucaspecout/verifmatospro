@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import EventForm from './EventForm';
 
+export const dynamic = 'force-dynamic';
+
 export default async function EventsPage() {
   const session = await getSession();
   const where = session?.user.role === 'CHEF' ? { createdByUserId: session.user.id } : {};

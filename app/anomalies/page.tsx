@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export default async function AnomaliesPage() {
   const anomalies = await prisma.verificationLine.findMany({
     where: { status: 'MISSING' },

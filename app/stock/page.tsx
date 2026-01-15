@@ -1,5 +1,7 @@
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 export default async function StockPage() {
   const [catalog, vehicles, bags, compartments, stockEntries] = await Promise.all([
     prisma.itemCatalog.findMany({ orderBy: { name: 'asc' } }),
