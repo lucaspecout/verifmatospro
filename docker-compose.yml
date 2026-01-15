@@ -15,7 +15,7 @@ services:
   web:
     build: .
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/verifmatospro
+      DATABASE_URL: postgresql://postgres:postgres@db/verifmatospro
       AUTH_SECRET: dev-secret-change-me
       NEXT_PUBLIC_APP_URL: http://localhost:7000
     ports:
