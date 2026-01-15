@@ -31,7 +31,7 @@ Au premier login, un changement de mot de passe est obligatoire.
 
 ## Configuration
 
-Copiez `.env.example` si besoin. Les variables importantes sont :
+Les variables d'environnement sont définies directement dans `docker-compose.yml` :
 
 - `DATABASE_URL`
 - `AUTH_SECRET`
