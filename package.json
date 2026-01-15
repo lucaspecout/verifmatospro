@@ -9,11 +9,11 @@
     "lint": "next lint",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate deploy",
-    "seed": "ts-node --transpile-only prisma/seed.ts",
+    "seed": "node --loader ts-node/esm prisma/seed.ts",
     "docker:start": "npm run prisma:migrate && npm run seed && npm run start"
   },
   "prisma": {
-    "seed": "ts-node --transpile-only prisma/seed.ts"
+    "seed": "node --loader ts-node/esm prisma/seed.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
