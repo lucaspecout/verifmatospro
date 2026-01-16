@@ -77,51 +77,25 @@
           <h3>{{ item.name }}</h3>
           <p class="muted">Checklist prête à être enrichie avec des compartiments et items.</p>
         </div>
-        <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
-          Configurer
-        </button>
-      </article>
-    {% else %}
-      <div class="sac-empty">
-        <p class="muted">Aucun sac créé pour l'instant. Utilisez “Nouveau sac” pour démarrer.</p>
-      </div>
-    {% endfor %}
-  </div>
-</section>
-
-<section class="card">
-  <div class="builder-header">
-    <div>
-      <h2>Parents enregistrés</h2>
-      <p class="muted">Accédez rapidement aux sacs et items racine pour maintenir la base propre.</p>
-    </div>
-  </div>
-  <div class="list">
-    {% for item in materials if item.parent_id is none %}
-      <div class="list-item">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <div class="muted">
-            Type: {{ "Sac" if item.node_type == "container" else "Item" }}
-            {% if item.node_type == "item" %}
-              · Qté: {{ item.expected_qty or '-' }}
-            {% endif %}
-          </div>
-        </div>
-        <div class="list-item-actions">
-          <form method="post" action="/materials/{{ item.id }}/delete" class="inline-form">
+        <div class="sac-card-actions">
+          <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
+            Modifier
+          </button>
+          <form method="post" action="/materials/{{ item.id }}/delete" class="inline-form sac-action-form">
             <button
               type="submit"
               class="btn small danger"
-              onclick="return confirm('Supprimer définitivement cet item ?');"
+              onclick="return confirm('Supprimer définitivement ce sac ?');"
             >
               Supprimer
             </button>
           </form>
         </div>
-      </div>
+      </article>
     {% else %}
-      <p class="muted">Aucun parent enregistré pour l'instant.</p>
+      <div class="sac-empty">
+        <p class="muted">Aucun sac créé pour l'instant. Utilisez “Nouveau sac” pour démarrer.</p>
+      </div>
     {% endfor %}
   </div>
 </section>
