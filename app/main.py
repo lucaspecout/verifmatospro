@@ -317,6 +317,7 @@ def render_materials_page(
     error: str | None = None,
 ) -> HTMLResponse:
     materials = db.scalars(select(MaterialTemplate)).all()
+    materials_index = {item.id: item.name for item in materials}
     tree = build_tree(materials)
     materials_payload = [
         {
@@ -335,6 +336,7 @@ def render_materials_page(
             "user": user,
             "tree": tree,
             "materials": materials,
+            "materials_index": materials_index,
             "materials_payload": materials_payload,
             "error": error,
         },
@@ -434,6 +436,30 @@ def materials_wizard_create(
 
     for child in children:
         _create_tree(child, bag.id)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+@app.post("/materials/{material_id}/delete")
+def materials_delete(
+    material_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    material = db.get(MaterialTemplate, material_id)
+    if not material:
+        raise HTTPException(status_code=404, detail="Item introuvable")
+
+    def delete_descendants(node_id: int) -> None:
+        children = db.scalars(
+            select(MaterialTemplate).where(MaterialTemplate.parent_id == node_id)
+        ).all()
+        for child in children:
+            delete_descendants(child.id)
+            db.delete(child)
+
+    delete_descendants(material.id)
+    db.delete(material)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
