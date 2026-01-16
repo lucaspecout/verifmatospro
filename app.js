@@ -1,8 +1,13 @@
 const sessionKey = "verifmatos-session";
+const lockoutKey = "verifmatos-lockout";
+const sessionDurationMs = 30 * 60 * 1000;
+const maxLoginAttempts = 3;
+const lockoutDurationMs = 30 * 1000;
 const loginView = document.getElementById("login-view");
 const appView = document.getElementById("app-view");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
+const loginSubmitBtn = loginForm?.querySelector("button[type=\"submit\"]");
 const demoAccounts = document.getElementById("demoAccounts");
 const userName = document.getElementById("userName");
 const logoutBtn = document.getElementById("logoutBtn");
@@ -112,6 +117,9 @@ const wizardSteps = [
 ];
 
 let currentUser = null;
+let failedAttempts = 0;
+let lockoutUntil = null;
+let lockoutTimerId = null;
 let wizardIndex = 0;
 const wizardState = {};
 
@@ -203,7 +211,11 @@ function setRoute(route) {
 
 function setSession(user) {
   currentUser = user;
-  localStorage.setItem(sessionKey, JSON.stringify({ id: user.id }));
+  const now = Date.now();
+  localStorage.setItem(
+    sessionKey,
+    JSON.stringify({ id: user.id, issuedAt: now, expiresAt: now + sessionDurationMs })
+  );
   userName.textContent = `${user.name} · ${user.role}`;
   loginView.classList.remove("active");
   appView.classList.add("active");
@@ -223,6 +235,10 @@ function restoreSession() {
   const stored = localStorage.getItem(sessionKey);
   if (!stored) return;
   const parsed = JSON.parse(stored);
+  if (!parsed.expiresAt || Date.now() > parsed.expiresAt) {
+    clearSession();
+    return;
+  }
   const user = users.find((entry) => entry.id === parsed.id);
   if (user) {
     setSession(user);
@@ -362,19 +378,112 @@ function completeWizard() {
   renderPostes();
 }
 
+function loadLockoutState() {
+  const stored = sessionStorage.getItem(lockoutKey);
+  if (!stored) return;
+  try {
+    const parsed = JSON.parse(stored);
+    failedAttempts = parsed.failedAttempts || 0;
+    lockoutUntil = parsed.lockoutUntil || null;
+  } catch (error) {
+    failedAttempts = 0;
+    lockoutUntil = null;
+  }
+}
+
+function saveLockoutState() {
+  sessionStorage.setItem(
+    lockoutKey,
+    JSON.stringify({ failedAttempts, lockoutUntil })
+  );
+}
+
+function clearLockoutTimer() {
+  if (lockoutTimerId) {
+    clearInterval(lockoutTimerId);
+    lockoutTimerId = null;
+  }
+}
+
+function updateLoginLockoutMessage() {
+  if (!loginError) return;
+  if (lockoutUntil && Date.now() < lockoutUntil) {
+    const seconds = Math.ceil((lockoutUntil - Date.now()) / 1000);
+    loginError.textContent = `Trop de tentatives. Réessayez dans ${seconds}s.`;
+  }
+}
+
+function setLockout(durationMs) {
+  lockoutUntil = Date.now() + durationMs;
+  saveLockoutState();
+  if (loginSubmitBtn) {
+    loginSubmitBtn.disabled = true;
+  }
+  updateLoginLockoutMessage();
+  clearLockoutTimer();
+  lockoutTimerId = setInterval(() => {
+    if (Date.now() >= lockoutUntil) {
+      lockoutUntil = null;
+      failedAttempts = 0;
+      saveLockoutState();
+      clearLockoutTimer();
+      if (loginSubmitBtn) {
+        loginSubmitBtn.disabled = false;
+      }
+      loginError.textContent = "";
+      return;
+    }
+    updateLoginLockoutMessage();
+  }, 1000);
+}
+
+function ensureLoginReady() {
+  if (!loginSubmitBtn) return;
+  if (lockoutUntil && Date.now() >= lockoutUntil) {
+    lockoutUntil = null;
+    failedAttempts = 0;
+    saveLockoutState();
+    clearLockoutTimer();
+    loginError.textContent = "";
+  }
+  if (lockoutUntil && Date.now() < lockoutUntil) {
+    loginSubmitBtn.disabled = true;
+    updateLoginLockoutMessage();
+    if (!lockoutTimerId) {
+      lockoutTimerId = setInterval(updateLoginLockoutMessage, 1000);
+    }
+    return;
+  }
+  loginSubmitBtn.disabled = false;
+}
+
 loginForm.addEventListener("submit", (event) => {
   event.preventDefault();
   loginError.textContent = "";
+  if (lockoutUntil && Date.now() < lockoutUntil) {
+    updateLoginLockoutMessage();
+    return;
+  }
   const formData = new FormData(loginForm);
   const username = formData.get("username").trim();
   const password = formData.get("password").trim();
   const user = users.find((entry) => entry.username === username && entry.password === password);
 
   if (!user) {
+    failedAttempts += 1;
+    saveLockoutState();
+    if (failedAttempts >= maxLoginAttempts) {
+      setLockout(lockoutDurationMs);
+      return;
+    }
     loginError.textContent = "Identifiant ou mot de passe incorrect.";
     return;
   }
 
+  failedAttempts = 0;
+  lockoutUntil = null;
+  saveLockoutState();
+  clearLockoutTimer();
   setSession(user);
   renderPostes();
   renderUsers();
@@ -448,6 +557,8 @@ passwordForm.addEventListener("submit", (event) => {
 
 initUserPasswords();
 renderDemoAccounts();
+loadLockoutState();
+ensureLoginReady();
 restoreSession();
 if (currentUser) {
   renderPostes();
