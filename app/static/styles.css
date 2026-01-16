@@ -731,6 +731,18 @@ body {
   align-items: center;
 }
 
+.sac-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.sac-action-form {
+  margin-top: 0;
+}
+
 .sac-card h3 {
   margin: 0 0 0.35rem;
 }
