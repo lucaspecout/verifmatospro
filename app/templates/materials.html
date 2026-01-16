@@ -4,62 +4,9 @@
 {% set sacs = parents | selectattr('node_type', 'equalto', 'container') | list %}
 {% set root_items = parents | selectattr('node_type', 'equalto', 'item') | list %}
 {% set items = materials | selectattr('node_type', 'equalto', 'item') | list %}
-<section class="card materials-hero">
-  <div class="materials-hero-top">
-    <div>
-      <p class="section-eyebrow">Gestion du matériel</p>
-      <h1>Créez des checklists claires et actionnables pour chaque sac.</h1>
-      <p class="muted">
-        Organisez vos sacs, compartiments, poches et items avec une navigation guidée.
-        Passez de la création rapide à l’atelier visuel en un clic.
-      </p>
-    </div>
-    <div class="materials-hero-actions">
-      <button class="btn" type="button" id="open-root-modal">Nouveau sac</button>
-      <button class="btn secondary" type="button" id="jump-to-builder">Configurer une checklist</button>
-    </div>
-  </div>
-  {% if error %}
-    <p class="error">{{ error }}</p>
-  {% endif %}
-  <div class="materials-metrics">
-    <div class="metric-card">
-      <span class="metric-value">{{ sacs | length }}</span>
-      <span class="metric-label">Sacs actifs</span>
-    </div>
-    <div class="metric-card">
-      <span class="metric-value">{{ items | length }}</span>
-      <span class="metric-label">Items référencés</span>
-    </div>
-    <div class="metric-card">
-      <span class="metric-value">{{ root_items | length }}</span>
-      <span class="metric-label">Items racine</span>
-    </div>
-  </div>
-  <div class="materials-steps">
-    <div class="step-card">
-      <span class="step-number">1</span>
-      <div>
-        <strong>Créez un sac</strong>
-        <p class="muted">Définissez le parent avant de structurer les niveaux.</p>
-      </div>
-    </div>
-    <div class="step-card">
-      <span class="step-number">2</span>
-      <div>
-        <strong>Structurez les compartiments</strong>
-        <p class="muted">Ajoutez poches, zones et items en glissant les niveaux.</p>
-      </div>
-    </div>
-    <div class="step-card">
-      <span class="step-number">3</span>
-      <div>
-        <strong>Validez la checklist</strong>
-        <p class="muted">Sauvegardez pour rendre la liste disponible aux équipes.</p>
-      </div>
-    </div>
-  </div>
-</section>
+{% if error %}
+  <p class="error">{{ error }}</p>
+{% endif %}
 
 <section class="card sacs-overview">
   <div class="builder-header">
@@ -68,6 +15,9 @@
       <p class="muted">
         Sélectionnez un sac existant pour reprendre sa structure ou lancez une nouvelle création.
       </p>
+    </div>
+    <div class="builder-header-actions">
+      <button class="btn" type="button" id="open-root-modal">Nouveau materiel</button>
     </div>
   </div>
   <div class="sacs-grid">
