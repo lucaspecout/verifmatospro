@@ -69,7 +69,7 @@
             <h3>Structure modulable</h3>
             <p class="muted">Cliquez un carré pour l’éditer. Les contenants accueillent d’autres carrés.</p>
           </div>
-          <span class="builder-pill">Max 3 niveaux de contenant</span>
+          <span class="builder-pill">Niveaux illimités</span>
         </div>
         <div class="builder-root" id="builder-root"></div>
         <p class="builder-empty muted" id="builder-empty">
@@ -142,8 +142,6 @@
     rootId: null,
     selectedId: null,
   };
-
-  const MAX_CONTAINER_DEPTH = 2;
 
   const rootSelect = document.getElementById("existing-parent-select");
   const loadParentButton = document.getElementById("load-parent");
@@ -349,7 +347,6 @@
     rootOption.textContent = "Racine";
     nodeParentSelect.appendChild(rootOption);
 
-    const maxParentDepth = node.type === "item" ? MAX_CONTAINER_DEPTH : MAX_CONTAINER_DEPTH - 1;
     builderState.nodes
       .filter((candidate) => candidate.type === "container")
       .forEach((candidate) => {
@@ -360,9 +357,6 @@
           return;
         }
         const depth = getDepth(candidate.id);
-        if (depth > maxParentDepth) {
-          return;
-        }
         const option = document.createElement("option");
         option.value = candidate.id;
         option.textContent = `${candidate.name} (niveau ${depth})`;
@@ -388,8 +382,9 @@
     panelEmpty.classList.add("hidden");
     panelForm.classList.remove("hidden");
 
-    const depth = getDepth(node.id);
-    const allowedTypes = depth > MAX_CONTAINER_DEPTH ? ["item"] : ["container"];
+    const existingChildren = getChildren(node.id);
+    const allowedTypes =
+      node.id === builderState.rootId || existingChildren.length ? ["container"] : ["container", "item"];
     renderNodeTypeOptions(nodeTypeSelect, allowedTypes, node.type);
 
     nodeNameInput.value = node.name;
@@ -400,7 +395,9 @@
     duplicateNodeButton.disabled = node.id === builderState.rootId;
     deleteNodeButton.disabled = node.id === builderState.rootId;
 
-    const childAllowedTypes = depth >= MAX_CONTAINER_DEPTH ? ["item"] : ["container"];
+    nodeTypeSelect.disabled = node.id === builderState.rootId || existingChildren.length > 0;
+
+    const childAllowedTypes = ["container", "item"];
     renderNodeTypeOptions(childTypeSelect, childAllowedTypes, childAllowedTypes[0]);
     childQtyInput.disabled = childTypeSelect.value !== "item";
     childNameInput.value = "";
@@ -412,15 +409,11 @@
     if (!parent || parent.type !== "container") {
       return;
     }
-    const depth = getDepth(parent.id);
-    if (depth >= MAX_CONTAINER_DEPTH + 1) {
-      return;
-    }
     const name = normalizeLabel(childNameInput.value);
     if (!name) {
       return;
     }
-    const type = depth >= MAX_CONTAINER_DEPTH ? "item" : childTypeSelect.value;
+    const type = childTypeSelect.value;
     const qty = type === "item" && childQtyInput.value !== "" ? Number(childQtyInput.value) : null;
     createNode({ name, type, qty, parentId: parent.id });
     childNameInput.value = "";
@@ -446,13 +439,6 @@
       return;
     }
     if (newParent !== node.parentId) {
-      const newDepth = newParent ? getDepth(newParent) + 1 : 0;
-      if (node.type === "container" && newDepth > MAX_CONTAINER_DEPTH) {
-        return;
-      }
-      if (node.type === "item" && newDepth !== MAX_CONTAINER_DEPTH + 1) {
-        return;
-      }
       node.parentId = newParent;
       if (!newParent) {
         builderState.rootId = node.id;
@@ -575,25 +561,19 @@
       return;
     }
     const root = findNode(builderState.rootId);
-    const compartments = getChildren(root.id);
-    if (!compartments.length) {
+    const rootChildren = getChildren(root.id);
+    if (!rootChildren.length) {
       event.preventDefault();
       return;
     }
+    const serializeNode = (node) => ({
+      name: node.name,
+      type: node.type,
+      qty: node.qty,
+      children: getChildren(node.id).map((child) => serializeNode(child)),
+    });
     const payload = {
-      bag: {
-        name: root.name,
-        compartments: compartments.map((compartment) => ({
-          name: compartment.name,
-          pockets: getChildren(compartment.id).map((pocket) => ({
-            name: pocket.name,
-            items: getChildren(pocket.id).map((item) => ({
-              name: item.name,
-              qty: item.qty,
-            })),
-          })),
-        })),
-      },
+      root: serializeNode(root),
     };
     builderPayload.value = JSON.stringify(payload);
   });
