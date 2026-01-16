@@ -183,14 +183,35 @@ def change_password(
     )
 
 
-@app.get("/users", response_class=HTMLResponse)
-def users_list(request: Request, user: User = Depends(require_roles(ROLE_ADMIN))):
-    db = SessionLocal()
+def render_users_page(
+    request: Request,
+    user: User,
+    db: Session,
+    error: str | None = None,
+    success: str | None = None,
+    status_code: int = 200,
+) -> HTMLResponse:
     users = db.scalars(select(User)).all()
-    db.close()
     return templates.TemplateResponse(
-        "users.html", {"request": request, "user": user, "users": users}
+        "users.html",
+        {
+            "request": request,
+            "user": user,
+            "users": users,
+            "error": error,
+            "success": success,
+        },
+        status_code=status_code,
     )
+
+
+@app.get("/users", response_class=HTMLResponse)
+def users_list(
+    request: Request,
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+    db: Session = Depends(get_db),
+):
+    return render_users_page(request, user, db)
 
 
 @app.post("/users")
@@ -204,14 +225,11 @@ def users_create(
 ):
     existing = db.scalar(select(User).where(User.username == username))
     if existing:
-        return templates.TemplateResponse(
-            "users.html",
-            {
-                "request": request,
-                "user": user,
-                "error": "Utilisateur déjà existant",
-                "users": db.scalars(select(User)).all(),
-            },
+        return render_users_page(
+            request,
+            user,
+            db,
+            error="Utilisateur déjà existant",
             status_code=400,
         )
     new_user = User(
@@ -223,6 +241,67 @@ def users_create(
     db.add(new_user)
     db.commit()
     return RedirectResponse("/users", status_code=303)
+
+
+@app.post("/users/{user_id}/password")
+def admin_change_password(
+    request: Request,
+    user_id: int,
+    new_password: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404)
+    target.password_hash = hash_password(new_password)
+    target.must_change_password = target.id != user.id
+    db.add(target)
+    db.commit()
+    return render_users_page(
+        request,
+        user,
+        db,
+        success=f"Mot de passe mis à jour pour {target.username}.",
+    )
+
+
+@app.post("/users/{user_id}/delete")
+def admin_delete_user(
+    request: Request,
+    user_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404)
+    if target.id == user.id:
+        return render_users_page(
+            request,
+            user,
+            db,
+            error="Impossible de supprimer votre propre compte.",
+            status_code=400,
+        )
+    if target.role == ROLE_ADMIN:
+        admins = db.scalars(select(User).where(User.role == ROLE_ADMIN)).all()
+        if len(admins) <= 1:
+            return render_users_page(
+                request,
+                user,
+                db,
+                error="Impossible de supprimer le dernier administrateur.",
+                status_code=400,
+            )
+    db.delete(target)
+    db.commit()
+    return render_users_page(
+        request,
+        user,
+        db,
+        success=f"Compte {target.username} supprimé.",
+    )
 
 
 @app.get("/materials", response_class=HTMLResponse)
