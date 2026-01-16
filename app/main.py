@@ -15,7 +15,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -478,6 +478,104 @@ def materials_wizard_create(
 
     for child in children:
         _create_tree(child, bag.id)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+@app.get("/materials/items/export")
+def materials_items_export(
+    ids: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    if not ids:
+        raise HTTPException(status_code=400, detail="Aucun item sélectionné")
+    selected_ids = []
+    for raw_id in ids.split(","):
+        raw_id = raw_id.strip()
+        if not raw_id:
+            continue
+        try:
+            selected_ids.append(int(raw_id))
+        except ValueError:
+            continue
+    if not selected_ids:
+        raise HTTPException(status_code=400, detail="Aucun item sélectionné")
+    items = db.scalars(
+        select(MaterialTemplate).where(
+            MaterialTemplate.id.in_(selected_ids),
+            MaterialTemplate.node_type == "item",
+        )
+    ).all()
+    payload = {
+        "items": [
+            {"name": item.name, "qty": item.expected_qty}
+            for item in items
+        ]
+    }
+    content = json.dumps(payload, ensure_ascii=False, indent=2)
+    return Response(
+        content=content,
+        media_type="application/json",
+        headers={"Content-Disposition": "attachment; filename=items-export.json"},
+    )
+
+
+@app.post("/materials/items/import")
+def materials_items_import(
+    request: Request,
+    items_payload: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    try:
+        payload = json.loads(items_payload)
+    except json.JSONDecodeError:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Le fichier importé est invalide.",
+        )
+    raw_items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(raw_items, list) or not raw_items:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Aucun item sélectionné pour l'import.",
+        )
+
+    def _safe_int(value: Any) -> int | None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    created = 0
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        name = (item.get("name") or "").strip()
+        if not name:
+            continue
+        qty = _safe_int(item.get("qty"))
+        db.add(
+            MaterialTemplate(
+                name=name,
+                node_type="item",
+                expected_qty=qty,
+                parent_id=None,
+            )
+        )
+        created += 1
+    if not created:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Aucun item valide à importer.",
+        )
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
