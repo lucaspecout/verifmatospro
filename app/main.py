@@ -318,6 +318,16 @@ def render_materials_page(
 ) -> HTMLResponse:
     materials = db.scalars(select(MaterialTemplate)).all()
     tree = build_tree(materials)
+    materials_payload = [
+        {
+            "id": item.id,
+            "name": item.name,
+            "node_type": item.node_type,
+            "expected_qty": item.expected_qty,
+            "parent_id": item.parent_id,
+        }
+        for item in materials
+    ]
     return templates.TemplateResponse(
         "materials.html",
         {
@@ -325,6 +335,7 @@ def render_materials_page(
             "user": user,
             "tree": tree,
             "materials": materials,
+            "materials_payload": materials_payload,
             "error": error,
         },
     )

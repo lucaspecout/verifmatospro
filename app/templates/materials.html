@@ -1,89 +1,112 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h1>Assistant de création de sac</h1>
-  <p class="muted">Créez un sac complet avec ses compartiments, poches et items en un seul flux visuel.</p>
-  {% if error %}
-    <p class="error">{{ error }}</p>
-  {% endif %}
-  <form method="post" action="/materials/wizard" class="wizard" id="wizard-form">
-    <input type="hidden" name="wizard_payload" id="wizard_payload" />
-    <div class="wizard-grid">
-      <div class="wizard-panel">
-        <div class="wizard-panel-header">
-          <span class="wizard-step">1</span>
+<section class="card builder">
+  <div class="builder-header">
+    <div>
+      <h1>Atelier de création du matériel</h1>
+      <p class="muted">
+        Assemblez des contenants imbriqués (ambulance → sac → poche) et des items comme un puzzle.
+        Vous pouvez déplacer, dupliquer, modifier ou supprimer avant validation.
+      </p>
+    </div>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+  </div>
+  <div class="builder-toolbar">
+    <label>Parent déjà créé
+      <select id="existing-parent-select">
+        <option value="">Sélectionner un parent</option>
+        {% for item in materials %}
+          {% if item.parent_id is none %}
+            <option value="{{ item.id }}">{{ item.name }}</option>
+          {% endif %}
+        {% endfor %}
+      </select>
+    </label>
+    <div class="builder-toolbar-actions">
+      <button class="btn secondary" type="button" id="load-parent">Charger comme base</button>
+      <button class="btn" type="button" id="open-root-modal">Créer un parent</button>
+    </div>
+  </div>
+  <form method="post" action="/materials/wizard" id="builder-form">
+    <input type="hidden" name="wizard_payload" id="builder_payload" />
+    <div class="builder-grid">
+      <div class="builder-canvas">
+        <div class="builder-canvas-header">
           <div>
-            <h3>Sac &amp; compartiments</h3>
-            <p class="muted">Définissez le parent principal et ses niveaux suivants.</p>
+            <h3>Structure modulable</h3>
+            <p class="muted">Cliquez un carré pour l’éditer. Les contenants accueillent d’autres carrés.</p>
+          </div>
+          <span class="builder-pill">Max 3 niveaux de contenant</span>
+        </div>
+        <div class="builder-root" id="builder-root"></div>
+        <p class="builder-empty muted" id="builder-empty">
+          Créez un parent ou chargez un modèle existant pour démarrer.
+        </p>
+      </div>
+      <aside class="builder-panel">
+        <h3>Éditeur</h3>
+        <p class="muted" id="builder-panel-empty">Sélectionnez un carré pour afficher ses détails.</p>
+        <div class="builder-panel-form hidden" id="builder-panel-form">
+          <label>Nom
+            <input type="text" id="node-name" />
+          </label>
+          <label>Type
+            <select id="node-type"></select>
+          </label>
+          <label>Quantité (item uniquement)
+            <input type="number" id="node-qty" min="0" />
+          </label>
+          <label>Déplacer dans
+            <select id="node-parent"></select>
+          </label>
+          <div class="builder-panel-actions">
+            <button class="btn small" type="button" id="save-node">Enregistrer</button>
+            <button class="btn small secondary" type="button" id="duplicate-node">Dupliquer</button>
+            <button class="btn small danger" type="button" id="delete-node">Supprimer</button>
+          </div>
+          <div class="builder-divider"></div>
+          <div class="builder-add-child">
+            <h4>Ajouter un sous-élément</h4>
+            <label>Nom
+              <input type="text" id="child-name" placeholder="Nom du sous-élément" />
+            </label>
+            <label>Type
+              <select id="child-type"></select>
+            </label>
+            <label>Quantité
+              <input type="number" id="child-qty" min="0" placeholder="Qté (item)" />
+            </label>
+            <button class="btn small" type="button" id="add-child">Ajouter</button>
           </div>
         </div>
-        <label>Nom du sac
-          <input type="text" id="wizard-bag-name" placeholder="Sac d'intervention" required />
-        </label>
-        <div class="wizard-inline">
-          <input type="text" id="compartment-name" placeholder="Nouveau compartiment" />
-          <button class="btn small" type="button" id="add-compartment">Ajouter</button>
-        </div>
-        <ul class="wizard-list" id="compartment-list"></ul>
-      </div>
-      <div class="wizard-panel">
-        <div class="wizard-panel-header">
-          <span class="wizard-step">2</span>
-          <div>
-            <h3>Poches</h3>
-            <p class="muted">Ajoutez les poches liées au compartiment sélectionné.</p>
-          </div>
-        </div>
-        <label>Compartiment
-          <select id="pocket-compartment-select"></select>
-        </label>
-        <div class="wizard-inline">
-          <input type="text" id="pocket-name" placeholder="Nouvelle poche" />
-          <button class="btn small" type="button" id="add-pocket">Ajouter</button>
-        </div>
-        <ul class="wizard-list" id="pocket-list"></ul>
-      </div>
-      <div class="wizard-panel">
-        <div class="wizard-panel-header">
-          <span class="wizard-step">3</span>
-          <div>
-            <h3>Items</h3>
-            <p class="muted">Ajoutez le contenu (ex. compresse) par poche.</p>
-          </div>
-        </div>
-        <label>Compartiment
-          <select id="item-compartment-select"></select>
-        </label>
-        <label>Poche
-          <select id="item-pocket-select"></select>
-        </label>
-        <div class="wizard-inline">
-          <input type="text" id="item-name" placeholder="Nouvel item" />
-          <input type="number" id="item-qty" min="0" placeholder="Qté" />
-          <button class="btn small" type="button" id="add-item">Ajouter</button>
-        </div>
-        <ul class="wizard-list" id="item-list"></ul>
-      </div>
-      <div class="wizard-preview">
-        <div class="wizard-panel-header">
-          <span class="wizard-step accent">Aperçu</span>
-          <div>
-            <h3>Structure parent/enfant</h3>
-            <p class="muted">Visualisation fluide du sac → compartiment → poche → item.</p>
-          </div>
-        </div>
-        <div class="wizard-tree" id="wizard-preview"></div>
-      </div>
+      </aside>
     </div>
     <div class="wizard-actions">
-      <button type="submit" class="btn">Créer le sac</button>
-      <button type="button" class="btn secondary" id="wizard-reset">Réinitialiser</button>
+      <button type="submit" class="btn">Créer l'ensemble</button>
+      <button type="button" class="btn secondary" id="builder-reset">Réinitialiser</button>
     </div>
   </form>
 </section>
 
+<dialog class="modal" id="root-modal">
+  <div class="modal-card">
+    <h3>Créer un parent</h3>
+    <p class="muted">Exemples : Ambulance VSAV, Sac intervention, Poste de secours.</p>
+    <label>Nom du parent
+      <input type="text" id="root-name" placeholder="Nom du parent" />
+    </label>
+    <div class="modal-actions">
+      <button class="btn secondary" type="button" onclick="document.getElementById('root-modal').close()">Annuler</button>
+      <button class="btn" type="button" id="create-root">Créer</button>
+    </div>
+  </div>
+</dialog>
+
 <section class="card">
-  <h1>Organisation du matériel</h1>
+  <h1>Ajout rapide dans le référentiel</h1>
+  <p class="muted">Utilisez ce formulaire pour ajouter un élément simple sans passer par l’atelier.</p>
   <form method="post" class="form">
     <label>Nom
       <input type="text" name="name" required />
@@ -114,249 +137,415 @@
   </div>
 </section>
 <script>
-  const wizardState = {
-    compartments: [],
+  const existingMaterials = {{ materials_payload | tojson }};
+  const builderState = {
+    nodes: [],
+    rootId: null,
+    selectedId: null,
   };
 
-  const bagNameInput = document.getElementById("wizard-bag-name");
-  const compartmentNameInput = document.getElementById("compartment-name");
-  const pocketNameInput = document.getElementById("pocket-name");
-  const itemNameInput = document.getElementById("item-name");
-  const itemQtyInput = document.getElementById("item-qty");
-  const compartmentList = document.getElementById("compartment-list");
-  const pocketList = document.getElementById("pocket-list");
-  const itemList = document.getElementById("item-list");
-  const preview = document.getElementById("wizard-preview");
-  const pocketCompartmentSelect = document.getElementById("pocket-compartment-select");
-  const itemCompartmentSelect = document.getElementById("item-compartment-select");
-  const itemPocketSelect = document.getElementById("item-pocket-select");
+  const MAX_CONTAINER_DEPTH = 2;
 
-  const addCompartmentButton = document.getElementById("add-compartment");
-  const addPocketButton = document.getElementById("add-pocket");
-  const addItemButton = document.getElementById("add-item");
-  const resetButton = document.getElementById("wizard-reset");
-  const wizardForm = document.getElementById("wizard-form");
-  const payloadInput = document.getElementById("wizard_payload");
+  const rootSelect = document.getElementById("existing-parent-select");
+  const loadParentButton = document.getElementById("load-parent");
+  const openRootModalButton = document.getElementById("open-root-modal");
+  const builderRoot = document.getElementById("builder-root");
+  const builderEmpty = document.getElementById("builder-empty");
+  const builderForm = document.getElementById("builder-form");
+  const builderPayload = document.getElementById("builder_payload");
+  const resetButton = document.getElementById("builder-reset");
+
+  const panelEmpty = document.getElementById("builder-panel-empty");
+  const panelForm = document.getElementById("builder-panel-form");
+  const nodeNameInput = document.getElementById("node-name");
+  const nodeTypeSelect = document.getElementById("node-type");
+  const nodeQtyInput = document.getElementById("node-qty");
+  const nodeParentSelect = document.getElementById("node-parent");
+  const saveNodeButton = document.getElementById("save-node");
+  const duplicateNodeButton = document.getElementById("duplicate-node");
+  const deleteNodeButton = document.getElementById("delete-node");
+  const childNameInput = document.getElementById("child-name");
+  const childTypeSelect = document.getElementById("child-type");
+  const childQtyInput = document.getElementById("child-qty");
+  const addChildButton = document.getElementById("add-child");
 
   const normalizeLabel = (value) => value?.trim();
+  const generateId = () => `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
-  const renderCompartmentList = () => {
-    compartmentList.innerHTML = "";
-    wizardState.compartments.forEach((compartment, index) => {
-      const item = document.createElement("li");
-      item.innerHTML = `
-        <span>${compartment.name}</span>
-        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
-      `;
-      item.querySelector("button").addEventListener("click", () => {
-        wizardState.compartments.splice(index, 1);
-        renderAll();
-      });
-      compartmentList.appendChild(item);
-    });
+  const materialMap = new Map();
+  existingMaterials.forEach((material) => {
+    materialMap.set(material.id, { ...material, children: [] });
+  });
+  existingMaterials.forEach((material) => {
+    const parent = materialMap.get(material.parent_id);
+    if (parent) {
+      parent.children.push(materialMap.get(material.id));
+    }
+  });
+
+  const findNode = (nodeId) => builderState.nodes.find((node) => node.id === nodeId);
+  const getChildren = (parentId) => builderState.nodes.filter((node) => node.parentId === parentId);
+  const getDepth = (nodeId) => {
+    let depth = 0;
+    let current = findNode(nodeId);
+    while (current?.parentId) {
+      depth += 1;
+      current = findNode(current.parentId);
+    }
+    return depth;
+  };
+  const isDescendant = (nodeId, targetId) => {
+    const children = getChildren(nodeId);
+    for (const child of children) {
+      if (child.id === targetId || isDescendant(child.id, targetId)) {
+        return true;
+      }
+    }
+    return false;
   };
 
-  const renderPocketList = () => {
-    pocketList.innerHTML = "";
-    const compartment = wizardState.compartments[Number(pocketCompartmentSelect.value)];
-    if (!compartment) {
-      pocketList.innerHTML = "<li class=\"muted\">Ajoutez d'abord un compartiment.</li>";
-      return;
-    }
-    compartment.pockets.forEach((pocket, index) => {
-      const item = document.createElement("li");
-      item.innerHTML = `
-        <span>${pocket.name}</span>
-        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
-      `;
-      item.querySelector("button").addEventListener("click", () => {
-        compartment.pockets.splice(index, 1);
-        renderAll();
-      });
-      pocketList.appendChild(item);
-    });
+  const resetBuilder = () => {
+    builderState.nodes = [];
+    builderState.rootId = null;
+    builderState.selectedId = null;
+    renderBuilder();
+    renderPanel();
   };
 
-  const renderItemList = () => {
-    itemList.innerHTML = "";
-    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
-    const pocket = compartment?.pockets[Number(itemPocketSelect.value)];
-    if (!pocket) {
-      itemList.innerHTML = "<li class=\"muted\">Ajoutez d'abord une poche.</li>";
-      return;
-    }
-    pocket.items.forEach((item, index) => {
-      const listItem = document.createElement("li");
-      const qtyLabel = item.qty !== null ? ` (Qté: ${item.qty})` : "";
-      listItem.innerHTML = `
-        <span>${item.name}${qtyLabel}</span>
-        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
-      `;
-      listItem.querySelector("button").addEventListener("click", () => {
-        pocket.items.splice(index, 1);
-        renderAll();
-      });
-      itemList.appendChild(listItem);
-    });
-  };
-
-  const updateCompartmentSelects = () => {
-    const selects = [pocketCompartmentSelect, itemCompartmentSelect];
-    selects.forEach((select) => {
-      select.innerHTML = "";
-      wizardState.compartments.forEach((compartment, index) => {
-        const option = document.createElement("option");
-        option.value = String(index);
-        option.textContent = compartment.name;
-        select.appendChild(option);
-      });
-    });
-    if (!wizardState.compartments.length) {
-      const option = document.createElement("option");
-      option.textContent = "Aucun compartiment";
-      option.value = "";
-      selects.forEach((select) => select.appendChild(option.cloneNode(true)));
-    }
-  };
-
-  const updatePocketSelect = () => {
-    itemPocketSelect.innerHTML = "";
-    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
-    if (!compartment || !compartment.pockets.length) {
-      const option = document.createElement("option");
-      option.textContent = "Aucune poche";
-      option.value = "";
-      itemPocketSelect.appendChild(option);
-      return;
-    }
-    compartment.pockets.forEach((pocket, index) => {
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = pocket.name;
-      itemPocketSelect.appendChild(option);
-    });
-  };
-
-  const renderPreview = () => {
-    preview.innerHTML = "";
-    const bagName = normalizeLabel(bagNameInput.value);
-    if (!bagName) {
-      preview.innerHTML = "<p class=\"muted\">Renseignez le nom du sac pour afficher la structure.</p>";
-      return;
-    }
-
-    const createBranch = (label, className) => {
-      const branch = document.createElement("li");
-      branch.className = `wizard-branch ${className}`;
-      const labelWrap = document.createElement("span");
-      labelWrap.className = "wizard-label";
-      labelWrap.textContent = label;
-      branch.appendChild(labelWrap);
-      const children = document.createElement("ul");
-      children.className = "wizard-children";
-      branch.appendChild(children);
-      return { branch, children };
+  const createNode = ({ name, type, qty = null, parentId = null }) => {
+    const node = {
+      id: generateId(),
+      name,
+      type,
+      qty: type === "item" ? qty ?? null : null,
+      parentId,
     };
+    builderState.nodes.push(node);
+    return node;
+  };
 
-    const tree = document.createElement("ul");
-    tree.className = "wizard-structure";
-    const bag = createBranch(bagName, "bag");
-    tree.appendChild(bag.branch);
-
-    wizardState.compartments.forEach((compartment) => {
-      const compartmentBranch = createBranch(compartment.name, "compartment");
-      bag.children.appendChild(compartmentBranch.branch);
-      compartment.pockets.forEach((pocket) => {
-        const pocketBranch = createBranch(pocket.name, "pocket");
-        compartmentBranch.children.appendChild(pocketBranch.branch);
-        pocket.items.forEach((item) => {
-          const itemLabel = `${item.name}${item.qty !== null ? ` · Qté ${item.qty}` : ""}`;
-          const itemBranch = createBranch(itemLabel, "item");
-          pocketBranch.children.appendChild(itemBranch.branch);
-        });
-      });
+  const cloneTree = (materialNode, parentId = null) => {
+    const node = createNode({
+      name: materialNode.name,
+      type: materialNode.node_type,
+      qty: materialNode.expected_qty,
+      parentId,
     });
-
-    preview.appendChild(tree);
+    materialNode.children.forEach((child) => cloneTree(child, node.id));
+    return node.id;
   };
 
-  const renderAll = () => {
-    updateCompartmentSelects();
-    updatePocketSelect();
-    renderCompartmentList();
-    renderPocketList();
-    renderItemList();
-    renderPreview();
+  const setRoot = (name) => {
+    const root = createNode({ name, type: "container", parentId: null });
+    builderState.rootId = root.id;
+    builderState.selectedId = root.id;
+    renderBuilder();
+    renderPanel();
   };
 
-  addCompartmentButton.addEventListener("click", () => {
-    const name = normalizeLabel(compartmentNameInput.value);
+  const renderNode = (node) => {
+    const depth = getDepth(node.id);
+    const nodeEl = document.createElement("div");
+    nodeEl.className = `builder-node builder-node--${node.type}`;
+    if (builderState.selectedId === node.id) {
+      nodeEl.classList.add("active");
+    }
+    nodeEl.dataset.nodeId = node.id;
+
+    const header = document.createElement("div");
+    header.className = "builder-node-header";
+    const title = document.createElement("div");
+    title.innerHTML = `
+      <strong>${node.name}</strong>
+      <span class="builder-meta">${node.type === "container" ? "Contenant" : "Item"} · Niveau ${depth}</span>
+    `;
+    const badge = document.createElement("span");
+    badge.className = "builder-pill";
+    badge.textContent = node.type === "container" ? "Contenant" : `Item${node.qty !== null ? ` · Qté ${node.qty}` : ""}`;
+    header.appendChild(title);
+    header.appendChild(badge);
+
+    const childrenWrap = document.createElement("div");
+    childrenWrap.className = "builder-children";
+    const children = getChildren(node.id);
+    if (!children.length) {
+      const empty = document.createElement("p");
+      empty.className = "muted builder-child-empty";
+      empty.textContent = node.type === "container" ? "Ajoutez un sous-élément depuis l’éditeur." : "Item sans sous-niveau.";
+      childrenWrap.appendChild(empty);
+    } else {
+      children.forEach((child) => childrenWrap.appendChild(renderNode(child)));
+    }
+
+    nodeEl.appendChild(header);
+    nodeEl.appendChild(childrenWrap);
+    nodeEl.addEventListener("click", (event) => {
+      event.stopPropagation();
+      builderState.selectedId = node.id;
+      renderBuilder();
+      renderPanel();
+    });
+    return nodeEl;
+  };
+
+  const renderBuilder = () => {
+    builderRoot.innerHTML = "";
+    if (!builderState.rootId) {
+      builderEmpty.classList.remove("hidden");
+      return;
+    }
+    builderEmpty.classList.add("hidden");
+    const rootNode = findNode(builderState.rootId);
+    if (rootNode) {
+      builderRoot.appendChild(renderNode(rootNode));
+    }
+  };
+
+  const renderNodeTypeOptions = (select, allowedTypes, current) => {
+    select.innerHTML = "";
+    allowedTypes.forEach((type) => {
+      const option = document.createElement("option");
+      option.value = type;
+      option.textContent = type === "container" ? "Contenant" : "Item";
+      if (type === current) {
+        option.selected = true;
+      }
+      select.appendChild(option);
+    });
+  };
+
+  const renderParentOptions = (node) => {
+    nodeParentSelect.innerHTML = "";
+    const rootOption = document.createElement("option");
+    rootOption.value = "";
+    rootOption.textContent = "Racine";
+    nodeParentSelect.appendChild(rootOption);
+
+    const maxParentDepth = node.type === "item" ? MAX_CONTAINER_DEPTH : MAX_CONTAINER_DEPTH - 1;
+    builderState.nodes
+      .filter((candidate) => candidate.type === "container")
+      .forEach((candidate) => {
+        if (candidate.id === node.id) {
+          return;
+        }
+        if (isDescendant(node.id, candidate.id)) {
+          return;
+        }
+        const depth = getDepth(candidate.id);
+        if (depth > maxParentDepth) {
+          return;
+        }
+        const option = document.createElement("option");
+        option.value = candidate.id;
+        option.textContent = `${candidate.name} (niveau ${depth})`;
+        if (candidate.id === node.parentId) {
+          option.selected = true;
+        }
+        nodeParentSelect.appendChild(option);
+      });
+  };
+
+  const renderPanel = () => {
+    if (!builderState.selectedId) {
+      panelEmpty.classList.remove("hidden");
+      panelForm.classList.add("hidden");
+      return;
+    }
+    const node = findNode(builderState.selectedId);
+    if (!node) {
+      panelEmpty.classList.remove("hidden");
+      panelForm.classList.add("hidden");
+      return;
+    }
+    panelEmpty.classList.add("hidden");
+    panelForm.classList.remove("hidden");
+
+    const depth = getDepth(node.id);
+    const allowedTypes = depth > MAX_CONTAINER_DEPTH ? ["item"] : ["container"];
+    renderNodeTypeOptions(nodeTypeSelect, allowedTypes, node.type);
+
+    nodeNameInput.value = node.name;
+    nodeQtyInput.value = node.qty ?? "";
+    nodeQtyInput.disabled = node.type !== "item";
+    renderParentOptions(node);
+
+    duplicateNodeButton.disabled = node.id === builderState.rootId;
+    deleteNodeButton.disabled = node.id === builderState.rootId;
+
+    const childAllowedTypes = depth >= MAX_CONTAINER_DEPTH ? ["item"] : ["container"];
+    renderNodeTypeOptions(childTypeSelect, childAllowedTypes, childAllowedTypes[0]);
+    childQtyInput.disabled = childTypeSelect.value !== "item";
+    childNameInput.value = "";
+    childQtyInput.value = "";
+  };
+
+  const addChild = () => {
+    const parent = findNode(builderState.selectedId);
+    if (!parent || parent.type !== "container") {
+      return;
+    }
+    const depth = getDepth(parent.id);
+    if (depth >= MAX_CONTAINER_DEPTH + 1) {
+      return;
+    }
+    const name = normalizeLabel(childNameInput.value);
     if (!name) {
       return;
     }
-    wizardState.compartments.push({ name, pockets: [] });
-    compartmentNameInput.value = "";
-    renderAll();
-  });
+    const type = depth >= MAX_CONTAINER_DEPTH ? "item" : childTypeSelect.value;
+    const qty = type === "item" && childQtyInput.value !== "" ? Number(childQtyInput.value) : null;
+    createNode({ name, type, qty, parentId: parent.id });
+    childNameInput.value = "";
+    childQtyInput.value = "";
+    renderBuilder();
+    renderPanel();
+  };
 
-  addPocketButton.addEventListener("click", () => {
-    const name = normalizeLabel(pocketNameInput.value);
-    const compartment = wizardState.compartments[Number(pocketCompartmentSelect.value)];
-    if (!name || !compartment) {
+  saveNodeButton.addEventListener("click", () => {
+    const node = findNode(builderState.selectedId);
+    if (!node) {
       return;
     }
-    compartment.pockets.push({ name, items: [] });
-    pocketNameInput.value = "";
-    renderAll();
-  });
-
-  addItemButton.addEventListener("click", () => {
-    const name = normalizeLabel(itemNameInput.value);
-    const qtyValue = itemQtyInput.value ? Number(itemQtyInput.value) : null;
-    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
-    const pocket = compartment?.pockets[Number(itemPocketSelect.value)];
-    if (!name || !pocket) {
+    const name = normalizeLabel(nodeNameInput.value);
+    if (!name) {
       return;
     }
-    pocket.items.push({ name, qty: Number.isFinite(qtyValue) ? qtyValue : null });
-    itemNameInput.value = "";
-    itemQtyInput.value = "";
-    renderAll();
+    node.name = name;
+    node.type = nodeTypeSelect.value;
+    node.qty = node.type === "item" && nodeQtyInput.value !== "" ? Number(nodeQtyInput.value) : null;
+    const newParent = nodeParentSelect.value || null;
+    if (node.id === builderState.rootId && newParent) {
+      return;
+    }
+    if (newParent !== node.parentId) {
+      const newDepth = newParent ? getDepth(newParent) + 1 : 0;
+      if (node.type === "container" && newDepth > MAX_CONTAINER_DEPTH) {
+        return;
+      }
+      if (node.type === "item" && newDepth !== MAX_CONTAINER_DEPTH + 1) {
+        return;
+      }
+      node.parentId = newParent;
+      if (!newParent) {
+        builderState.rootId = node.id;
+      }
+    }
+    renderBuilder();
+    renderPanel();
   });
 
-  pocketCompartmentSelect.addEventListener("change", renderPocketList);
-  itemCompartmentSelect.addEventListener("change", () => {
-    updatePocketSelect();
-    renderItemList();
+  duplicateNodeButton.addEventListener("click", () => {
+    const node = findNode(builderState.selectedId);
+    if (!node || node.id === builderState.rootId) {
+      return;
+    }
+    const cloneSubtree = (source, parentId) => {
+      const newNode = createNode({
+        name: `${source.name} (copie)`,
+        type: source.type,
+        qty: source.qty,
+        parentId,
+      });
+      getChildren(source.id).forEach((child) => cloneSubtree(child, newNode.id));
+      return newNode.id;
+    };
+    cloneSubtree(node, node.parentId);
+    renderBuilder();
+    renderPanel();
   });
-  itemPocketSelect.addEventListener("change", renderItemList);
-  bagNameInput.addEventListener("input", renderPreview);
 
-  resetButton.addEventListener("click", () => {
-    wizardState.compartments = [];
-    bagNameInput.value = "";
-    compartmentNameInput.value = "";
-    pocketNameInput.value = "";
-    itemNameInput.value = "";
-    itemQtyInput.value = "";
-    renderAll();
+  deleteNodeButton.addEventListener("click", () => {
+    const node = findNode(builderState.selectedId);
+    if (!node || node.id === builderState.rootId) {
+      return;
+    }
+    const removeNode = (nodeId) => {
+      getChildren(nodeId).forEach((child) => removeNode(child.id));
+      builderState.nodes = builderState.nodes.filter((item) => item.id !== nodeId);
+    };
+    removeNode(node.id);
+    builderState.selectedId = null;
+    renderBuilder();
+    renderPanel();
   });
 
-  wizardForm.addEventListener("submit", (event) => {
-    const bagName = normalizeLabel(bagNameInput.value);
-    if (!bagName) {
+  addChildButton.addEventListener("click", addChild);
+  childTypeSelect.addEventListener("change", () => {
+    childQtyInput.disabled = childTypeSelect.value !== "item";
+  });
+  nodeTypeSelect.addEventListener("change", () => {
+    nodeQtyInput.disabled = nodeTypeSelect.value !== "item";
+    const node = findNode(builderState.selectedId);
+    if (node) {
+      renderParentOptions(node);
+    }
+  });
+
+  loadParentButton.addEventListener("click", () => {
+    const selectedId = Number(rootSelect.value);
+    if (!selectedId) {
+      return;
+    }
+    const material = materialMap.get(selectedId);
+    if (!material) {
+      return;
+    }
+    resetBuilder();
+    builderState.rootId = cloneTree(material, null);
+    builderState.selectedId = builderState.rootId;
+    renderBuilder();
+    renderPanel();
+  });
+
+  openRootModalButton.addEventListener("click", () => {
+    const modal = document.getElementById("root-modal");
+    modal.showModal();
+  });
+
+  document.getElementById("create-root").addEventListener("click", () => {
+    const input = document.getElementById("root-name");
+    const name = normalizeLabel(input.value);
+    if (!name) {
+      return;
+    }
+    resetBuilder();
+    setRoot(name);
+    input.value = "";
+    document.getElementById("root-modal").close();
+  });
+
+  resetButton.addEventListener("click", resetBuilder);
+
+  builderForm.addEventListener("submit", (event) => {
+    if (!builderState.rootId) {
       event.preventDefault();
-      bagNameInput.focus();
       return;
     }
-    payloadInput.value = JSON.stringify({
+    const root = findNode(builderState.rootId);
+    const compartments = getChildren(root.id);
+    if (!compartments.length) {
+      event.preventDefault();
+      return;
+    }
+    const payload = {
       bag: {
-        name: bagName,
-        compartments: wizardState.compartments,
+        name: root.name,
+        compartments: compartments.map((compartment) => ({
+          name: compartment.name,
+          pockets: getChildren(compartment.id).map((pocket) => ({
+            name: pocket.name,
+            items: getChildren(pocket.id).map((item) => ({
+              name: item.name,
+              qty: item.qty,
+            })),
+          })),
+        })),
       },
-    });
+    };
+    builderPayload.value = JSON.stringify(payload);
   });
 
-  renderAll();
+  renderBuilder();
+  renderPanel();
 </script>
 {% endblock %}
