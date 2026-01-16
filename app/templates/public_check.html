@@ -8,18 +8,24 @@
 </head>
 <body class="phone">
   <main class="phone-container">
-    <section class="card">
-      <h1>{{ event.name }}</h1>
+    <section class="card check-hero">
+      <div class="check-hero-header">
+        <div>
+          <p class="check-eyebrow">Vérification matériel</p>
+          <h1>{{ event.name }}</h1>
+        </div>
+        <div class="check-progress-pill">{{ progress.percent }}%</div>
+      </div>
       <div class="progress">
         <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
       </div>
       <div class="stats">
-        <span>OK: {{ progress.ok }}</span>
-        <span>Problèmes: {{ progress.problem }}</span>
-        <span>En attente: {{ progress.pending }}</span>
+        <span class="stat-chip ok">OK: {{ progress.ok }}</span>
+        <span class="stat-chip problem">Problèmes: {{ progress.problem }}</span>
+        <span class="stat-chip pending">En attente: {{ progress.pending }}</span>
       </div>
     </section>
-    <section class="card">
+    <section class="card check-body">
       {% for branch in tree %}
         {% include "partials/public_node.html" with context %}
       {% endfor %}

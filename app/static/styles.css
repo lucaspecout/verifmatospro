@@ -261,6 +261,197 @@ body {
   border-radius: 20px;
 }
 
+.check-hero {
+  background: linear-gradient(145deg, #0f172a 0%, #1e293b 55%, #1d4ed8 100%);
+  color: #f8fafc;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.35);
+}
+
+.check-hero .progress {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.check-hero .progress-bar {
+  background: #38bdf8;
+}
+
+.check-hero-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.check-eyebrow {
+  text-transform: uppercase;
+  letter-spacing: 0.2em;
+  font-size: 0.7rem;
+  margin: 0 0 0.3rem;
+  color: rgba(248, 250, 252, 0.7);
+}
+
+.check-progress-pill {
+  background: rgba(56, 189, 248, 0.2);
+  color: #e0f2fe;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.check-body {
+  background: #111827;
+  color: #f8fafc;
+}
+
+.stat-chip {
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}
+
+.stat-chip.ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #bbf7d0;
+}
+
+.stat-chip.problem {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.stat-chip.pending {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fed7aa;
+}
+
+.checklist-section {
+  background: rgba(15, 23, 42, 0.8);
+  border-radius: 18px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.checklist-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.checklist-section-header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.section-status {
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(226, 232, 240, 0.2);
+  color: #e2e8f0;
+}
+
+.section-status.ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #bbf7d0;
+}
+
+.section-status.problem {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.section-status.pending {
+  background: rgba(249, 115, 22, 0.2);
+  color: #fed7aa;
+}
+
+.checklist-section-body {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.checklist-item {
+  background: rgba(30, 41, 59, 0.8);
+  border-radius: 16px;
+  padding: 0.9rem;
+  border: 1px solid rgba(71, 85, 105, 0.6);
+  display: grid;
+  gap: 0.7rem;
+}
+
+.checklist-item.ok {
+  border-color: rgba(34, 197, 94, 0.4);
+  box-shadow: 0 10px 20px rgba(34, 197, 94, 0.1);
+}
+
+.checklist-item.problem {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.checklist-item-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.checklist-item-meta {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.checklist-form {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.checklist-form input {
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  padding: 0.6rem 0.8rem;
+  color: #e2e8f0;
+}
+
+.checklist-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.toggle-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggle-btn.ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #bbf7d0;
+}
+
+.toggle-btn.problem {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
 .inline-form {
   display: flex;
   gap: 0.5rem;
@@ -433,6 +624,44 @@ body {
   gap: 1rem;
   flex-wrap: wrap;
   align-items: flex-start;
+}
+
+.sacs-overview {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.sacs-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sac-card {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.sac-card h3 {
+  margin: 0 0 0.35rem;
+}
+
+.sac-empty {
+  background: var(--bg);
+  border-radius: 14px;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+}
+
+.sacs-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .builder-toolbar {
