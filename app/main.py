@@ -382,6 +382,7 @@ def materials_wizard_create(
         )
 
     bag_data = payload.get("root", {}) if isinstance(payload, dict) else {}
+    root_id = payload.get("root_id") if isinstance(payload, dict) else None
     if not bag_data and isinstance(payload, dict):
         bag_data = payload.get("bag", {})
     bag_name = (bag_data.get("name") or "").strip()
@@ -418,14 +419,39 @@ def materials_wizard_create(
             return None
 
     root_qty = _safe_int(bag_data.get("qty")) if root_type == "item" else None
-    bag = MaterialTemplate(
-        name=bag_name,
-        node_type=root_type,
-        expected_qty=root_qty if root_type == "item" else None,
-        parent_id=None,
-    )
-    db.add(bag)
-    db.flush()
+
+    def _delete_descendants(node_id: int) -> None:
+        children_nodes = db.scalars(
+            select(MaterialTemplate).where(MaterialTemplate.parent_id == node_id)
+        ).all()
+        for child in children_nodes:
+            _delete_descendants(child.id)
+            db.delete(child)
+
+    bag = None
+    if root_id:
+        bag = db.get(MaterialTemplate, root_id)
+        if not bag:
+            return render_materials_page(
+                request,
+                user,
+                db,
+                error="Le sac à modifier est introuvable.",
+            )
+        bag.name = bag_name
+        bag.node_type = root_type
+        bag.expected_qty = root_qty if root_type == "item" else None
+        bag.parent_id = None
+        _delete_descendants(bag.id)
+    else:
+        bag = MaterialTemplate(
+            name=bag_name,
+            node_type=root_type,
+            expected_qty=root_qty if root_type == "item" else None,
+            parent_id=None,
+        )
+        db.add(bag)
+        db.flush()
 
     def _create_tree(node_data: Any, parent_id: int) -> None:
         if not isinstance(node_data, dict):

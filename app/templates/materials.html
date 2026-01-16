@@ -161,6 +161,7 @@
   const builderState = {
     nodes: [],
     rootId: null,
+    rootMaterialId: null,
     selectedId: null,
   };
 
@@ -230,6 +231,7 @@
   const resetBuilder = () => {
     builderState.nodes = [];
     builderState.rootId = null;
+    builderState.rootMaterialId = null;
     builderState.selectedId = null;
     renderBuilder();
     renderPanel();
@@ -530,6 +532,7 @@
     }
     resetBuilder();
     builderState.rootId = cloneTree(material, null);
+    builderState.rootMaterialId = selectedId;
     builderState.selectedId = builderState.rootId;
     renderBuilder();
     renderPanel();
@@ -586,6 +589,7 @@
     const rootQty = rootType === "item" && rootQtyInput.value !== "" ? Number(rootQtyInput.value) : null;
     resetBuilder();
     setRoot(name, rootType, rootQty);
+    builderState.rootMaterialId = null;
     addDraftSac(name, builderState.rootId);
     nodeNameInput.focus();
     input.value = "";
@@ -615,6 +619,9 @@
     const payload = {
       root: serializeNode(root),
     };
+    if (builderState.rootMaterialId) {
+      payload.root_id = builderState.rootMaterialId;
+    }
     builderPayload.value = JSON.stringify(payload);
   });
 
