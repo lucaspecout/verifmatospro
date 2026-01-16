@@ -3,149 +3,124 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Gestion du matériel de secours</title>
+    <title>Gestion des postes de secours</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="app-header">
-      <div class="logo">
-        <span class="logo-mark">✅</span>
-        <div>
-          <h1>Matériel de secours</h1>
-          <p>Vérification rapide &amp; fiable</p>
+    <div id="login-view" class="view active">
+      <div class="login-card">
+        <div class="brand">
+          <span class="logo">🛟</span>
+          <div>
+            <h1>Portail secours</h1>
+            <p>Accès sécurisé aux postes et aux stocks</p>
+          </div>
+        </div>
+        <form id="loginForm" class="form">
+          <label>
+            Identifiant
+            <input type="text" name="username" placeholder="admin" required />
+          </label>
+          <label>
+            Mot de passe
+            <input type="password" name="password" placeholder="••••••" required />
+          </label>
+          <button class="primary" type="submit">Se connecter</button>
+          <p class="helper" id="loginError" role="alert"></p>
+        </form>
+        <div class="login-hint">
+          <span class="badge">admin / admin</span>
+          <span class="badge">chef / chef</span>
         </div>
       </div>
-      <nav class="app-nav">
-        <button class="nav-btn" data-route="admin">Administrateur</button>
-        <button class="nav-btn" data-route="chef">Chef de poste</button>
-        <button class="nav-btn" data-route="secouriste">Secouriste</button>
-      </nav>
-    </header>
+    </div>
 
-    <main class="app-main">
-      <section id="admin" class="route">
-        <div class="hero">
+    <div id="app-view" class="view">
+      <header class="app-header">
+        <div class="brand">
+          <span class="logo">🛟</span>
           <div>
-            <h2>Gestion complète du matériel</h2>
-            <p>
-              Créez les sacs, organisez l'inventaire et préparez les vérifications sans
-              casser l'historique des postes passés.
-            </p>
-          </div>
-          <div class="card highlight">
-            <h3>Compte administrateur</h3>
-            <p><strong>Identifiant :</strong> admin</p>
-            <p><strong>Mot de passe :</strong> admin</p>
-            <p class="badge warning">Changement obligatoire à la première connexion</p>
-            <form class="form-grid" id="passwordForm">
-              <label>
-                Nouveau mot de passe
-                <input type="password" placeholder="••••••" required />
-              </label>
-              <label>
-                Confirmer
-                <input type="password" placeholder="••••••" required />
-              </label>
-              <button type="submit" class="primary">Mettre à jour</button>
-            </form>
+            <h1>Gestion des postes</h1>
+            <p>Suivi centralisé du matériel de secours</p>
           </div>
         </div>
+        <div class="user-bar">
+          <div>
+            <p class="muted">Connecté en tant que</p>
+            <strong id="userName">—</strong>
+          </div>
+          <button id="logoutBtn" class="secondary" type="button">Déconnexion</button>
+        </div>
+      </header>
 
-        <div class="two-column">
-          <section class="card">
-            <h3>Organisation du matériel</h3>
-            <p>
-              Chaque élément peut contenir d'autres éléments, sans limite de niveaux. Les
-              items sont créés une seule fois et réutilisables dans plusieurs sacs.
-            </p>
-            <div id="materialTree" class="tree"></div>
-            <div class="actions">
-              <button class="secondary">Ajouter un contenant</button>
-              <button class="secondary">Ajouter un item</button>
+      <div class="app-shell">
+        <nav class="app-nav">
+          <button class="nav-btn active" data-route="home">Accueil</button>
+          <button class="nav-btn" data-route="users">Gestion des utilisateurs</button>
+          <button class="nav-btn" data-route="stock">Gestion du stock</button>
+        </nav>
+
+        <main class="app-main">
+          <section id="home" class="route active">
+            <div class="page-header">
+              <div>
+                <h2>Postes de secours</h2>
+                <p>Retrouvez les postes créés ou lancez l'assistant pour en créer un nouveau.</p>
+              </div>
+              <button id="openWizard" class="primary" type="button">Créer un poste</button>
+            </div>
+
+            <div class="card">
+              <h3>Liste des postes</h3>
+              <div id="posteList" class="list"></div>
+            </div>
+
+            <div id="wizardPanel" class="card hidden">
+              <div class="wizard-header">
+                <div>
+                  <h3>Assistant de création</h3>
+                  <p>Renseignez les informations nécessaires pour préparer un poste.</p>
+                </div>
+                <span id="wizardStep" class="badge">Étape 1/3</span>
+              </div>
+              <div id="wizardContent" class="wizard-content"></div>
+              <div class="wizard-actions">
+                <button id="wizardPrev" class="secondary" type="button">Retour</button>
+                <button id="wizardNext" class="primary" type="button">Suivant</button>
+              </div>
             </div>
           </section>
 
-          <section class="card">
-            <h3>Gestion des stocks</h3>
-            <p>
-              Visualisez les quantités attendues, les écarts détectés et mettez à jour les
-              stocks globaux.
-            </p>
-            <div class="stock-list" id="stockList"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="chef" class="route">
-        <div class="hero">
-          <div>
-            <h2>Préparer un poste de secours</h2>
-            <p>
-              Créez un poste, sélectionnez les sacs utilisés et générez un lien public pour
-              vos secouristes.
-            </p>
-          </div>
-          <div class="card highlight">
-            <h3>Assistant de création</h3>
-            <div class="wizard" id="posteWizard"></div>
-          </div>
-        </div>
-
-        <div class="two-column">
-          <section class="card">
-            <h3>Suivi en direct</h3>
-            <p>Vue synthétique de l'avancement des vérifications.</p>
-            <div id="liveProgress" class="live-progress"></div>
-          </section>
-
-          <section class="card">
-            <h3>Récapitulatif final</h3>
-            <div id="summary" class="summary"></div>
-          </section>
-        </div>
-      </section>
-
-      <section id="secouriste" class="route">
-        <div class="hero">
-          <div>
-            <h2>Vérification rapide sur smartphone</h2>
-            <p>
-              Entrez votre prénom et commencez immédiatement la vérification du matériel
-              attribué.
-            </p>
-          </div>
-          <div class="card highlight">
-            <form id="nameForm" class="form-inline">
-              <label>
-                Prénom
-                <input type="text" placeholder="Camille" required />
-              </label>
-              <button type="submit" class="primary">Commencer</button>
-            </form>
-          </div>
-        </div>
-
-        <section class="card">
-          <div class="verification-header">
-            <div>
-              <h3>Vérification en cours</h3>
-              <p id="verificationSubtitle">Renseignez les quantités réelles</p>
+          <section id="users" class="route">
+            <div class="page-header">
+              <div>
+                <h2>Gestion des utilisateurs</h2>
+                <p>Créez, modifiez et suivez les accès de votre équipe.</p>
+              </div>
+              <button class="primary" type="button">Ajouter un utilisateur</button>
             </div>
-            <div class="progress">
-              <span id="globalProgress">0%</span>
-              <div class="progress-bar"><div id="globalProgressBar"></div></div>
-            </div>
-          </div>
-          <div id="verificationView"></div>
-        </section>
-      </section>
-    </main>
 
-    <footer class="app-footer">
-      <p>
-        Prototype fonctionnel pour la gestion et la vérification du matériel de secours.
-      </p>
-    </footer>
+            <div class="card">
+              <div id="userList" class="list"></div>
+            </div>
+          </section>
+
+          <section id="stock" class="route">
+            <div class="page-header">
+              <div>
+                <h2>Gestion du stock</h2>
+                <p>Surveillez les quantités et les alertes matérielles.</p>
+              </div>
+              <button class="primary" type="button">Mettre à jour le stock</button>
+            </div>
+
+            <div class="card">
+              <div id="stockList" class="list"></div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
 
     <script src="app.js"></script>
   </body>
