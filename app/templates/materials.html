@@ -35,6 +35,40 @@
   </div>
 </section>
 
+<section class="card">
+  <div class="builder-header">
+    <div>
+      <h2>Liste rapide des items</h2>
+      <p class="muted">Supprimez un item en un clic et retrouvez son sac d'origine.</p>
+    </div>
+  </div>
+  <div class="list">
+    {% for item in materials if item.node_type == 'item' %}
+      <div class="list-item">
+        <div>
+          <strong>{{ item.name }}</strong>
+          <div class="muted">
+            Qté: {{ item.expected_qty or '-' }} · Sac: {{ materials_index.get(item.parent_id, 'Sans parent') }}
+          </div>
+        </div>
+        <div class="list-item-actions">
+          <form method="post" action="/materials/{{ item.id }}/delete" class="inline-form">
+            <button
+              type="submit"
+              class="btn small danger"
+              onclick="return confirm('Supprimer définitivement cet item ?');"
+            >
+              Supprimer
+            </button>
+          </form>
+        </div>
+      </div>
+    {% else %}
+      <p class="muted">Aucun item enregistré pour l'instant.</p>
+    {% endfor %}
+  </div>
+</section>
+
 <section class="card builder">
   <div class="builder-header">
     <div>
