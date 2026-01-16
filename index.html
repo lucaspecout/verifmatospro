@@ -68,11 +68,17 @@
                   <p class="text-danger small mb-0" id="loginError" role="alert" aria-live="polite"></p>
                 </form>
                 <div class="mt-4">
-                  <p class="text-uppercase text-muted small mb-2">Comptes de démonstration</p>
-                  <div id="demoAccounts" class="d-flex flex-wrap gap-2"></div>
+                  <p class="text-uppercase text-muted small mb-2">Identifiants de démarrage</p>
+                  <div class="alert alert-info small mb-2">
+                    Un compte administrateur est créé au démarrage. Le mot de passe est défini via
+                    la variable <strong>ADMIN_PASSWORD</strong> du docker-compose (valeur par
+                    défaut : <strong>change_me</strong>).
+                  </div>
+                  <ul class="list-unstyled small text-muted mb-0">
+                    <li><strong>admin</strong> / <span class="text-body-secondary">change_me</span></li>
+                  </ul>
                   <p class="small text-muted mt-2 mb-0">
-                    Chaque compte reçoit un mot de passe temporaire. Il devra être remplacé lors
-                    de la première connexion.
+                    Pensez à changer le mot de passe dès la première connexion.
                   </p>
                 </div>
               </div>

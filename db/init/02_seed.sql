@@ -1,8 +1,8 @@
 INSERT INTO users (username, password, name, role, must_change_password, last_login)
 VALUES
-  ('admin', 'admin', 'Administrateur', 'Admin', TRUE, NOW()),
-  ('chef', 'chef', 'Chef de poste', 'Chef', FALSE, NOW()),
-  ('marie', 'marie', 'Marie Dupont', 'Logistique', FALSE, NOW());
+  ('admin', crypt('change_me', gen_salt('bf')), 'Administrateur', 'Admin', TRUE, NOW()),
+  ('chef', crypt('chef', gen_salt('bf')), 'Chef de poste', 'Chef', FALSE, NOW()),
+  ('marie', crypt('marie', gen_salt('bf')), 'Marie Dupont', 'Logistique', FALSE, NOW());
 
 INSERT INTO postes (id, name, date, location, status, team)
 VALUES

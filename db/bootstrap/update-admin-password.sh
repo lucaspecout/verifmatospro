@@ -18,7 +18,7 @@ done
 
 psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<SQL
 UPDATE users
-SET password = '$ADMIN_PASSWORD',
+SET password = crypt('$ADMIN_PASSWORD', gen_salt('bf')),
     must_change_password = FALSE
 WHERE username = '$ADMIN_USERNAME';
 SQL

@@ -4,7 +4,15 @@ services:
   app:
     build: .
     ports:
-      - "7000:80"
+      - "7000:3000"
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: verifmatos
+      DB_USER: verifmatos
+      DB_PASSWORD: verifmatos
+      SESSION_SECRET: change_me
+      SESSION_MAX_AGE_MS: 1800000
     depends_on:
       - db
 
@@ -17,11 +25,17 @@ services:
     volumes:
       - db-data:/var/lib/postgresql/data
       - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verifmatos -d verifmatos"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   db-bootstrap:
     image: postgres:16-alpine
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       ADMIN_USERNAME: admin
       ADMIN_PASSWORD: change_me
