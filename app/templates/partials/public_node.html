@@ -1,0 +1,30 @@
+<div class="tree-node {{ branch.status or '' }}">
+  <div class="tree-title">
+    <strong>{{ branch.node.name }}</strong>
+    {% if branch.node.node_type == 'item' %}
+      <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
+    {% endif %}
+    {% if branch.status %}
+      <span class="status">{{ branch.status }}</span>
+    {% endif %}
+  </div>
+  {% if branch.node.node_type == 'item' %}
+  <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="inline-form">
+    <input type="hidden" name="status" value="ok" />
+    <button class="btn small" type="submit">OK</button>
+  </form>
+  <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="inline-form">
+    <input type="hidden" name="status" value="problem" />
+    <input type="text" name="comment" placeholder="Commentaire" />
+    <button class="btn danger small" type="submit">Problème</button>
+  </form>
+  {% endif %}
+  {% if branch.children %}
+  <div class="tree-children">
+    {% for child in branch.children %}
+      {% set branch = child %}
+      {% include "partials/public_node.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

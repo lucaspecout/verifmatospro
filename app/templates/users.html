@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Utilisateurs</h1>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <form method="post" class="form">
+    <label>Identifiant
+      <input type="text" name="username" required />
+    </label>
+    <label>Mot de passe
+      <input type="password" name="password" required />
+    </label>
+    <label>Rôle
+      <select name="role" required>
+        <option value="admin">Admin</option>
+        <option value="chief">Chef de poste</option>
+        <option value="stock">Stock</option>
+      </select>
+    </label>
+    <button type="submit" class="btn">Créer</button>
+  </form>
+  <div class="list">
+    {% for item in users %}
+    <div class="list-item">
+      <div>
+        <strong>{{ item.username }}</strong> — {{ item.role }}
+      </div>
+      {% if item.must_change_password %}
+      <span class="badge">Mot de passe à changer</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

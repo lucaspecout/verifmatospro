@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vérification matériel</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="phone">
+  <main class="phone-container">
+    <section class="card">
+      <h1>{{ event.name }}</h1>
+      <div class="progress">
+        <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+      </div>
+      <div class="stats">
+        <span>OK: {{ progress.ok }}</span>
+        <span>Problèmes: {{ progress.problem }}</span>
+        <span>En attente: {{ progress.pending }}</span>
+      </div>
+    </section>
+    <section class="card">
+      {% for branch in tree %}
+        {% include "partials/public_node.html" with context %}
+      {% endfor %}
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="header-row">
+    <h1>{{ event.name }}</h1>
+    <form method="post" action="/events/{{ event.id }}/close">
+      <button class="btn secondary" type="submit">Fermer le poste</button>
+    </form>
+  </div>
+  <p><strong>Date:</strong> {{ event.date or '' }}</p>
+  <p><strong>Infos:</strong> {{ event.info or '' }}</p>
+  <p><strong>Lien public:</strong> <span class="link">/public/{{ event.id }}/{{ event.public_token }}</span></p>
+  <div class="progress">
+    <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+  </div>
+  <div class="stats">
+    <span>OK: {{ progress.ok }}</span>
+    <span>Problèmes: {{ progress.problem }}</span>
+    <span>En attente: {{ progress.pending }}</span>
+  </div>
+  <div class="tree">
+    {% for branch in tree %}
+      {% include "partials/node.html" with context %}
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Suivi en direct — {{ event.name }}</h1>
+  <p><strong>Vérificateur:</strong> {{ event.verifier_name or 'Non renseigné' }}</p>
+  <div class="progress" id="progress-bar">
+    <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+  </div>
+  <div class="stats" id="progress-stats">
+    <span>OK: {{ progress.ok }}</span>
+    <span>Problèmes: {{ progress.problem }}</span>
+    <span>En attente: {{ progress.pending }}</span>
+  </div>
+  <div class="tree" id="monitor-tree">
+    {% for branch in tree %}
+      {% include "partials/node.html" with context %}
+    {% endfor %}
+  </div>
+</section>
+<script>
+  const ws = new WebSocket(`ws://${location.host}/ws/events/{{ event.id }}`);
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'progress') {
+      const bar = document.querySelector('#progress-bar .progress-bar');
+      bar.style.width = `${data.progress.percent}%`;
+      document.querySelector('#progress-stats').innerHTML = `
+        <span>OK: ${data.progress.ok}</span>
+        <span>Problèmes: ${data.progress.problem}</span>
+        <span>En attente: ${data.progress.pending}</span>
+      `;
+    }
+  };
+</script>
+{% endblock %}
