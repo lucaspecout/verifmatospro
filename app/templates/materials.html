@@ -1,22 +1,53 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card builder">
+<section class="card sacs-overview">
   <div class="builder-header">
     <div>
-      <h1>Atelier de création du matériel</h1>
+      <h1>Gestion des sacs & checklists</h1>
       <p class="muted">
-        Assemblez des contenants imbriqués (ambulance → sac → poche) et des items comme un puzzle.
-        Vous pouvez déplacer, dupliquer, modifier ou supprimer avant validation.
+        Créez d'abord vos sacs, puis ouvrez-les pour structurer des checklists avec de grands titres.
+        Chaque sac peut contenir des compartiments, des poches et des items à vérifier.
       </p>
     </div>
     {% if error %}
       <p class="error">{{ error }}</p>
     {% endif %}
   </div>
+  <div class="sacs-grid">
+    {% for item in materials if item.parent_id is none and item.node_type == 'container' %}
+      <article class="sac-card" data-parent-id="{{ item.id }}">
+        <div>
+          <h3>{{ item.name }}</h3>
+          <p class="muted">Ouvrez ce sac pour ajouter des compartiments, poches et items.</p>
+        </div>
+        <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
+          Entrer dans le sac
+        </button>
+      </article>
+    {% else %}
+      <div class="sac-empty">
+        <p class="muted">Aucun sac créé pour l'instant. Lancez la création ci-dessous.</p>
+      </div>
+    {% endfor %}
+  </div>
+  <div class="sacs-actions">
+    <button class="btn" type="button" id="open-root-modal">Créer un sac</button>
+  </div>
+</section>
+
+<section class="card builder">
+  <div class="builder-header">
+    <div>
+      <h2>Atelier checklist</h2>
+      <p class="muted">
+        Ajoutez des compartiments (grands titres), puis des poches et des items à vérifier.
+      </p>
+    </div>
+  </div>
   <div class="builder-toolbar">
-    <label>Parent déjà créé
+    <label>Sac déjà créé
       <select id="existing-parent-select">
-        <option value="">Sélectionner un parent</option>
+        <option value="">Sélectionner un sac</option>
         {% for item in materials %}
           {% if item.parent_id is none %}
             <option value="{{ item.id }}">{{ item.name }}</option>
@@ -26,7 +57,6 @@
     </label>
     <div class="builder-toolbar-actions">
       <button class="btn secondary" type="button" id="load-parent">Charger comme base</button>
-      <button class="btn" type="button" id="open-root-modal">Créer un parent</button>
     </div>
   </div>
   <form method="post" action="/materials/wizard" id="builder-form">
@@ -149,6 +179,7 @@
   const rootSelect = document.getElementById("existing-parent-select");
   const loadParentButton = document.getElementById("load-parent");
   const openRootModalButton = document.getElementById("open-root-modal");
+  const sacOpenButtons = document.querySelectorAll(".sac-open");
   const builderRoot = document.getElementById("builder-root");
   const builderEmpty = document.getElementById("builder-empty");
   const builderForm = document.getElementById("builder-form");
@@ -495,6 +526,17 @@
     builderState.selectedId = builderState.rootId;
     renderBuilder();
     renderPanel();
+  });
+
+  sacOpenButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const selectedId = Number(button.dataset.parentId);
+      if (!selectedId) {
+        return;
+      }
+      rootSelect.value = selectedId;
+      loadParentButton.click();
+    });
   });
 
   openRootModalButton.addEventListener("click", () => {
