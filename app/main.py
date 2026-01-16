@@ -168,7 +168,6 @@ def password_form(request: Request, user: User = Depends(get_current_user)):
 
 @app.post("/password")
 def change_password(
-    request: Request,
     new_password: str = Form(...),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -177,10 +176,7 @@ def change_password(
     user.must_change_password = False
     db.add(user)
     db.commit()
-    return templates.TemplateResponse(
-        "password.html",
-        {"request": request, "user": user, "success": True},
-    )
+    return RedirectResponse("/", status_code=303)
 
 
 def render_users_page(
