@@ -739,6 +739,23 @@ def event_close(
     return RedirectResponse(f"/events/{event_id}", status_code=303)
 
 
+@app.post("/events/{event_id}/delete")
+def event_delete(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    for node in nodes:
+        db.delete(node)
+    db.delete(event)
+    db.commit()
+    return RedirectResponse("/events", status_code=303)
+
+
 @app.get("/public/{event_id}/{token}", response_class=HTMLResponse)
 def public_entry(request: Request, event_id: int, token: str):
     db = SessionLocal()
