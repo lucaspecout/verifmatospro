@@ -99,6 +99,11 @@ body {
   font-size: 0.9rem;
 }
 
+.btn:disabled {
+  background: #cbd5f5;
+  cursor: not-allowed;
+}
+
 .grid {
   display: grid;
   gap: 1rem;
@@ -124,6 +129,15 @@ body {
   background: var(--bg);
   padding: 0.75rem;
   border-radius: 10px;
+  gap: 1rem;
+}
+
+.list-item-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .badge {
@@ -252,6 +266,11 @@ body {
   gap: 0.5rem;
   margin-top: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.inline-form input {
+  min-width: 200px;
 }
 
 .inline-form input[type="text"] {
