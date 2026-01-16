@@ -14,7 +14,7 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
 )
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
@@ -33,6 +33,13 @@ templates = Jinja2Templates(directory="app/templates")
 ROLE_ADMIN = "admin"
 ROLE_CHIEF = "chief"
 ROLE_STOCK = "stock"
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
+        return RedirectResponse("/login", status_code=303)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 class ConnectionManager:
