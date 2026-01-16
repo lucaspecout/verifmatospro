@@ -482,14 +482,14 @@ def materials_wizard_create(
     return RedirectResponse("/materials", status_code=303)
 
 
-@app.get("/materials/items/export")
-def materials_items_export(
+@app.get("/materials/parents/export")
+def materials_parents_export(
     ids: str | None = None,
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN)),
 ):
     if not ids:
-        raise HTTPException(status_code=400, detail="Aucun item sélectionné")
+        raise HTTPException(status_code=400, detail="Aucun parent sélectionné")
     selected_ids = []
     for raw_id in ids.split(","):
         raw_id = raw_id.strip()
@@ -500,29 +500,33 @@ def materials_items_export(
         except ValueError:
             continue
     if not selected_ids:
-        raise HTTPException(status_code=400, detail="Aucun item sélectionné")
-    items = db.scalars(
+        raise HTTPException(status_code=400, detail="Aucun parent sélectionné")
+    parents = db.scalars(
         select(MaterialTemplate).where(
             MaterialTemplate.id.in_(selected_ids),
-            MaterialTemplate.node_type == "item",
+            MaterialTemplate.parent_id.is_(None),
         )
     ).all()
-    payload = {
-        "items": [
-            {"name": item.name, "qty": item.expected_qty}
-            for item in items
-        ]
-    }
+
+    def build_tree(node: MaterialTemplate) -> dict[str, Any]:
+        return {
+            "name": node.name,
+            "type": node.node_type,
+            "qty": node.expected_qty,
+            "children": [build_tree(child) for child in node.children],
+        }
+
+    payload = {"parents": [build_tree(parent) for parent in parents]}
     content = json.dumps(payload, ensure_ascii=False, indent=2)
     return Response(
         content=content,
         media_type="application/json",
-        headers={"Content-Disposition": "attachment; filename=items-export.json"},
+        headers={"Content-Disposition": "attachment; filename=parents-export.json"},
     )
 
 
-@app.post("/materials/items/import")
-def materials_items_import(
+@app.post("/materials/parents/import")
+def materials_parents_import(
     request: Request,
     items_payload: str = Form(...),
     db: Session = Depends(get_db),
@@ -537,13 +541,13 @@ def materials_items_import(
             db,
             error="Le fichier importé est invalide.",
         )
-    raw_items = payload.get("items") if isinstance(payload, dict) else None
-    if not isinstance(raw_items, list) or not raw_items:
+    raw_parents = payload.get("parents") if isinstance(payload, dict) else None
+    if not isinstance(raw_parents, list) or not raw_parents:
         return render_materials_page(
             request,
             user,
             db,
-            error="Aucun item sélectionné pour l'import.",
+            error="Aucun parent sélectionné pour l'import.",
         )
 
     def _safe_int(value: Any) -> int | None:
@@ -552,29 +556,41 @@ def materials_items_import(
         except (TypeError, ValueError):
             return None
 
-    created = 0
-    for item in raw_items:
-        if not isinstance(item, dict):
-            continue
-        name = (item.get("name") or "").strip()
+    def _create_tree(node_data: Any, parent_id: int | None) -> bool:
+        if not isinstance(node_data, dict):
+            return False
+        name = (node_data.get("name") or "").strip()
         if not name:
-            continue
-        qty = _safe_int(item.get("qty"))
-        db.add(
-            MaterialTemplate(
-                name=name,
-                node_type="item",
-                expected_qty=qty,
-                parent_id=None,
-            )
+            return False
+        node_type = node_data.get("type") or node_data.get("node_type") or "container"
+        if node_type not in {"container", "item"}:
+            node_type = "container"
+        qty = _safe_int(node_data.get("qty")) if node_type == "item" else None
+        node = MaterialTemplate(
+            name=name,
+            node_type=node_type,
+            expected_qty=qty,
+            parent_id=parent_id,
         )
-        created += 1
+        db.add(node)
+        db.flush()
+        children = node_data.get("children") if node_type == "container" else []
+        if isinstance(children, list):
+            for child in children:
+                _create_tree(child, node.id)
+        return True
+
+    created = 0
+    for parent in raw_parents:
+        if _create_tree(parent, None):
+            created += 1
+
     if not created:
         return render_materials_page(
             request,
             user,
             db,
-            error="Aucun item valide à importer.",
+            error="Aucun parent valide à importer.",
         )
     db.commit()
     return RedirectResponse("/materials", status_code=303)

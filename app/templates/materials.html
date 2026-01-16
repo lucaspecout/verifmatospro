@@ -2,8 +2,6 @@
 {% block content %}
 {% set parents = materials | selectattr('parent_id', 'none') | list %}
 {% set sacs = parents | selectattr('node_type', 'equalto', 'container') | list %}
-{% set root_items = parents | selectattr('node_type', 'equalto', 'item') | list %}
-{% set items = materials | selectattr('node_type', 'equalto', 'item') | list %}
 {% if error %}
   <p class="error">{{ error }}</p>
 {% endif %}
@@ -74,33 +72,38 @@
   </div>
   <div class="builder-toolbar builder-toolbar--secondary">
     <div class="builder-toolbar-section">
-      <h4>Export / import des items</h4>
-      <p class="muted">Sélectionnez des items racine pour exporter un fichier, puis réimportez-le.</p>
+      <h4>Export / import des parents</h4>
+      <p class="muted">Sélectionnez des parents racine pour exporter une structure complète, puis réimportez-la.</p>
     </div>
     <div class="builder-toolbar-section">
-      <button class="btn secondary small" type="button" id="select-all-items">Tout sélectionner</button>
-      <button class="btn secondary small" type="button" id="clear-all-items">Tout désélectionner</button>
+      <button class="btn secondary small" type="button" id="select-all-parents">Tout sélectionner</button>
+      <button class="btn secondary small" type="button" id="clear-all-parents">Tout désélectionner</button>
     </div>
     <div class="builder-toolbar-actions">
-      <button class="btn" type="button" id="export-items">Exporter les items</button>
-      <button class="btn secondary" type="button" id="import-items">Importer les items</button>
-      <input type="file" id="items-import-file" accept="application/json" hidden />
-      <form method="post" action="/materials/items/import" id="items-import-form" class="hidden">
-        <input type="hidden" name="items_payload" id="items-import-payload" />
+      <button class="btn" type="button" id="export-parents">Exporter les parents</button>
+      <button class="btn secondary" type="button" id="import-parents">Importer les parents</button>
+      <input type="file" id="parents-import-file" accept="application/json" hidden />
+      <form method="post" action="/materials/parents/import" id="parents-import-form" class="hidden">
+        <input type="hidden" name="items_payload" id="parents-import-payload" />
       </form>
     </div>
   </div>
-  <div class="builder-items-grid" id="items-selection-grid">
-    {% for item in root_items %}
+  <div class="builder-items-grid" id="parents-selection-grid">
+    {% for parent in parents %}
       <label class="builder-item-card">
-        <input type="checkbox" class="item-selector" value="{{ item.id }}" />
+        <input type="checkbox" class="parent-selector" value="{{ parent.id }}" />
         <div>
-          <strong>{{ item.name }}</strong>
-          <p class="muted">Item racine · Qté {{ item.expected_qty or 0 }}</p>
+          <strong>{{ parent.name }}</strong>
+          <p class="muted">
+            Parent racine · {{ "Contenant" if parent.node_type == "container" else "Item" }}
+            {% if parent.node_type == "item" %}
+              · Qté {{ parent.expected_qty or 0 }}
+            {% endif %}
+          </p>
         </div>
       </label>
     {% else %}
-      <p class="muted">Aucun item racine disponible pour l’export.</p>
+      <p class="muted">Aucun parent racine disponible pour l’export.</p>
     {% endfor %}
   </div>
   <form method="post" action="/materials/wizard" id="builder-form">
@@ -209,14 +212,14 @@
   const rootTypeSelect = document.getElementById("root-type");
   const rootQtyInput = document.getElementById("root-qty");
   const rootQtyWrapper = document.getElementById("root-qty-wrapper");
-  const itemsSelectionGrid = document.getElementById("items-selection-grid");
-  const selectAllItemsButton = document.getElementById("select-all-items");
-  const clearAllItemsButton = document.getElementById("clear-all-items");
-  const exportItemsButton = document.getElementById("export-items");
-  const importItemsButton = document.getElementById("import-items");
-  const itemsImportFile = document.getElementById("items-import-file");
-  const itemsImportPayload = document.getElementById("items-import-payload");
-  const itemsImportForm = document.getElementById("items-import-form");
+  const parentsSelectionGrid = document.getElementById("parents-selection-grid");
+  const selectAllParentsButton = document.getElementById("select-all-parents");
+  const clearAllParentsButton = document.getElementById("clear-all-parents");
+  const exportParentsButton = document.getElementById("export-parents");
+  const importParentsButton = document.getElementById("import-parents");
+  const parentsImportFile = document.getElementById("parents-import-file");
+  const parentsImportPayload = document.getElementById("parents-import-payload");
+  const parentsImportForm = document.getElementById("parents-import-form");
 
   const panelEmpty = document.getElementById("builder-panel-empty");
   const panelForm = document.getElementById("builder-panel-form");
@@ -638,36 +641,36 @@
 
   resetButton.addEventListener("click", resetBuilder);
 
-  const getSelectedItemIds = () =>
-    Array.from(document.querySelectorAll(".item-selector:checked")).map((input) => input.value);
+  const getSelectedParentIds = () =>
+    Array.from(document.querySelectorAll(".parent-selector:checked")).map((input) => input.value);
 
-  selectAllItemsButton?.addEventListener("click", () => {
-    document.querySelectorAll(".item-selector").forEach((input) => {
+  selectAllParentsButton?.addEventListener("click", () => {
+    document.querySelectorAll(".parent-selector").forEach((input) => {
       input.checked = true;
     });
   });
 
-  clearAllItemsButton?.addEventListener("click", () => {
-    document.querySelectorAll(".item-selector").forEach((input) => {
+  clearAllParentsButton?.addEventListener("click", () => {
+    document.querySelectorAll(".parent-selector").forEach((input) => {
       input.checked = false;
     });
   });
 
-  exportItemsButton?.addEventListener("click", () => {
-    const selectedIds = getSelectedItemIds();
+  exportParentsButton?.addEventListener("click", () => {
+    const selectedIds = getSelectedParentIds();
     if (!selectedIds.length) {
       return;
     }
     const query = new URLSearchParams({ ids: selectedIds.join(",") });
-    window.location.href = `/materials/items/export?${query.toString()}`;
+    window.location.href = `/materials/parents/export?${query.toString()}`;
   });
 
-  importItemsButton?.addEventListener("click", () => {
-    itemsImportFile?.click();
+  importParentsButton?.addEventListener("click", () => {
+    parentsImportFile?.click();
   });
 
-  itemsImportFile?.addEventListener("change", () => {
-    const file = itemsImportFile.files?.[0];
+  parentsImportFile?.addEventListener("change", () => {
+    const file = parentsImportFile.files?.[0];
     if (!file) {
       return;
     }
@@ -677,8 +680,8 @@
       if (typeof text !== "string") {
         return;
       }
-      itemsImportPayload.value = text;
-      itemsImportForm?.submit();
+      parentsImportPayload.value = text;
+      parentsImportForm?.submit();
     };
     reader.readAsText(file);
   });
