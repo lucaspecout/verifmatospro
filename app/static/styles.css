@@ -1,0 +1,291 @@
+:root {
+  --primary: #1d4ed8;
+  --secondary: #0f172a;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --ok: #22c55e;
+  --problem: #ef4444;
+  --pending: #f97316;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: "Inter", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--secondary);
+}
+
+.topbar {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.topbar .brand {
+  font-weight: 700;
+}
+
+.topbar nav a {
+  margin-right: 1rem;
+  text-decoration: none;
+  color: var(--secondary);
+  font-weight: 500;
+}
+
+.container {
+  padding: 2rem;
+}
+
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  margin-bottom: 1.5rem;
+}
+
+.form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form label {
+  display: grid;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.form input,
+.form textarea,
+.form select {
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 1rem;
+}
+
+.btn {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-block;
+  text-align: center;
+  font-weight: 600;
+}
+
+.btn.secondary {
+  background: #64748b;
+}
+
+.btn.danger {
+  background: var(--problem);
+}
+
+.btn.small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.panel {
+  background: var(--bg);
+  border-radius: 12px;
+  padding: 1rem;
+}
+
+.list {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 10px;
+}
+
+.badge {
+  background: var(--pending);
+  color: white;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.badge.danger {
+  background: var(--problem);
+}
+
+.error {
+  color: var(--problem);
+  font-weight: 600;
+}
+
+.success {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.warning {
+  color: var(--pending);
+  font-weight: 600;
+}
+
+.header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.progress {
+  height: 10px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 1rem 0;
+}
+
+.progress-bar {
+  background: var(--ok);
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.9rem;
+}
+
+.tree {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.tree-node {
+  background: var(--bg);
+  padding: 0.75rem;
+  border-radius: 10px;
+  border-left: 6px solid var(--border);
+}
+
+.tree-node.ok {
+  border-left-color: var(--ok);
+}
+
+.tree-node.problem {
+  border-left-color: var(--problem);
+}
+
+.tree-node.pending {
+  border-left-color: var(--pending);
+}
+
+.tree-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.tree-title .qty {
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.tree-title .status {
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  background: var(--border);
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+}
+
+.tree-children {
+  margin-left: 1rem;
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.phone {
+  background: #0f172a;
+}
+
+.phone-container {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.phone .card {
+  border-radius: 20px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.inline-form input[type="text"] {
+  flex: 1;
+}
+
+.link {
+  background: var(--bg);
+  padding: 0.3rem 0.5rem;
+  border-radius: 6px;
+}
+
+.muted {
+  color: #64748b;
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .topbar {
+    padding: 1rem;
+  }
+
+  .list-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}

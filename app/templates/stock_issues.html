@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Problèmes signalés</h1>
+  <div class="list">
+    {% for issue in issues %}
+    <div class="list-item">
+      <div>
+        <strong>{{ issue.name }}</strong>
+        <div class="muted">Commentaire: {{ issue.comment or 'Aucun' }}</div>
+      </div>
+      <span class="badge danger">Problème</span>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

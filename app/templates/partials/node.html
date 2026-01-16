@@ -1,0 +1,19 @@
+<div class="tree-node {{ branch.status or '' }}">
+  <div class="tree-title">
+    <span>{{ branch.node.name }}</span>
+    {% if branch.node.node_type == 'item' %}
+      <span class="qty">Qté: {{ branch.node.expected_qty or '-' }}</span>
+    {% endif %}
+    {% if branch.status %}
+      <span class="status">{{ branch.status }}</span>
+    {% endif %}
+  </div>
+  {% if branch.children %}
+  <div class="tree-children">
+    {% for child in branch.children %}
+      {% set branch = child %}
+      {% include "partials/node.html" %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="header-row">
+    <h1>Postes de secours</h1>
+    <a class="btn" href="/events/new">Nouveau poste</a>
+  </div>
+  <div class="list">
+    {% for event in events %}
+    <div class="list-item">
+      <div>
+        <strong>{{ event.name }}</strong> — {{ event.date or '' }}
+        <div class="muted">{{ event.info or '' }}</div>
+      </div>
+      <div class="actions">
+        <a class="btn" href="/events/{{ event.id }}">Voir</a>
+        <a class="btn" href="/events/{{ event.id }}/monitor">Suivi</a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

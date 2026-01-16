@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Vérification matériel</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body class="phone">
+  <main class="phone-container">
+    <section class="card">
+      <h1>{{ event.name }}</h1>
+      <p>Veuillez indiquer votre prénom pour démarrer la vérification.</p>
+      <form method="post" class="form">
+        <label>Prénom
+          <input type="text" name="name" required />
+        </label>
+        <button class="btn" type="submit">Commencer</button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>
