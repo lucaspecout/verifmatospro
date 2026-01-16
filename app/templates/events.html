@@ -15,6 +15,11 @@
       <div class="actions">
         <a class="btn" href="/events/{{ event.id }}">Voir</a>
         <a class="btn" href="/events/{{ event.id }}/monitor">Suivi</a>
+        <form method="post" action="/events/{{ event.id }}/delete">
+          <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
+            Supprimer
+          </button>
+        </form>
       </div>
     </div>
     {% endfor %}

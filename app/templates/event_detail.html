@@ -3,9 +3,16 @@
 <section class="card">
   <div class="header-row">
     <h1>{{ event.name }}</h1>
-    <form method="post" action="/events/{{ event.id }}/close">
-      <button class="btn secondary" type="submit">Fermer le poste</button>
-    </form>
+    <div class="actions">
+      <form method="post" action="/events/{{ event.id }}/close">
+        <button class="btn secondary" type="submit">Fermer le poste</button>
+      </form>
+      <form method="post" action="/events/{{ event.id }}/delete">
+        <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
+          Supprimer
+        </button>
+      </form>
+    </div>
   </div>
   <p><strong>Date:</strong> {{ event.date or '' }}</p>
   <p><strong>Infos:</strong> {{ event.info or '' }}</p>
