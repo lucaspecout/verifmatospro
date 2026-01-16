@@ -1,45 +1,99 @@
 {% extends "base.html" %}
 {% block content %}
+{% set parents = materials | selectattr('parent_id', 'none') | list %}
+{% set sacs = parents | selectattr('node_type', 'equalto', 'container') | list %}
+{% set root_items = parents | selectattr('node_type', 'equalto', 'item') | list %}
+{% set items = materials | selectattr('node_type', 'equalto', 'item') | list %}
+<section class="card materials-hero">
+  <div class="materials-hero-top">
+    <div>
+      <p class="section-eyebrow">Gestion du matériel</p>
+      <h1>Créez des checklists claires et actionnables pour chaque sac.</h1>
+      <p class="muted">
+        Organisez vos sacs, compartiments, poches et items avec une navigation guidée.
+        Passez de la création rapide à l’atelier visuel en un clic.
+      </p>
+    </div>
+    <div class="materials-hero-actions">
+      <button class="btn" type="button" id="open-root-modal">Nouveau sac</button>
+      <button class="btn secondary" type="button" id="jump-to-builder">Configurer une checklist</button>
+    </div>
+  </div>
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+  <div class="materials-metrics">
+    <div class="metric-card">
+      <span class="metric-value">{{ sacs | length }}</span>
+      <span class="metric-label">Sacs actifs</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-value">{{ items | length }}</span>
+      <span class="metric-label">Items référencés</span>
+    </div>
+    <div class="metric-card">
+      <span class="metric-value">{{ root_items | length }}</span>
+      <span class="metric-label">Items racine</span>
+    </div>
+  </div>
+  <div class="materials-steps">
+    <div class="step-card">
+      <span class="step-number">1</span>
+      <div>
+        <strong>Créez un sac</strong>
+        <p class="muted">Définissez le parent avant de structurer les niveaux.</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <span class="step-number">2</span>
+      <div>
+        <strong>Structurez les compartiments</strong>
+        <p class="muted">Ajoutez poches, zones et items en glissant les niveaux.</p>
+      </div>
+    </div>
+    <div class="step-card">
+      <span class="step-number">3</span>
+      <div>
+        <strong>Validez la checklist</strong>
+        <p class="muted">Sauvegardez pour rendre la liste disponible aux équipes.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="card sacs-overview">
   <div class="builder-header">
     <div>
-      <h1>Gestion des sacs & checklists</h1>
+      <h2>Bibliothèque de sacs</h2>
       <p class="muted">
-        Créez d'abord vos sacs, puis ouvrez-les pour structurer des checklists avec de grands titres.
-        Chaque sac peut contenir des compartiments, des poches et des items à vérifier.
+        Sélectionnez un sac existant pour reprendre sa structure ou lancez une nouvelle création.
       </p>
     </div>
-    {% if error %}
-      <p class="error">{{ error }}</p>
-    {% endif %}
   </div>
   <div class="sacs-grid">
     {% for item in materials if item.parent_id is none and item.node_type == 'container' %}
       <article class="sac-card" data-parent-id="{{ item.id }}">
         <div>
           <h3>{{ item.name }}</h3>
-          <p class="muted">Ouvrez ce sac pour ajouter des compartiments, poches et items.</p>
+          <p class="muted">Checklist prête à être enrichie avec des compartiments et items.</p>
         </div>
         <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
-          Entrer dans le sac
+          Configurer
         </button>
       </article>
     {% else %}
       <div class="sac-empty">
-        <p class="muted">Aucun sac créé pour l'instant. Lancez la création ci-dessous.</p>
+        <p class="muted">Aucun sac créé pour l'instant. Utilisez “Nouveau sac” pour démarrer.</p>
       </div>
     {% endfor %}
-  </div>
-  <div class="sacs-actions">
-    <button class="btn" type="button" id="open-root-modal">Créer un sac</button>
   </div>
 </section>
 
 <section class="card">
   <div class="builder-header">
     <div>
-      <h2>Liste des parents</h2>
-      <p class="muted">Retrouvez vos sacs et vos items parents, puis supprimez-les en un clic.</p>
+      <h2>Parents enregistrés</h2>
+      <p class="muted">Accédez rapidement aux sacs et items racine pour maintenir la base propre.</p>
     </div>
   </div>
   <div class="list">
@@ -75,17 +129,14 @@
 <section class="card builder">
   <div class="builder-header">
     <div>
-      <h2>Atelier checklist</h2>
-      <p class="muted">
-        Ajoutez des compartiments (grands titres), puis des poches et des items à vérifier.
-        À n'importe quel niveau, vous pouvez ajouter des items.
-      </p>
+      <h2>Atelier de checklist</h2>
+      <p class="muted">Construisez un arbre clair, avec une vue structurée et un panneau d’édition rapide.</p>
     </div>
   </div>
   <div class="builder-toolbar">
-    <label>Sac déjà créé
+    <label>Sélection rapide
       <select id="existing-parent-select">
-        <option value="">Sélectionner un sac</option>
+        <option value="">Choisir un sac de base</option>
         {% for item in materials %}
           {% if item.parent_id is none %}
             <option value="{{ item.id }}">{{ item.name }}</option>
@@ -94,7 +145,7 @@
       </select>
     </label>
     <div class="builder-toolbar-actions">
-      <button class="btn secondary" type="button" id="load-parent">Charger comme base</button>
+      <button class="btn secondary" type="button" id="load-parent">Charger la structure</button>
     </div>
   </div>
   <form method="post" action="/materials/wizard" id="builder-form">
@@ -152,8 +203,8 @@
       </aside>
     </div>
     <div class="wizard-actions">
-      <button type="submit" class="btn">Créer l'ensemble</button>
-      <button type="button" class="btn secondary" id="builder-reset">Réinitialiser</button>
+      <button type="submit" class="btn">Enregistrer la checklist</button>
+      <button type="button" class="btn secondary" id="builder-reset">Remettre à zéro</button>
     </div>
   </form>
 </section>
@@ -198,6 +249,7 @@
   const builderForm = document.getElementById("builder-form");
   const builderPayload = document.getElementById("builder_payload");
   const resetButton = document.getElementById("builder-reset");
+  const jumpToBuilderButton = document.getElementById("jump-to-builder");
   const rootTypeSelect = document.getElementById("root-type");
   const rootQtyInput = document.getElementById("root-qty");
   const rootQtyWrapper = document.getElementById("root-qty-wrapper");
@@ -594,6 +646,10 @@
     const modal = document.getElementById("root-modal");
     toggleRootQty();
     modal.showModal();
+  });
+
+  jumpToBuilderButton?.addEventListener("click", () => {
+    builderRoot.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
   document.getElementById("create-root").addEventListener("click", () => {
