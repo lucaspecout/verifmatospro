@@ -386,30 +386,46 @@ def materials_wizard_create(
         bag_data = payload.get("bag", {})
     bag_name = (bag_data.get("name") or "").strip()
     children = bag_data.get("children") or []
+    root_type = bag_data.get("type") or bag_data.get("node_type") or "container"
+    if root_type not in {"container", "item"}:
+        root_type = "container"
     if not bag_name:
         return render_materials_page(
             request,
             user,
             db,
-            error="Le nom du sac est obligatoire.",
+            error="Le nom du parent est obligatoire.",
         )
-    if not isinstance(children, list) or not children:
+    if root_type == "container" and (not isinstance(children, list) or not children):
         return render_materials_page(
             request,
             user,
             db,
-            error="Ajoutez au moins un élément dans le sac.",
+            error="Ajoutez au moins un élément dans le parent.",
         )
-
-    bag = MaterialTemplate(name=bag_name, node_type="container", parent_id=None)
-    db.add(bag)
-    db.flush()
+    if root_type == "item" and children:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Un item ne peut pas contenir de sous-éléments.",
+        )
 
     def _safe_int(value: Any) -> int | None:
         try:
             return int(value)
         except (TypeError, ValueError):
             return None
+
+    root_qty = _safe_int(bag_data.get("qty")) if root_type == "item" else None
+    bag = MaterialTemplate(
+        name=bag_name,
+        node_type=root_type,
+        expected_qty=root_qty if root_type == "item" else None,
+        parent_id=None,
+    )
+    db.add(bag)
+    db.flush()
 
     def _create_tree(node_data: Any, parent_id: int) -> None:
         if not isinstance(node_data, dict):
