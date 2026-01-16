@@ -379,9 +379,11 @@ def materials_wizard_create(
             error="Données du wizard invalides. Merci de réessayer.",
         )
 
-    bag_data = payload.get("bag", {}) if isinstance(payload, dict) else {}
+    bag_data = payload.get("root", {}) if isinstance(payload, dict) else {}
+    if not bag_data and isinstance(payload, dict):
+        bag_data = payload.get("bag", {})
     bag_name = (bag_data.get("name") or "").strip()
-    compartments = bag_data.get("compartments") or []
+    children = bag_data.get("children") or []
     if not bag_name:
         return render_materials_page(
             request,
@@ -389,12 +391,12 @@ def materials_wizard_create(
             db,
             error="Le nom du sac est obligatoire.",
         )
-    if not isinstance(compartments, list) or not compartments:
+    if not isinstance(children, list) or not children:
         return render_materials_page(
             request,
             user,
             db,
-            error="Ajoutez au moins un compartiment au sac.",
+            error="Ajoutez au moins un élément dans le sac.",
         )
 
     bag = MaterialTemplate(name=bag_name, node_type="container", parent_id=None)
@@ -407,47 +409,31 @@ def materials_wizard_create(
         except (TypeError, ValueError):
             return None
 
-    for compartment in compartments:
-        if not isinstance(compartment, dict):
-            continue
-        compartment_name = (compartment.get("name") or "").strip()
-        if not compartment_name:
-            continue
-        compartment_node = MaterialTemplate(
-            name=compartment_name,
-            node_type="container",
-            parent_id=bag.id,
+    def _create_tree(node_data: Any, parent_id: int) -> None:
+        if not isinstance(node_data, dict):
+            return
+        node_name = (node_data.get("name") or "").strip()
+        if not node_name:
+            return
+        node_type = node_data.get("type") or node_data.get("node_type") or "container"
+        if node_type not in {"container", "item"}:
+            node_type = "container"
+        expected_qty = _safe_int(node_data.get("qty")) if node_type == "item" else None
+        node = MaterialTemplate(
+            name=node_name,
+            node_type=node_type,
+            expected_qty=expected_qty if node_type == "item" else None,
+            parent_id=parent_id,
         )
-        db.add(compartment_node)
+        db.add(node)
         db.flush()
-        pockets = compartment.get("pockets") or []
-        for pocket in pockets:
-            if not isinstance(pocket, dict):
-                continue
-            pocket_name = (pocket.get("name") or "").strip()
-            if not pocket_name:
-                continue
-            pocket_node = MaterialTemplate(
-                name=pocket_name,
-                node_type="container",
-                parent_id=compartment_node.id,
-            )
-            db.add(pocket_node)
-            db.flush()
-            for item in pocket.get("items") or []:
-                if not isinstance(item, dict):
-                    continue
-                item_name = (item.get("name") or "").strip()
-                if not item_name:
-                    continue
-                expected_qty = _safe_int(item.get("qty"))
-                item_node = MaterialTemplate(
-                    name=item_name,
-                    node_type="item",
-                    expected_qty=expected_qty,
-                    parent_id=pocket_node.id,
-                )
-                db.add(item_node)
+        if node_type != "container":
+            return
+        for child in node_data.get("children") or []:
+            _create_tree(child, node.id)
+
+    for child in children:
+        _create_tree(child, bag.id)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
