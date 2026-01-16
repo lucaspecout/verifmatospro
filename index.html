@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestion du matériel de secours</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="logo">
+        <span class="logo-mark">✅</span>
+        <div>
+          <h1>Matériel de secours</h1>
+          <p>Vérification rapide &amp; fiable</p>
+        </div>
+      </div>
+      <nav class="app-nav">
+        <button class="nav-btn" data-route="admin">Administrateur</button>
+        <button class="nav-btn" data-route="chef">Chef de poste</button>
+        <button class="nav-btn" data-route="secouriste">Secouriste</button>
+      </nav>
+    </header>
+
+    <main class="app-main">
+      <section id="admin" class="route">
+        <div class="hero">
+          <div>
+            <h2>Gestion complète du matériel</h2>
+            <p>
+              Créez les sacs, organisez l'inventaire et préparez les vérifications sans
+              casser l'historique des postes passés.
+            </p>
+          </div>
+          <div class="card highlight">
+            <h3>Compte administrateur</h3>
+            <p><strong>Identifiant :</strong> admin</p>
+            <p><strong>Mot de passe :</strong> admin</p>
+            <p class="badge warning">Changement obligatoire à la première connexion</p>
+            <form class="form-grid" id="passwordForm">
+              <label>
+                Nouveau mot de passe
+                <input type="password" placeholder="••••••" required />
+              </label>
+              <label>
+                Confirmer
+                <input type="password" placeholder="••••••" required />
+              </label>
+              <button type="submit" class="primary">Mettre à jour</button>
+            </form>
+          </div>
+        </div>
+
+        <div class="two-column">
+          <section class="card">
+            <h3>Organisation du matériel</h3>
+            <p>
+              Chaque élément peut contenir d'autres éléments, sans limite de niveaux. Les
+              items sont créés une seule fois et réutilisables dans plusieurs sacs.
+            </p>
+            <div id="materialTree" class="tree"></div>
+            <div class="actions">
+              <button class="secondary">Ajouter un contenant</button>
+              <button class="secondary">Ajouter un item</button>
+            </div>
+          </section>
+
+          <section class="card">
+            <h3>Gestion des stocks</h3>
+            <p>
+              Visualisez les quantités attendues, les écarts détectés et mettez à jour les
+              stocks globaux.
+            </p>
+            <div class="stock-list" id="stockList"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="chef" class="route">
+        <div class="hero">
+          <div>
+            <h2>Préparer un poste de secours</h2>
+            <p>
+              Créez un poste, sélectionnez les sacs utilisés et générez un lien public pour
+              vos secouristes.
+            </p>
+          </div>
+          <div class="card highlight">
+            <h3>Assistant de création</h3>
+            <div class="wizard" id="posteWizard"></div>
+          </div>
+        </div>
+
+        <div class="two-column">
+          <section class="card">
+            <h3>Suivi en direct</h3>
+            <p>Vue synthétique de l'avancement des vérifications.</p>
+            <div id="liveProgress" class="live-progress"></div>
+          </section>
+
+          <section class="card">
+            <h3>Récapitulatif final</h3>
+            <div id="summary" class="summary"></div>
+          </section>
+        </div>
+      </section>
+
+      <section id="secouriste" class="route">
+        <div class="hero">
+          <div>
+            <h2>Vérification rapide sur smartphone</h2>
+            <p>
+              Entrez votre prénom et commencez immédiatement la vérification du matériel
+              attribué.
+            </p>
+          </div>
+          <div class="card highlight">
+            <form id="nameForm" class="form-inline">
+              <label>
+                Prénom
+                <input type="text" placeholder="Camille" required />
+              </label>
+              <button type="submit" class="primary">Commencer</button>
+            </form>
+          </div>
+        </div>
+
+        <section class="card">
+          <div class="verification-header">
+            <div>
+              <h3>Vérification en cours</h3>
+              <p id="verificationSubtitle">Renseignez les quantités réelles</p>
+            </div>
+            <div class="progress">
+              <span id="globalProgress">0%</span>
+              <div class="progress-bar"><div id="globalProgressBar"></div></div>
+            </div>
+          </div>
+          <div id="verificationView"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="app-footer">
+      <p>
+        Prototype fonctionnel pour la gestion et la vérification du matériel de secours.
+      </p>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
