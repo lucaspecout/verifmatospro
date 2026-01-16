@@ -413,6 +413,30 @@ function updateLoginLockoutMessage() {
   }
 }
 
+function startLockoutCountdown() {
+  clearLockoutTimer();
+  lockoutTimerId = setInterval(() => {
+    if (!lockoutUntil) {
+      clearLockoutTimer();
+      return;
+    }
+    if (Date.now() >= lockoutUntil) {
+      lockoutUntil = null;
+      failedAttempts = 0;
+      saveLockoutState();
+      if (loginSubmitBtn) {
+        loginSubmitBtn.disabled = false;
+      }
+      if (loginError) {
+        loginError.textContent = "";
+      }
+      clearLockoutTimer();
+      return;
+    }
+    updateLoginLockoutMessage();
+  }, 1000);
+}
+
 function setLockout(durationMs) {
   lockoutUntil = Date.now() + durationMs;
   saveLockoutState();
@@ -420,21 +444,7 @@ function setLockout(durationMs) {
     loginSubmitBtn.disabled = true;
   }
   updateLoginLockoutMessage();
-  clearLockoutTimer();
-  lockoutTimerId = setInterval(() => {
-    if (Date.now() >= lockoutUntil) {
-      lockoutUntil = null;
-      failedAttempts = 0;
-      saveLockoutState();
-      clearLockoutTimer();
-      if (loginSubmitBtn) {
-        loginSubmitBtn.disabled = false;
-      }
-      loginError.textContent = "";
-      return;
-    }
-    updateLoginLockoutMessage();
-  }, 1000);
+  startLockoutCountdown();
 }
 
 function ensureLoginReady() {
@@ -450,7 +460,7 @@ function ensureLoginReady() {
     loginSubmitBtn.disabled = true;
     updateLoginLockoutMessage();
     if (!lockoutTimerId) {
-      lockoutTimerId = setInterval(updateLoginLockoutMessage, 1000);
+      startLockoutCountdown();
     }
     return;
   }
