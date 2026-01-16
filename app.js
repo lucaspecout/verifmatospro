@@ -8,7 +8,6 @@ const appView = document.getElementById("app-view");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
 const loginSubmitBtn = loginForm?.querySelector("button[type=\"submit\"]");
-const demoAccounts = document.getElementById("demoAccounts");
 const userName = document.getElementById("userName");
 const logoutBtn = document.getElementById("logoutBtn");
 const navButtons = document.querySelectorAll(".nav-btn");
@@ -17,64 +16,12 @@ const passwordModal = document.getElementById("passwordModal");
 const passwordForm = document.getElementById("passwordForm");
 const passwordError = document.getElementById("passwordError");
 
-const users = [
-  { id: 1, username: "admin", password: "admin", name: "Administrateur", role: "Admin" },
-  { id: 2, username: "chef", password: "chef", name: "Chef de poste", role: "Chef" },
-  { id: 3, username: "marie", password: "marie", name: "Marie Dupont", role: "Logistique" },
-];
-
-const passwordStoreKey = "verifmatos-passwords";
-let passwordStore = {};
-
-const postes = [
-  {
-    id: "ps-2024-01",
-    name: "Festival d'été",
-    date: "2024-07-12",
-    location: "Parc municipal",
-    status: "En préparation",
-    team: 8,
-  },
-  {
-    id: "ps-2024-02",
-    name: "Match régional",
-    date: "2024-06-02",
-    location: "Stade nord",
-    status: "Prêt",
-    team: 5,
-  },
-];
-
-const stockItems = [
-  { id: 1, name: "Bandes élastiques", expected: 120, available: 112, status: "alert" },
-  { id: 2, name: "Compresses stériles", expected: 200, available: 200, status: "ok" },
-  { id: 3, name: "Masques O2", expected: 40, available: 32, status: "warn" },
-  { id: 4, name: "Gants nitrile", expected: 300, available: 260, status: "ok" },
-];
-
-const userAdminList = [
-  {
-    id: 1,
-    name: "Administrateur",
-    role: "Admin",
-    status: "Actif",
-    lastLogin: "Aujourd'hui 09:10",
-  },
-  {
-    id: 2,
-    name: "Chef de poste",
-    role: "Chef",
-    status: "Actif",
-    lastLogin: "Hier 18:40",
-  },
-  {
-    id: 3,
-    name: "Camille Leroy",
-    role: "Secouriste",
-    status: "Invité",
-    lastLogin: "05/05/2024",
-  },
-];
+let currentUser = null;
+let failedAttempts = 0;
+let lockoutUntil = null;
+let lockoutTimerId = null;
+let wizardIndex = 0;
+const wizardState = {};
 
 const wizardSteps = [
   {
@@ -116,88 +63,21 @@ const wizardSteps = [
   },
 ];
 
-let currentUser = null;
-let failedAttempts = 0;
-let lockoutUntil = null;
-let lockoutTimerId = null;
-let wizardIndex = 0;
-const wizardState = {};
-
-function loadPasswordStore() {
-  const stored = localStorage.getItem(passwordStoreKey);
-  if (!stored) return {};
-  try {
-    return JSON.parse(stored);
-  } catch (error) {
-    return {};
+async function apiRequest(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (options.body && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
   }
-}
-
-function savePasswordStore() {
-  localStorage.setItem(passwordStoreKey, JSON.stringify(passwordStore));
-}
-
-function generatePassword(length = 10) {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
-  let result = "";
-  for (let index = 0; index < length; index += 1) {
-    const randomIndex = Math.floor(Math.random() * chars.length);
-    result += chars[randomIndex];
+  const response = await fetch(path, { ...options, headers });
+  if (response.status === 204) {
+    return null;
   }
-  return result;
-}
-
-function initUserPasswords() {
-  passwordStore = loadPasswordStore();
-  let hasChanges = false;
-  users.forEach((user) => {
-    if (!passwordStore[user.username]) {
-      passwordStore[user.username] = {
-        password: generatePassword(),
-        mustChange: true,
-      };
-      hasChanges = true;
-    }
-    user.password = passwordStore[user.username].password;
-    user.mustChange = passwordStore[user.username].mustChange;
-  });
-  if (hasChanges) {
-    savePasswordStore();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = data?.error || "Une erreur est survenue.";
+    throw new Error(message);
   }
-}
-
-function renderDemoAccounts() {
-  if (!demoAccounts) return;
-  demoAccounts.innerHTML = "";
-  users.forEach((user) => {
-    const badge = document.createElement("span");
-    badge.className = "badge rounded-pill text-bg-light border";
-    badge.textContent = `${user.username} / ${user.password}`;
-    demoAccounts.appendChild(badge);
-  });
-}
-
-function openPasswordModal() {
-  if (!passwordModal) return;
-  passwordError.textContent = "";
-  passwordForm.reset();
-  passwordModal.classList.remove("hidden");
-}
-
-function closePasswordModal() {
-  if (!passwordModal) return;
-  passwordModal.classList.add("hidden");
-}
-
-function updateUserPassword(user, newPassword) {
-  user.password = newPassword;
-  user.mustChange = false;
-  passwordStore[user.username] = {
-    password: newPassword,
-    mustChange: false,
-  };
-  savePasswordStore();
-  renderDemoAccounts();
+  return data;
 }
 
 function setRoute(route) {
@@ -219,7 +99,7 @@ function setSession(user) {
   userName.textContent = `${user.name} · ${user.role}`;
   loginView.classList.remove("active");
   appView.classList.add("active");
-  if (user.mustChange) {
+  if (user.mustChangePassword) {
     openPasswordModal();
   }
 }
@@ -231,26 +111,22 @@ function clearSession() {
   loginView.classList.add("active");
 }
 
-function restoreSession() {
-  const stored = localStorage.getItem(sessionKey);
-  if (!stored) return;
-  const parsed = JSON.parse(stored);
-  if (!parsed.expiresAt || Date.now() > parsed.expiresAt) {
-    clearSession();
-    return;
-  }
-  const user = users.find((entry) => entry.id === parsed.id);
-  if (user) {
-    setSession(user);
-  } else {
-    clearSession();
-  }
+function openPasswordModal() {
+  if (!passwordModal) return;
+  passwordError.textContent = "";
+  passwordForm.reset();
+  passwordModal.classList.remove("hidden");
 }
 
-function renderPostes() {
+function closePasswordModal() {
+  if (!passwordModal) return;
+  passwordModal.classList.add("hidden");
+}
+
+function renderPostes(postes) {
   const container = document.getElementById("posteList");
   container.innerHTML = "";
-  if (postes.length === 0) {
+  if (!postes || postes.length === 0) {
     container.innerHTML = "<p class=\"text-muted\">Aucun poste créé pour le moment.</p>";
     return;
   }
@@ -273,18 +149,21 @@ function renderPostes() {
   });
 }
 
-function renderUsers() {
+function renderUsers(users) {
   const container = document.getElementById("userList");
   container.innerHTML = "";
-  userAdminList.forEach((user) => {
+  users.forEach((user) => {
     const card = document.createElement("div");
     const statusClass = user.status === "Actif" ? "text-bg-success" : "text-bg-secondary";
+    const lastLogin = user.last_login
+      ? new Date(user.last_login).toLocaleString("fr-FR")
+      : "—";
     card.className =
       "list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2";
     card.innerHTML = `
       <div>
         <strong>${user.name}</strong>
-        <p class="text-muted mb-0">${user.role} · Dernière connexion : ${user.lastLogin}</p>
+        <p class="text-muted mb-0">${user.role} · Dernière connexion : ${lastLogin}</p>
       </div>
       <span class="badge rounded-pill ${statusClass}">${user.status}</span>
     `;
@@ -292,10 +171,10 @@ function renderUsers() {
   });
 }
 
-function renderStock() {
+function renderStock(items) {
   const container = document.getElementById("stockList");
   container.innerHTML = "";
-  stockItems.forEach((item) => {
+  items.forEach((item) => {
     const row = document.createElement("div");
     row.className =
       "list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2";
@@ -365,17 +244,19 @@ function captureWizardInputs() {
   });
 }
 
-function completeWizard() {
-  const newPoste = {
-    id: `ps-${Date.now()}`,
+async function completeWizard() {
+  const payload = {
     name: wizardState.name || "Nouveau poste",
-    date: wizardState.date || "À définir",
+    date: wizardState.date || new Date().toISOString().slice(0, 10),
     location: wizardState.location || "À définir",
     status: "En préparation",
     team: Number(wizardState.team) || 0,
   };
-  postes.unshift(newPoste);
-  renderPostes();
+  const response = await apiRequest("/api/postes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return response.poste;
 }
 
 function loadLockoutState() {
@@ -392,10 +273,7 @@ function loadLockoutState() {
 }
 
 function saveLockoutState() {
-  sessionStorage.setItem(
-    lockoutKey,
-    JSON.stringify({ failedAttempts, lockoutUntil })
-  );
+  sessionStorage.setItem(lockoutKey, JSON.stringify({ failedAttempts, lockoutUntil }));
 }
 
 function clearLockoutTimer() {
@@ -467,7 +345,18 @@ function ensureLoginReady() {
   loginSubmitBtn.disabled = false;
 }
 
-loginForm.addEventListener("submit", (event) => {
+async function loadAppData() {
+  const [postes, users, stock] = await Promise.all([
+    apiRequest("/api/postes"),
+    apiRequest("/api/users"),
+    apiRequest("/api/stock-items"),
+  ]);
+  renderPostes(postes.postes);
+  renderUsers(users.users);
+  renderStock(stock.items);
+}
+
+loginForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   loginError.textContent = "";
   if (lockoutUntil && Date.now() < lockoutUntil) {
@@ -477,30 +366,31 @@ loginForm.addEventListener("submit", (event) => {
   const formData = new FormData(loginForm);
   const username = formData.get("username").trim();
   const password = formData.get("password").trim();
-  const user = users.find((entry) => entry.username === username && entry.password === password);
 
-  if (!user) {
+  try {
+    const data = await apiRequest("/api/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    });
+    failedAttempts = 0;
+    lockoutUntil = null;
+    saveLockoutState();
+    clearLockoutTimer();
+    setSession(data.user);
+    await loadAppData();
+  } catch (error) {
     failedAttempts += 1;
     saveLockoutState();
     if (failedAttempts >= maxLoginAttempts) {
       setLockout(lockoutDurationMs);
       return;
     }
-    loginError.textContent = "Identifiant ou mot de passe incorrect.";
-    return;
+    loginError.textContent = error.message;
   }
-
-  failedAttempts = 0;
-  lockoutUntil = null;
-  saveLockoutState();
-  clearLockoutTimer();
-  setSession(user);
-  renderPostes();
-  renderUsers();
-  renderStock();
 });
 
-logoutBtn.addEventListener("click", () => {
+logoutBtn.addEventListener("click", async () => {
+  await apiRequest("/api/logout", { method: "POST" }).catch(() => null);
   clearSession();
   loginForm.reset();
 });
@@ -526,19 +416,24 @@ document.getElementById("wizardPrev").addEventListener("click", () => {
   renderWizard();
 });
 
-document.getElementById("wizardNext").addEventListener("click", () => {
+document.getElementById("wizardNext").addEventListener("click", async () => {
   captureWizardInputs();
   if (wizardIndex === wizardSteps.length - 1) {
-    completeWizard();
-    wizardPanel.classList.add("hidden");
-    wizardIndex = 0;
+    try {
+      await completeWizard();
+      wizardPanel.classList.add("hidden");
+      wizardIndex = 0;
+      await loadAppData();
+    } catch (error) {
+      alert(error.message);
+    }
     return;
   }
   wizardIndex = Math.min(wizardSteps.length - 1, wizardIndex + 1);
   renderWizard();
 });
 
-passwordForm.addEventListener("submit", (event) => {
+passwordForm.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!currentUser) return;
   passwordError.textContent = "";
@@ -556,22 +451,30 @@ passwordForm.addEventListener("submit", (event) => {
     return;
   }
 
-  if (newPassword === currentUser.password) {
-    passwordError.textContent = "Choisissez un mot de passe différent du mot de passe temporaire.";
-    return;
+  try {
+    await apiRequest("/api/users/password", {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
+    });
+    currentUser.mustChangePassword = false;
+    closePasswordModal();
+  } catch (error) {
+    passwordError.textContent = error.message;
   }
-
-  updateUserPassword(currentUser, newPassword);
-  closePasswordModal();
 });
 
-initUserPasswords();
-renderDemoAccounts();
-loadLockoutState();
-ensureLoginReady();
-restoreSession();
-if (currentUser) {
-  renderPostes();
-  renderUsers();
-  renderStock();
+async function bootstrap() {
+  loadLockoutState();
+  ensureLoginReady();
+  try {
+    const data = await apiRequest("/api/session");
+    if (data?.user) {
+      setSession(data.user);
+      await loadAppData();
+    }
+  } catch (error) {
+    clearSession();
+  }
 }
+
+bootstrap();
