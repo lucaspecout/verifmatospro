@@ -10,7 +10,13 @@
     <input type="hidden" name="wizard_payload" id="wizard_payload" />
     <div class="wizard-grid">
       <div class="wizard-panel">
-        <h3>1. Sac &amp; compartiments</h3>
+        <div class="wizard-panel-header">
+          <span class="wizard-step">1</span>
+          <div>
+            <h3>Sac &amp; compartiments</h3>
+            <p class="muted">Définissez le parent principal et ses niveaux suivants.</p>
+          </div>
+        </div>
         <label>Nom du sac
           <input type="text" id="wizard-bag-name" placeholder="Sac d'intervention" required />
         </label>
@@ -21,7 +27,13 @@
         <ul class="wizard-list" id="compartment-list"></ul>
       </div>
       <div class="wizard-panel">
-        <h3>2. Poches</h3>
+        <div class="wizard-panel-header">
+          <span class="wizard-step">2</span>
+          <div>
+            <h3>Poches</h3>
+            <p class="muted">Ajoutez les poches liées au compartiment sélectionné.</p>
+          </div>
+        </div>
         <label>Compartiment
           <select id="pocket-compartment-select"></select>
         </label>
@@ -32,7 +44,13 @@
         <ul class="wizard-list" id="pocket-list"></ul>
       </div>
       <div class="wizard-panel">
-        <h3>3. Items</h3>
+        <div class="wizard-panel-header">
+          <span class="wizard-step">3</span>
+          <div>
+            <h3>Items</h3>
+            <p class="muted">Ajoutez le contenu (ex. compresse) par poche.</p>
+          </div>
+        </div>
         <label>Compartiment
           <select id="item-compartment-select"></select>
         </label>
@@ -47,7 +65,13 @@
         <ul class="wizard-list" id="item-list"></ul>
       </div>
       <div class="wizard-preview">
-        <h3>Prévisualisation</h3>
+        <div class="wizard-panel-header">
+          <span class="wizard-step accent">Aperçu</span>
+          <div>
+            <h3>Structure parent/enfant</h3>
+            <p class="muted">Visualisation fluide du sac → compartiment → poche → item.</p>
+          </div>
+        </div>
         <div class="wizard-tree" id="wizard-preview"></div>
       </div>
     </div>
@@ -220,28 +244,40 @@
       preview.innerHTML = "<p class=\"muted\">Renseignez le nom du sac pour afficher la structure.</p>";
       return;
     }
-    const bagNode = document.createElement("div");
-    bagNode.className = "wizard-node";
-    bagNode.textContent = bagName;
-    preview.appendChild(bagNode);
+
+    const createBranch = (label, className) => {
+      const branch = document.createElement("li");
+      branch.className = `wizard-branch ${className}`;
+      const labelWrap = document.createElement("span");
+      labelWrap.className = "wizard-label";
+      labelWrap.textContent = label;
+      branch.appendChild(labelWrap);
+      const children = document.createElement("ul");
+      children.className = "wizard-children";
+      branch.appendChild(children);
+      return { branch, children };
+    };
+
+    const tree = document.createElement("ul");
+    tree.className = "wizard-structure";
+    const bag = createBranch(bagName, "bag");
+    tree.appendChild(bag.branch);
+
     wizardState.compartments.forEach((compartment) => {
-      const compartmentNode = document.createElement("div");
-      compartmentNode.className = "wizard-node compartment";
-      compartmentNode.textContent = compartment.name;
-      preview.appendChild(compartmentNode);
+      const compartmentBranch = createBranch(compartment.name, "compartment");
+      bag.children.appendChild(compartmentBranch.branch);
       compartment.pockets.forEach((pocket) => {
-        const pocketNode = document.createElement("div");
-        pocketNode.className = "wizard-node pocket";
-        pocketNode.textContent = pocket.name;
-        preview.appendChild(pocketNode);
+        const pocketBranch = createBranch(pocket.name, "pocket");
+        compartmentBranch.children.appendChild(pocketBranch.branch);
         pocket.items.forEach((item) => {
-          const itemNode = document.createElement("div");
-          itemNode.className = "wizard-node item";
-          itemNode.textContent = `${item.name}${item.qty !== null ? ` · Qté ${item.qty}` : ""}`;
-          preview.appendChild(itemNode);
+          const itemLabel = `${item.name}${item.qty !== null ? ` · Qté ${item.qty}` : ""}`;
+          const itemBranch = createBranch(itemLabel, "item");
+          pocketBranch.children.appendChild(itemBranch.branch);
         });
       });
     });
+
+    preview.appendChild(tree);
   };
 
   const renderAll = () => {
