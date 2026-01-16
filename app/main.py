@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+import json
 import secrets
 from typing import Any
 
@@ -306,11 +307,26 @@ def materials_list(
     user: User = Depends(require_roles(ROLE_ADMIN)),
     db: Session = Depends(get_db),
 ):
+    return render_materials_page(request, user, db)
+
+
+def render_materials_page(
+    request: Request,
+    user: User,
+    db: Session,
+    error: str | None = None,
+) -> HTMLResponse:
     materials = db.scalars(select(MaterialTemplate)).all()
     tree = build_tree(materials)
     return templates.TemplateResponse(
         "materials.html",
-        {"request": request, "user": user, "tree": tree, "materials": materials},
+        {
+            "request": request,
+            "user": user,
+            "tree": tree,
+            "materials": materials,
+            "error": error,
+        },
     )
 
 
@@ -331,6 +347,96 @@ def materials_create(
         parent_id=parent_id or None,
     )
     db.add(material)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+@app.post("/materials/wizard")
+def materials_wizard_create(
+    request: Request,
+    wizard_payload: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    try:
+        payload = json.loads(wizard_payload)
+    except json.JSONDecodeError:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Données du wizard invalides. Merci de réessayer.",
+        )
+
+    bag_data = payload.get("bag", {}) if isinstance(payload, dict) else {}
+    bag_name = (bag_data.get("name") or "").strip()
+    compartments = bag_data.get("compartments") or []
+    if not bag_name:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Le nom du sac est obligatoire.",
+        )
+    if not isinstance(compartments, list) or not compartments:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Ajoutez au moins un compartiment au sac.",
+        )
+
+    bag = MaterialTemplate(name=bag_name, node_type="container", parent_id=None)
+    db.add(bag)
+    db.flush()
+
+    def _safe_int(value: Any) -> int | None:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    for compartment in compartments:
+        if not isinstance(compartment, dict):
+            continue
+        compartment_name = (compartment.get("name") or "").strip()
+        if not compartment_name:
+            continue
+        compartment_node = MaterialTemplate(
+            name=compartment_name,
+            node_type="container",
+            parent_id=bag.id,
+        )
+        db.add(compartment_node)
+        db.flush()
+        pockets = compartment.get("pockets") or []
+        for pocket in pockets:
+            if not isinstance(pocket, dict):
+                continue
+            pocket_name = (pocket.get("name") or "").strip()
+            if not pocket_name:
+                continue
+            pocket_node = MaterialTemplate(
+                name=pocket_name,
+                node_type="container",
+                parent_id=compartment_node.id,
+            )
+            db.add(pocket_node)
+            db.flush()
+            for item in pocket.get("items") or []:
+                if not isinstance(item, dict):
+                    continue
+                item_name = (item.get("name") or "").strip()
+                if not item_name:
+                    continue
+                expected_qty = _safe_int(item.get("qty"))
+                item_node = MaterialTemplate(
+                    name=item_name,
+                    node_type="item",
+                    expected_qty=expected_qty,
+                    parent_id=pocket_node.id,
+                )
+                db.add(item_node)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
