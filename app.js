@@ -3,16 +3,23 @@ const loginView = document.getElementById("login-view");
 const appView = document.getElementById("app-view");
 const loginForm = document.getElementById("loginForm");
 const loginError = document.getElementById("loginError");
+const demoAccounts = document.getElementById("demoAccounts");
 const userName = document.getElementById("userName");
 const logoutBtn = document.getElementById("logoutBtn");
 const navButtons = document.querySelectorAll(".nav-btn");
 const routes = document.querySelectorAll(".route");
+const passwordModal = document.getElementById("passwordModal");
+const passwordForm = document.getElementById("passwordForm");
+const passwordError = document.getElementById("passwordError");
 
 const users = [
   { id: 1, username: "admin", password: "admin", name: "Administrateur", role: "Admin" },
   { id: 2, username: "chef", password: "chef", name: "Chef de poste", role: "Chef" },
   { id: 3, username: "marie", password: "marie", name: "Marie Dupont", role: "Logistique" },
 ];
+
+const passwordStoreKey = "verifmatos-passwords";
+let passwordStore = {};
 
 const postes = [
   {
@@ -108,6 +115,83 @@ let currentUser = null;
 let wizardIndex = 0;
 const wizardState = {};
 
+function loadPasswordStore() {
+  const stored = localStorage.getItem(passwordStoreKey);
+  if (!stored) return {};
+  try {
+    return JSON.parse(stored);
+  } catch (error) {
+    return {};
+  }
+}
+
+function savePasswordStore() {
+  localStorage.setItem(passwordStoreKey, JSON.stringify(passwordStore));
+}
+
+function generatePassword(length = 10) {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%";
+  let result = "";
+  for (let index = 0; index < length; index += 1) {
+    const randomIndex = Math.floor(Math.random() * chars.length);
+    result += chars[randomIndex];
+  }
+  return result;
+}
+
+function initUserPasswords() {
+  passwordStore = loadPasswordStore();
+  let hasChanges = false;
+  users.forEach((user) => {
+    if (!passwordStore[user.username]) {
+      passwordStore[user.username] = {
+        password: generatePassword(),
+        mustChange: true,
+      };
+      hasChanges = true;
+    }
+    user.password = passwordStore[user.username].password;
+    user.mustChange = passwordStore[user.username].mustChange;
+  });
+  if (hasChanges) {
+    savePasswordStore();
+  }
+}
+
+function renderDemoAccounts() {
+  if (!demoAccounts) return;
+  demoAccounts.innerHTML = "";
+  users.forEach((user) => {
+    const badge = document.createElement("span");
+    badge.className = "badge rounded-pill text-bg-light border";
+    badge.textContent = `${user.username} / ${user.password}`;
+    demoAccounts.appendChild(badge);
+  });
+}
+
+function openPasswordModal() {
+  if (!passwordModal) return;
+  passwordError.textContent = "";
+  passwordForm.reset();
+  passwordModal.classList.remove("hidden");
+}
+
+function closePasswordModal() {
+  if (!passwordModal) return;
+  passwordModal.classList.add("hidden");
+}
+
+function updateUserPassword(user, newPassword) {
+  user.password = newPassword;
+  user.mustChange = false;
+  passwordStore[user.username] = {
+    password: newPassword,
+    mustChange: false,
+  };
+  savePasswordStore();
+  renderDemoAccounts();
+}
+
 function setRoute(route) {
   routes.forEach((section) => {
     section.classList.toggle("active", section.id === route);
@@ -123,6 +207,9 @@ function setSession(user) {
   userName.textContent = `${user.name} · ${user.role}`;
   loginView.classList.remove("active");
   appView.classList.add("active");
+  if (user.mustChange) {
+    openPasswordModal();
+  }
 }
 
 function clearSession() {
@@ -332,6 +419,35 @@ document.getElementById("wizardNext").addEventListener("click", () => {
   renderWizard();
 });
 
+passwordForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (!currentUser) return;
+  passwordError.textContent = "";
+  const formData = new FormData(passwordForm);
+  const newPassword = formData.get("newPassword").trim();
+  const confirmPassword = formData.get("confirmPassword").trim();
+
+  if (!newPassword || newPassword.length < 8) {
+    passwordError.textContent = "Le mot de passe doit contenir au moins 8 caractères.";
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    passwordError.textContent = "Les mots de passe ne correspondent pas.";
+    return;
+  }
+
+  if (newPassword === currentUser.password) {
+    passwordError.textContent = "Choisissez un mot de passe différent du mot de passe temporaire.";
+    return;
+  }
+
+  updateUserPassword(currentUser, newPassword);
+  closePasswordModal();
+});
+
+initUserPasswords();
+renderDemoAccounts();
 restoreSession();
 if (currentUser) {
   renderPostes();

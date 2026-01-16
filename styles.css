@@ -63,6 +63,29 @@ body {
   display: none !important;
 }
 
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 2000;
+}
+
+.modal-card {
+  width: min(100%, 440px);
+  background: #fff;
+  border-radius: 1.25rem;
+  padding: 2rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.2);
+}
+
+.modal-header {
+  margin-bottom: 1.5rem;
+}
+
 @media (min-width: 992px) {
   .app-shell {
     flex-direction: row;
