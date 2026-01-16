@@ -1,6 +1,64 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
+  <h1>Assistant de création de sac</h1>
+  <p class="muted">Créez un sac complet avec ses compartiments, poches et items en un seul flux visuel.</p>
+  {% if error %}
+    <p class="error">{{ error }}</p>
+  {% endif %}
+  <form method="post" action="/materials/wizard" class="wizard" id="wizard-form">
+    <input type="hidden" name="wizard_payload" id="wizard_payload" />
+    <div class="wizard-grid">
+      <div class="wizard-panel">
+        <h3>1. Sac &amp; compartiments</h3>
+        <label>Nom du sac
+          <input type="text" id="wizard-bag-name" placeholder="Sac d'intervention" required />
+        </label>
+        <div class="wizard-inline">
+          <input type="text" id="compartment-name" placeholder="Nouveau compartiment" />
+          <button class="btn small" type="button" id="add-compartment">Ajouter</button>
+        </div>
+        <ul class="wizard-list" id="compartment-list"></ul>
+      </div>
+      <div class="wizard-panel">
+        <h3>2. Poches</h3>
+        <label>Compartiment
+          <select id="pocket-compartment-select"></select>
+        </label>
+        <div class="wizard-inline">
+          <input type="text" id="pocket-name" placeholder="Nouvelle poche" />
+          <button class="btn small" type="button" id="add-pocket">Ajouter</button>
+        </div>
+        <ul class="wizard-list" id="pocket-list"></ul>
+      </div>
+      <div class="wizard-panel">
+        <h3>3. Items</h3>
+        <label>Compartiment
+          <select id="item-compartment-select"></select>
+        </label>
+        <label>Poche
+          <select id="item-pocket-select"></select>
+        </label>
+        <div class="wizard-inline">
+          <input type="text" id="item-name" placeholder="Nouvel item" />
+          <input type="number" id="item-qty" min="0" placeholder="Qté" />
+          <button class="btn small" type="button" id="add-item">Ajouter</button>
+        </div>
+        <ul class="wizard-list" id="item-list"></ul>
+      </div>
+      <div class="wizard-preview">
+        <h3>Prévisualisation</h3>
+        <div class="wizard-tree" id="wizard-preview"></div>
+      </div>
+    </div>
+    <div class="wizard-actions">
+      <button type="submit" class="btn">Créer le sac</button>
+      <button type="button" class="btn secondary" id="wizard-reset">Réinitialiser</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
   <h1>Organisation du matériel</h1>
   <form method="post" class="form">
     <label>Nom
@@ -31,4 +89,238 @@
     {% endfor %}
   </div>
 </section>
+<script>
+  const wizardState = {
+    compartments: [],
+  };
+
+  const bagNameInput = document.getElementById("wizard-bag-name");
+  const compartmentNameInput = document.getElementById("compartment-name");
+  const pocketNameInput = document.getElementById("pocket-name");
+  const itemNameInput = document.getElementById("item-name");
+  const itemQtyInput = document.getElementById("item-qty");
+  const compartmentList = document.getElementById("compartment-list");
+  const pocketList = document.getElementById("pocket-list");
+  const itemList = document.getElementById("item-list");
+  const preview = document.getElementById("wizard-preview");
+  const pocketCompartmentSelect = document.getElementById("pocket-compartment-select");
+  const itemCompartmentSelect = document.getElementById("item-compartment-select");
+  const itemPocketSelect = document.getElementById("item-pocket-select");
+
+  const addCompartmentButton = document.getElementById("add-compartment");
+  const addPocketButton = document.getElementById("add-pocket");
+  const addItemButton = document.getElementById("add-item");
+  const resetButton = document.getElementById("wizard-reset");
+  const wizardForm = document.getElementById("wizard-form");
+  const payloadInput = document.getElementById("wizard_payload");
+
+  const normalizeLabel = (value) => value?.trim();
+
+  const renderCompartmentList = () => {
+    compartmentList.innerHTML = "";
+    wizardState.compartments.forEach((compartment, index) => {
+      const item = document.createElement("li");
+      item.innerHTML = `
+        <span>${compartment.name}</span>
+        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
+      `;
+      item.querySelector("button").addEventListener("click", () => {
+        wizardState.compartments.splice(index, 1);
+        renderAll();
+      });
+      compartmentList.appendChild(item);
+    });
+  };
+
+  const renderPocketList = () => {
+    pocketList.innerHTML = "";
+    const compartment = wizardState.compartments[Number(pocketCompartmentSelect.value)];
+    if (!compartment) {
+      pocketList.innerHTML = "<li class=\"muted\">Ajoutez d'abord un compartiment.</li>";
+      return;
+    }
+    compartment.pockets.forEach((pocket, index) => {
+      const item = document.createElement("li");
+      item.innerHTML = `
+        <span>${pocket.name}</span>
+        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
+      `;
+      item.querySelector("button").addEventListener("click", () => {
+        compartment.pockets.splice(index, 1);
+        renderAll();
+      });
+      pocketList.appendChild(item);
+    });
+  };
+
+  const renderItemList = () => {
+    itemList.innerHTML = "";
+    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
+    const pocket = compartment?.pockets[Number(itemPocketSelect.value)];
+    if (!pocket) {
+      itemList.innerHTML = "<li class=\"muted\">Ajoutez d'abord une poche.</li>";
+      return;
+    }
+    pocket.items.forEach((item, index) => {
+      const listItem = document.createElement("li");
+      const qtyLabel = item.qty !== null ? ` (Qté: ${item.qty})` : "";
+      listItem.innerHTML = `
+        <span>${item.name}${qtyLabel}</span>
+        <button class="btn small secondary" type="button" data-index="${index}">Retirer</button>
+      `;
+      listItem.querySelector("button").addEventListener("click", () => {
+        pocket.items.splice(index, 1);
+        renderAll();
+      });
+      itemList.appendChild(listItem);
+    });
+  };
+
+  const updateCompartmentSelects = () => {
+    const selects = [pocketCompartmentSelect, itemCompartmentSelect];
+    selects.forEach((select) => {
+      select.innerHTML = "";
+      wizardState.compartments.forEach((compartment, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = compartment.name;
+        select.appendChild(option);
+      });
+    });
+    if (!wizardState.compartments.length) {
+      const option = document.createElement("option");
+      option.textContent = "Aucun compartiment";
+      option.value = "";
+      selects.forEach((select) => select.appendChild(option.cloneNode(true)));
+    }
+  };
+
+  const updatePocketSelect = () => {
+    itemPocketSelect.innerHTML = "";
+    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
+    if (!compartment || !compartment.pockets.length) {
+      const option = document.createElement("option");
+      option.textContent = "Aucune poche";
+      option.value = "";
+      itemPocketSelect.appendChild(option);
+      return;
+    }
+    compartment.pockets.forEach((pocket, index) => {
+      const option = document.createElement("option");
+      option.value = String(index);
+      option.textContent = pocket.name;
+      itemPocketSelect.appendChild(option);
+    });
+  };
+
+  const renderPreview = () => {
+    preview.innerHTML = "";
+    const bagName = normalizeLabel(bagNameInput.value);
+    if (!bagName) {
+      preview.innerHTML = "<p class=\"muted\">Renseignez le nom du sac pour afficher la structure.</p>";
+      return;
+    }
+    const bagNode = document.createElement("div");
+    bagNode.className = "wizard-node";
+    bagNode.textContent = bagName;
+    preview.appendChild(bagNode);
+    wizardState.compartments.forEach((compartment) => {
+      const compartmentNode = document.createElement("div");
+      compartmentNode.className = "wizard-node compartment";
+      compartmentNode.textContent = compartment.name;
+      preview.appendChild(compartmentNode);
+      compartment.pockets.forEach((pocket) => {
+        const pocketNode = document.createElement("div");
+        pocketNode.className = "wizard-node pocket";
+        pocketNode.textContent = pocket.name;
+        preview.appendChild(pocketNode);
+        pocket.items.forEach((item) => {
+          const itemNode = document.createElement("div");
+          itemNode.className = "wizard-node item";
+          itemNode.textContent = `${item.name}${item.qty !== null ? ` · Qté ${item.qty}` : ""}`;
+          preview.appendChild(itemNode);
+        });
+      });
+    });
+  };
+
+  const renderAll = () => {
+    updateCompartmentSelects();
+    updatePocketSelect();
+    renderCompartmentList();
+    renderPocketList();
+    renderItemList();
+    renderPreview();
+  };
+
+  addCompartmentButton.addEventListener("click", () => {
+    const name = normalizeLabel(compartmentNameInput.value);
+    if (!name) {
+      return;
+    }
+    wizardState.compartments.push({ name, pockets: [] });
+    compartmentNameInput.value = "";
+    renderAll();
+  });
+
+  addPocketButton.addEventListener("click", () => {
+    const name = normalizeLabel(pocketNameInput.value);
+    const compartment = wizardState.compartments[Number(pocketCompartmentSelect.value)];
+    if (!name || !compartment) {
+      return;
+    }
+    compartment.pockets.push({ name, items: [] });
+    pocketNameInput.value = "";
+    renderAll();
+  });
+
+  addItemButton.addEventListener("click", () => {
+    const name = normalizeLabel(itemNameInput.value);
+    const qtyValue = itemQtyInput.value ? Number(itemQtyInput.value) : null;
+    const compartment = wizardState.compartments[Number(itemCompartmentSelect.value)];
+    const pocket = compartment?.pockets[Number(itemPocketSelect.value)];
+    if (!name || !pocket) {
+      return;
+    }
+    pocket.items.push({ name, qty: Number.isFinite(qtyValue) ? qtyValue : null });
+    itemNameInput.value = "";
+    itemQtyInput.value = "";
+    renderAll();
+  });
+
+  pocketCompartmentSelect.addEventListener("change", renderPocketList);
+  itemCompartmentSelect.addEventListener("change", () => {
+    updatePocketSelect();
+    renderItemList();
+  });
+  itemPocketSelect.addEventListener("change", renderItemList);
+  bagNameInput.addEventListener("input", renderPreview);
+
+  resetButton.addEventListener("click", () => {
+    wizardState.compartments = [];
+    bagNameInput.value = "";
+    compartmentNameInput.value = "";
+    pocketNameInput.value = "";
+    itemNameInput.value = "";
+    itemQtyInput.value = "";
+    renderAll();
+  });
+
+  wizardForm.addEventListener("submit", (event) => {
+    const bagName = normalizeLabel(bagNameInput.value);
+    if (!bagName) {
+      event.preventDefault();
+      bagNameInput.focus();
+      return;
+    }
+    payloadInput.value = JSON.stringify({
+      bag: {
+        name: bagName,
+        compartments: wizardState.compartments,
+      },
+    });
+  });
+
+  renderAll();
+</script>
 {% endblock %}
