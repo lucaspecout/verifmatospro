@@ -72,6 +72,37 @@
       <button class="btn secondary" type="button" id="load-parent">Charger la structure</button>
     </div>
   </div>
+  <div class="builder-toolbar builder-toolbar--secondary">
+    <div class="builder-toolbar-section">
+      <h4>Export / import des items</h4>
+      <p class="muted">Sélectionnez des items racine pour exporter un fichier, puis réimportez-le.</p>
+    </div>
+    <div class="builder-toolbar-section">
+      <button class="btn secondary small" type="button" id="select-all-items">Tout sélectionner</button>
+      <button class="btn secondary small" type="button" id="clear-all-items">Tout désélectionner</button>
+    </div>
+    <div class="builder-toolbar-actions">
+      <button class="btn" type="button" id="export-items">Exporter les items</button>
+      <button class="btn secondary" type="button" id="import-items">Importer les items</button>
+      <input type="file" id="items-import-file" accept="application/json" hidden />
+      <form method="post" action="/materials/items/import" id="items-import-form" class="hidden">
+        <input type="hidden" name="items_payload" id="items-import-payload" />
+      </form>
+    </div>
+  </div>
+  <div class="builder-items-grid" id="items-selection-grid">
+    {% for item in root_items %}
+      <label class="builder-item-card">
+        <input type="checkbox" class="item-selector" value="{{ item.id }}" />
+        <div>
+          <strong>{{ item.name }}</strong>
+          <p class="muted">Item racine · Qté {{ item.expected_qty or 0 }}</p>
+        </div>
+      </label>
+    {% else %}
+      <p class="muted">Aucun item racine disponible pour l’export.</p>
+    {% endfor %}
+  </div>
   <form method="post" action="/materials/wizard" id="builder-form">
     <input type="hidden" name="wizard_payload" id="builder_payload" />
     <div class="builder-grid">
@@ -178,6 +209,14 @@
   const rootTypeSelect = document.getElementById("root-type");
   const rootQtyInput = document.getElementById("root-qty");
   const rootQtyWrapper = document.getElementById("root-qty-wrapper");
+  const itemsSelectionGrid = document.getElementById("items-selection-grid");
+  const selectAllItemsButton = document.getElementById("select-all-items");
+  const clearAllItemsButton = document.getElementById("clear-all-items");
+  const exportItemsButton = document.getElementById("export-items");
+  const importItemsButton = document.getElementById("import-items");
+  const itemsImportFile = document.getElementById("items-import-file");
+  const itemsImportPayload = document.getElementById("items-import-payload");
+  const itemsImportForm = document.getElementById("items-import-form");
 
   const panelEmpty = document.getElementById("builder-panel-empty");
   const panelForm = document.getElementById("builder-panel-form");
@@ -598,6 +637,51 @@
   });
 
   resetButton.addEventListener("click", resetBuilder);
+
+  const getSelectedItemIds = () =>
+    Array.from(document.querySelectorAll(".item-selector:checked")).map((input) => input.value);
+
+  selectAllItemsButton?.addEventListener("click", () => {
+    document.querySelectorAll(".item-selector").forEach((input) => {
+      input.checked = true;
+    });
+  });
+
+  clearAllItemsButton?.addEventListener("click", () => {
+    document.querySelectorAll(".item-selector").forEach((input) => {
+      input.checked = false;
+    });
+  });
+
+  exportItemsButton?.addEventListener("click", () => {
+    const selectedIds = getSelectedItemIds();
+    if (!selectedIds.length) {
+      return;
+    }
+    const query = new URLSearchParams({ ids: selectedIds.join(",") });
+    window.location.href = `/materials/items/export?${query.toString()}`;
+  });
+
+  importItemsButton?.addEventListener("click", () => {
+    itemsImportFile?.click();
+  });
+
+  itemsImportFile?.addEventListener("change", () => {
+    const file = itemsImportFile.files?.[0];
+    if (!file) {
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = reader.result;
+      if (typeof text !== "string") {
+        return;
+      }
+      itemsImportPayload.value = text;
+      itemsImportForm?.submit();
+    };
+    reader.readAsText(file);
+  });
 
   builderForm.addEventListener("submit", (event) => {
     if (!builderState.rootId) {
