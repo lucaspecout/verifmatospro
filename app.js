@@ -68,23 +68,38 @@ const wizardSteps = [
   {
     title: "Informations générales",
     content: `
-      <label>Nom du poste<input data-field="name" type="text" placeholder="Poste festival" required /></label>
-      <label>Date<input data-field="date" type="date" required /></label>
-      <label>Lieu<input data-field="location" type="text" placeholder="Parc municipal" required /></label>
+      <div>
+        <label class="form-label">Nom du poste</label>
+        <input data-field="name" class="form-control" type="text" placeholder="Poste festival" required />
+      </div>
+      <div>
+        <label class="form-label">Date</label>
+        <input data-field="date" class="form-control" type="date" required />
+      </div>
+      <div>
+        <label class="form-label">Lieu</label>
+        <input data-field="location" class="form-control" type="text" placeholder="Parc municipal" required />
+      </div>
     `,
   },
   {
     title: "Composition de l'équipe",
     content: `
-      <label>Nombre de secouristes<input data-field="team" type="number" min="1" value="4" required /></label>
-      <label>Responsable<input data-field="lead" type="text" placeholder="Nom du responsable" required /></label>
+      <div>
+        <label class="form-label">Nombre de secouristes</label>
+        <input data-field="team" class="form-control" type="number" min="1" value="4" required />
+      </div>
+      <div>
+        <label class="form-label">Responsable</label>
+        <input data-field="lead" class="form-control" type="text" placeholder="Nom du responsable" required />
+      </div>
     `,
   },
   {
     title: "Validation",
     content: `
-      <p>Vérifiez les informations et validez la création du poste.</p>
-      <div class="summary-box" id="wizardSummary"></div>
+      <p class="text-muted">Vérifiez les informations et validez la création du poste.</p>
+      <div class="list-group" id="wizardSummary"></div>
     `,
   },
 ];
@@ -133,20 +148,22 @@ function renderPostes() {
   const container = document.getElementById("posteList");
   container.innerHTML = "";
   if (postes.length === 0) {
-    container.innerHTML = "<p class=\"muted\">Aucun poste créé pour le moment.</p>";
+    container.innerHTML = "<p class=\"text-muted\">Aucun poste créé pour le moment.</p>";
     return;
   }
   postes.forEach((poste) => {
     const card = document.createElement("div");
-    card.className = "list-row";
+    const statusClass = poste.status === "Prêt" ? "text-bg-success" : "text-bg-warning";
+    card.className =
+      "list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2";
     card.innerHTML = `
       <div>
         <strong>${poste.name}</strong>
-        <p class="muted">${poste.date} · ${poste.location}</p>
+        <p class="text-muted mb-0">${poste.date} · ${poste.location}</p>
       </div>
-      <div class="row-meta">
-        <span class="badge">${poste.status}</span>
-        <span class="pill">${poste.team} pers.</span>
+      <div class="d-flex flex-wrap gap-2">
+        <span class="badge rounded-pill ${statusClass}">${poste.status}</span>
+        <span class="badge rounded-pill text-bg-light border">${poste.team} pers.</span>
       </div>
     `;
     container.appendChild(card);
@@ -158,13 +175,15 @@ function renderUsers() {
   container.innerHTML = "";
   userAdminList.forEach((user) => {
     const card = document.createElement("div");
-    card.className = "list-row";
+    const statusClass = user.status === "Actif" ? "text-bg-success" : "text-bg-secondary";
+    card.className =
+      "list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2";
     card.innerHTML = `
       <div>
         <strong>${user.name}</strong>
-        <p class="muted">${user.role} · Dernière connexion : ${user.lastLogin}</p>
+        <p class="text-muted mb-0">${user.role} · Dernière connexion : ${user.lastLogin}</p>
       </div>
-      <span class="badge ${user.status === "Actif" ? "badge-success" : "badge-muted"}">${user.status}</span>
+      <span class="badge rounded-pill ${statusClass}">${user.status}</span>
     `;
     container.appendChild(card);
   });
@@ -175,14 +194,22 @@ function renderStock() {
   container.innerHTML = "";
   stockItems.forEach((item) => {
     const row = document.createElement("div");
-    row.className = "list-row";
-    const statusClass = item.status === "ok" ? "badge-success" : item.status === "warn" ? "badge-warning" : "badge-danger";
+    row.className =
+      "list-group-item d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2";
+    const statusClass =
+      item.status === "ok"
+        ? "text-bg-success"
+        : item.status === "warn"
+          ? "text-bg-warning"
+          : "text-bg-danger";
     row.innerHTML = `
       <div>
         <strong>${item.name}</strong>
-        <p class="muted">Attendu : ${item.expected} · Disponible : ${item.available}</p>
+        <p class="text-muted mb-0">Attendu : ${item.expected} · Disponible : ${item.available}</p>
       </div>
-      <span class="badge ${statusClass}">${item.status === "ok" ? "OK" : item.status === "warn" ? "Surveillance" : "Rupture"}</span>
+      <span class="badge rounded-pill ${statusClass}">${
+        item.status === "ok" ? "OK" : item.status === "warn" ? "Surveillance" : "Rupture"
+      }</span>
     `;
     container.appendChild(row);
   });
@@ -192,11 +219,11 @@ function updateWizardSummary() {
   const summary = document.getElementById("wizardSummary");
   if (!summary) return;
   summary.innerHTML = `
-    <p><strong>Poste :</strong> ${wizardState.name || "—"}</p>
-    <p><strong>Date :</strong> ${wizardState.date || "—"}</p>
-    <p><strong>Lieu :</strong> ${wizardState.location || "—"}</p>
-    <p><strong>Équipe :</strong> ${wizardState.team || "—"} pers.</p>
-    <p><strong>Responsable :</strong> ${wizardState.lead || "—"}</p>
+    <div class="list-group-item d-flex justify-content-between"><strong>Poste</strong><span>${wizardState.name || "—"}</span></div>
+    <div class="list-group-item d-flex justify-content-between"><strong>Date</strong><span>${wizardState.date || "—"}</span></div>
+    <div class="list-group-item d-flex justify-content-between"><strong>Lieu</strong><span>${wizardState.location || "—"}</span></div>
+    <div class="list-group-item d-flex justify-content-between"><strong>Équipe</strong><span>${wizardState.team || "—"} pers.</span></div>
+    <div class="list-group-item d-flex justify-content-between"><strong>Responsable</strong><span>${wizardState.lead || "—"}</span></div>
   `;
 }
 
