@@ -1,11 +1,35 @@
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
+import socket
+from urllib.parse import urlparse
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://verif:verif@localhost:5432/verifmatos",
-)
+from sqlalchemy import create_engine
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+
+DEFAULT_DATABASE_URL = "postgresql+psycopg2://verif:verif@localhost:5432/verifmatos"
+
+
+def normalize_database_url(url: str) -> str:
+    parsed = urlparse(url)
+    if parsed.hostname != "db":
+        return url
+    try:
+        socket.gethostbyname(parsed.hostname)
+    except OSError:
+        userinfo = ""
+        if parsed.username:
+            userinfo = parsed.username
+            if parsed.password:
+                userinfo += f":{parsed.password}"
+            userinfo += "@"
+        host = "localhost"
+        if parsed.port:
+            host = f"{host}:{parsed.port}"
+        netloc = f"{userinfo}{host}"
+        return parsed._replace(netloc=netloc).geturl()
+    return url
+
+
+DATABASE_URL = normalize_database_url(os.getenv("DATABASE_URL", DEFAULT_DATABASE_URL))
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
