@@ -26,6 +26,20 @@ def normalize_database_url(url: str) -> str:
             host = f"{host}:{parsed.port}"
         netloc = f"{userinfo}{host}"
         return parsed._replace(netloc=netloc).geturl()
+    port = parsed.port or 5432
+    try:
+        with socket.create_connection((parsed.hostname, port), timeout=0.5):
+            return url
+    except OSError:
+        userinfo = ""
+        if parsed.username:
+            userinfo = parsed.username
+            if parsed.password:
+                userinfo += f":{parsed.password}"
+            userinfo += "@"
+        host = f"localhost:{port}"
+        netloc = f"{userinfo}{host}"
+        return parsed._replace(netloc=netloc).geturl()
     return url
 
 
