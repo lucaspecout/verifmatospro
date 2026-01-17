@@ -1,25 +1,68 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h1>Nouveau poste</h1>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Nouveau poste</h1>
+      <p class="page-subtitle">Préparez la mission avec une checklist complète et partageable.</p>
+    </div>
+    <span class="pill">Configuration</span>
+  </div>
   <form method="post" action="/events" class="form">
     <label>Nom du poste
       <input type="text" name="name" required />
+      <span class="help-text">Exemple : Festival été - J2</span>
     </label>
     <label>Date
       <input type="date" name="date_value" />
     </label>
     <label>Informations utiles
-      <textarea name="info" rows="3"></textarea>
+      <textarea name="info" rows="3" placeholder="Adresse, consignes, horaires..."></textarea>
     </label>
     <label>Sélectionner les sacs / lots
-      <select name="template_ids" multiple required>
+      <select name="template_ids" multiple required id="template-select">
         {% for item in templates %}
         <option value="{{ item.id }}">{{ item.name }}</option>
         {% endfor %}
       </select>
+      <span class="help-text">Choisissez un ou plusieurs sacs pour générer la checklist.</span>
     </label>
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-label">Sélection actuelle</span>
+        <strong id="template-count">0</strong>
+        <span class="pill">Sacs sélectionnés</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-label">Aperçu</span>
+        <div id="template-preview" class="info-list"></div>
+      </div>
+    </div>
     <button type="submit" class="btn">Créer le poste</button>
   </form>
 </section>
+
+<script>
+  const select = document.getElementById('template-select');
+  const preview = document.getElementById('template-preview');
+  const count = document.getElementById('template-count');
+
+  const updatePreview = () => {
+    const selected = Array.from(select.selectedOptions);
+    count.textContent = selected.length;
+    preview.innerHTML = '';
+    if (!selected.length) {
+      preview.innerHTML = '<span class="muted">Aucun sac sélectionné.</span>';
+      return;
+    }
+    selected.forEach((option) => {
+      const item = document.createElement('div');
+      item.textContent = `• ${option.textContent}`;
+      preview.appendChild(item);
+    });
+  };
+
+  select.addEventListener('change', updatePreview);
+  updatePreview();
+</script>
 {% endblock %}

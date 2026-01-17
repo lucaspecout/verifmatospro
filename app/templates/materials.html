@@ -6,6 +6,37 @@
   <p class="error">{{ error }}</p>
 {% endif %}
 
+<section class="card hero-card">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Bibliothèque</p>
+      <h1 class="page-title">Gestion du matériel</h1>
+      <p class="page-subtitle">Structurez vos sacs et lots pour les réutiliser sur chaque poste.</p>
+    </div>
+    <div class="page-actions">
+      <button class="btn" type="button" id="jump-to-builder">Accéder au builder</button>
+      <button class="btn secondary" type="button" data-action="open-root-modal">Nouveau materiel</button>
+    </div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Total référencé</span>
+      <strong>{{ materials | length }}</strong>
+      <span class="pill">Éléments</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Parents racine</span>
+      <strong>{{ parents | length }}</strong>
+      <span class="pill">Modèles</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Sacs prêts</span>
+      <strong>{{ sacs | length }}</strong>
+      <span class="pill ok">Utilisables</span>
+    </div>
+  </div>
+</section>
+
 <section class="card sacs-overview">
   <div class="builder-header">
     <div>
@@ -15,7 +46,7 @@
       </p>
     </div>
     <div class="builder-header-actions">
-      <button class="btn" type="button" id="open-root-modal">Nouveau materiel</button>
+      <button class="btn" type="button" data-action="open-root-modal">Nouveau materiel</button>
     </div>
   </div>
   <div class="sacs-grid">
@@ -201,7 +232,7 @@
 
   const rootSelect = document.getElementById("existing-parent-select");
   const loadParentButton = document.getElementById("load-parent");
-  const openRootModalButton = document.getElementById("open-root-modal");
+  const openRootModalButtons = document.querySelectorAll('[data-action="open-root-modal"]');
   const sacsGrid = document.querySelector(".sacs-grid");
   const builderRoot = document.getElementById("builder-root");
   const builderEmpty = document.getElementById("builder-empty");
@@ -611,10 +642,12 @@
 
   rootTypeSelect.addEventListener("change", toggleRootQty);
 
-  openRootModalButton.addEventListener("click", () => {
-    const modal = document.getElementById("root-modal");
-    toggleRootQty();
-    modal.showModal();
+  openRootModalButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const modal = document.getElementById("root-modal");
+      toggleRootQty();
+      modal.showModal();
+    });
   });
 
   jumpToBuilderButton?.addEventListener("click", () => {

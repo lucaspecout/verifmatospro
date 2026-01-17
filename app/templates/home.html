@@ -1,33 +1,128 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <h1>Bienvenue {{ user.username }}</h1>
-  <p>Rôle : <strong>{{ user.role }}</strong></p>
-  {% if user.must_change_password %}
-    <p class="warning">Merci de changer votre mot de passe.</p>
-  {% endif %}
-  <div class="grid">
-    {% if user.role == 'admin' %}
-    <div class="panel">
-      <h2>Administration</h2>
-      <p>Gérer les utilisateurs, le matériel et les stocks.</p>
-      <a class="btn" href="/users">Utilisateurs</a>
-      <a class="btn" href="/materials">Matériel</a>
+<section class="card hero-card">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Tableau de bord</p>
+      <h1 class="page-title">Bonjour {{ user.username }}</h1>
+      <p class="page-subtitle">Pilotez les postes, le matériel et les alertes stock depuis un seul écran.</p>
     </div>
+    <div class="page-actions">
+      {% if user.role in ['admin', 'chief'] %}
+      <a class="btn" href="/events/new">Créer un poste</a>
+      {% endif %}
+      <a class="btn secondary" href="/materials">Bibliothèque matériel</a>
+    </div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Postes actifs</span>
+      <strong>{{ stats.events_open }}</strong>
+      <span class="pill">{{ stats.events_total }} au total</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Matériel catalogué</span>
+      <strong>{{ stats.materials }}</strong>
+      <span class="pill">{{ stats.parents }} parents racine</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Problèmes stock</span>
+      <strong>{{ stats.issues }}</strong>
+      <span class="pill problem">À traiter</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Éléments en attente</span>
+      <strong>{{ stats.pending_items }}</strong>
+      <span class="pill pending">Checklists en cours</span>
+    </div>
+  </div>
+</section>
+
+<section class="section-grid">
+  <div class="card">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Raccourcis rapides</h2>
+        <p class="page-subtitle">Accédez immédiatement aux actions clés selon votre rôle.</p>
+      </div>
+    </div>
+    <div class="grid">
+      {% if user.role == 'admin' %}
+      <div class="panel">
+        <h3>Administration</h3>
+        <p class="muted">Gérez les utilisateurs et configurez les droits.</p>
+        <div class="actions">
+          <a class="btn" href="/users">Utilisateurs</a>
+          <a class="btn secondary" href="/materials">Matériel</a>
+        </div>
+      </div>
+      {% endif %}
+      {% if user.role in ['admin', 'chief'] %}
+      <div class="panel">
+        <h3>Postes de secours</h3>
+        <p class="muted">Créez un poste et suivez les vérifications terrain.</p>
+        <div class="actions">
+          <a class="btn" href="/events">Voir les postes</a>
+          <a class="btn secondary" href="/events/new">Nouveau poste</a>
+        </div>
+      </div>
+      {% endif %}
+      {% if user.role in ['admin', 'stock'] %}
+      <div class="panel">
+        <h3>Gestion du stock</h3>
+        <p class="muted">Suivez les anomalies et préparez les réassorts.</p>
+        <div class="actions">
+          <a class="btn" href="/stock/issues">Voir les problèmes</a>
+          <a class="btn secondary" href="/materials">Référentiel</a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Prochains postes</h2>
+        <p class="page-subtitle">Planning des opérations à venir.</p>
+      </div>
+      <span class="pill">Planning</span>
+    </div>
+    {% if upcoming_events %}
+      <div class="timeline">
+        {% for item in upcoming_events %}
+        <div class="timeline-item">
+          <strong>{{ item.name }}</strong>
+          <span class="muted">{{ item.date_label }}</span>
+          <span class="pill {{ item.state_class }}">{{ item.state_label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="empty-state">Aucun poste planifié pour le moment.</div>
     {% endif %}
-    {% if user.role in ['admin', 'chief'] %}
-    <div class="panel">
-      <h2>Postes de secours</h2>
-      <p>Créer des événements et suivre les vérifications.</p>
-      <a class="btn" href="/events">Voir les postes</a>
+  </div>
+
+  <div class="card">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Derniers signalements</h2>
+        <p class="page-subtitle">Les anomalies les plus récentes.</p>
+      </div>
+      <span class="pill problem">Urgent</span>
     </div>
-    {% endif %}
-    {% if user.role in ['admin', 'stock'] %}
-    <div class="panel">
-      <h2>Gestion du stock</h2>
-      <p>Voir les problèmes signalés.</p>
-      <a class="btn" href="/stock/issues">Voir les problèmes</a>
-    </div>
+    {% if recent_issues %}
+      <ul class="info-list">
+        {% for issue in recent_issues %}
+        <li>
+          <strong>{{ issue.name }}</strong>
+          <span class="muted">({{ issue.event_name }})</span>
+          <div class="muted">{{ issue.comment }}</div>
+        </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <div class="empty-state">Aucun problème stock signalé.</div>
     {% endif %}
   </div>
 </section>

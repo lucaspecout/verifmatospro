@@ -8,15 +8,40 @@
 </head>
 <body class="phone">
   <main class="phone-container">
-    <section class="card">
-      <h1>{{ event.name }}</h1>
-      <p>Veuillez indiquer votre prénom pour démarrer la vérification.</p>
+    <section class="card check-hero">
+      <div class="check-hero-header">
+        <div>
+          <p class="check-eyebrow">Vérification terrain</p>
+          <h1>{{ event.name }}</h1>
+          <p class="check-subtitle">Merci d'indiquer votre prénom pour démarrer la checklist.</p>
+        </div>
+        <div class="check-progress-pill">Prêt</div>
+      </div>
       <form method="post" class="form">
         <label>Prénom
           <input type="text" name="name" required />
         </label>
         <button class="btn" type="submit">Commencer</button>
       </form>
+    </section>
+    <section class="card check-guide">
+      <h2>Avant de commencer</h2>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <span>✓</span>
+          <div>
+            <strong>Préparez le matériel</strong>
+            <p>Gardez le sac à proximité pour valider rapidement.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <span>✓</span>
+          <div>
+            <strong>Suivez les étapes</strong>
+            <p>Utilisez les boutons OK / Problème pour chaque item.</p>
+          </div>
+        </div>
+      </div>
     </section>
   </main>
 </body>

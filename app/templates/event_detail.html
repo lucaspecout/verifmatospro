@@ -7,14 +7,14 @@
         <p class="eyebrow">Poste de secours</p>
         <h1>{{ event.name }}</h1>
         <div class="event-meta">
-          <span class="meta-pill">Date: {{ event.date or 'Non renseignée' }}</span>
-          <span class="meta-pill">Infos: {{ event.info or 'Aucune information' }}</span>
+          <span class="meta-pill">Date: {{ event.date_label }}</span>
+          <span class="meta-pill">Responsable: {{ event.verifier_name or 'Non renseigné' }}</span>
+          <span class="meta-pill {{ event_state_class }}">{{ event_state_label }}</span>
         </div>
       </div>
       <div class="actions event-actions">
         <button class="btn" type="button" data-action="copy-public">Copier le lien public</button>
-        <a class="btn secondary" href="/materials">Ajouter du matériel</a>
-        <a class="btn secondary" href="/materials">Supprimer du matériel</a>
+        <a class="btn secondary" href="/events/{{ event.id }}/monitor">Suivi live</a>
         <form method="post" action="/events/{{ event.id }}/close">
           <button class="btn ghost" type="submit">Fermer le poste</button>
         </form>
@@ -63,6 +63,18 @@
             </div>
           {% endfor %}
         </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Informations clés</span>
+          <span class="summary-value">Timeline</span>
+        </div>
+        <ul class="info-list">
+          <li><strong>Créé le :</strong> {{ event.created_label }}</li>
+          <li><strong>Démarré :</strong> {{ event.started_label }}</li>
+          <li><strong>Terminé :</strong> {{ event.completed_label }}</li>
+          <li><strong>Infos :</strong> {{ event.info or 'Aucune information' }}</li>
+        </ul>
       </div>
     </div>
   </header>

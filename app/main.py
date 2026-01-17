@@ -36,6 +36,24 @@ ROLE_CHIEF = "chief"
 ROLE_STOCK = "stock"
 
 
+def format_date(value: date | datetime | None, fallback: str = "Non renseignée") -> str:
+    if not value:
+        return fallback
+    if isinstance(value, datetime):
+        return value.strftime("%d/%m/%Y %H:%M")
+    return value.strftime("%d/%m/%Y")
+
+
+def derive_event_state(event: Event, progress: dict[str, Any]) -> dict[str, str]:
+    if event.status == "closed":
+        return {"label": "Fermé", "class": "closed", "state": "closed"}
+    if progress.get("total") and progress.get("pending") == 0:
+        return {"label": "Checklist terminée", "class": "ok", "state": "completed"}
+    if event.verification_started_at:
+        return {"label": "En cours", "class": "pending", "state": "in_progress"}
+    return {"label": "À lancer", "class": "pending", "state": "open"}
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     if exc.status_code == 401 and "text/html" in request.headers.get("accept", ""):
@@ -123,8 +141,77 @@ def require_roles(*roles: str):
 def home(request: Request, user: User = Depends(get_current_user)):
     if user.must_change_password:
         return RedirectResponse("/password", status_code=303)
+    db = SessionLocal()
+    try:
+        events = db.scalars(select(Event)).all()
+        materials = db.scalars(select(MaterialTemplate)).all()
+        nodes = db.scalars(select(EventNode)).all()
+    finally:
+        db.close()
+
+    nodes_by_event: dict[int, list[EventNode]] = defaultdict(list)
+    for node in nodes:
+        nodes_by_event[node.event_id].append(node)
+
+    issues = [node for node in nodes if node.status == "problem"]
+    pending_items = [
+        node
+        for node in nodes
+        if node.node_type == "item" and node.status not in ("ok", "problem")
+    ]
+    parents = [item for item in materials if item.parent_id is None]
+
+    today = date.today()
+    upcoming = [
+        event
+        for event in events
+        if event.date and event.date >= today and event.status != "closed"
+    ]
+    upcoming.sort(key=lambda item: item.date)
+
+    upcoming_payload = []
+    for event in upcoming[:4]:
+        progress = compute_progress(nodes_by_event.get(event.id, []))
+        state = derive_event_state(event, progress)
+        upcoming_payload.append(
+            {
+                "name": event.name,
+                "date_label": format_date(event.date, "Date inconnue"),
+                "state_label": state["label"],
+                "state_class": state["class"],
+            }
+        )
+
+    recent_issues = []
+    sorted_issues = sorted(
+        issues, key=lambda item: item.updated_at or datetime.min, reverse=True
+    )
+    for issue in sorted_issues[:4]:
+        recent_issues.append(
+            {
+                "name": issue.name,
+                "comment": issue.comment or "Aucun commentaire",
+                "event_name": issue.event.name if issue.event else "Poste inconnu",
+            }
+        )
+
+    stats = {
+        "events_total": len(events),
+        "events_open": len([event for event in events if event.status == "open"]),
+        "materials": len(materials),
+        "parents": len(parents),
+        "issues": len(issues),
+        "pending_items": len(pending_items),
+    }
     return templates.TemplateResponse(
-        "home.html", {"request": request, "user": user}
+        "home.html",
+        {
+            "request": request,
+            "user": user,
+            "stats": stats,
+            "upcoming_events": upcoming_payload,
+            "recent_issues": recent_issues,
+        },
     )
 
 
@@ -627,8 +714,38 @@ def events_list(
     db: Session = Depends(get_db),
 ):
     events = db.scalars(select(Event)).all()
+    nodes = db.scalars(select(EventNode)).all()
+    nodes_by_event: dict[int, list[EventNode]] = defaultdict(list)
+    for node in nodes:
+        nodes_by_event[node.event_id].append(node)
+
+    event_cards = []
+    for event in events:
+        event_nodes = nodes_by_event.get(event.id, [])
+        progress = compute_progress(event_nodes)
+        last_update = max(
+            (node.updated_at for node in event_nodes if node.updated_at),
+            default=None,
+        )
+        state = derive_event_state(event, progress)
+        event_cards.append(
+            {
+                "event": event,
+                "progress": progress,
+                "date_label": format_date(event.date, "Date inconnue"),
+                "last_update_label": format_date(last_update, "Aucune mise à jour"),
+                "state_label": state["label"],
+                "state_class": state["class"],
+                "state": state["state"],
+            }
+        )
     return templates.TemplateResponse(
-        "events.html", {"request": request, "user": user, "events": events}
+        "events.html",
+        {
+            "request": request,
+            "user": user,
+            "event_cards": event_cards,
+        },
     )
 
 
@@ -688,6 +805,11 @@ def event_detail(
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
     items = [node for node in nodes if node.node_type == "item"]
+    event.date_label = format_date(event.date)
+    event.created_label = format_date(event.created_at)
+    event.started_label = format_date(event.verification_started_at, "Non démarré")
+    event.completed_label = format_date(event.verification_completed_at, "En attente")
+    state = derive_event_state(event, progress)
     return templates.TemplateResponse(
         "event_detail.html",
         {
@@ -697,6 +819,8 @@ def event_detail(
             "tree": tree,
             "progress": progress,
             "items": items,
+            "event_state_label": state["label"],
+            "event_state_class": state["class"],
         },
     )
 
@@ -714,6 +838,7 @@ def event_monitor(
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
+    state = derive_event_state(event, progress)
     return templates.TemplateResponse(
         "event_monitor.html",
         {
@@ -722,6 +847,7 @@ def event_monitor(
             "event": event,
             "tree": tree,
             "progress": progress,
+            "event_state_label": state["label"],
         },
     )
 
@@ -836,6 +962,14 @@ def update_item(
     db.commit()
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     progress = compute_progress(nodes)
+    if not event.verification_started_at:
+        event.verification_started_at = datetime.utcnow()
+    if progress["total"] and progress["pending"] == 0:
+        event.verification_completed_at = datetime.utcnow()
+    else:
+        event.verification_completed_at = None
+    db.add(event)
+    db.commit()
     manager_payload = {
         "type": "progress",
         "progress": progress,
@@ -862,6 +996,35 @@ def stock_issues(
     return templates.TemplateResponse(
         "stock_issues.html",
         {"request": request, "user": user, "issues": issues},
+    )
+
+
+@app.get("/stock/issues/export")
+def stock_issues_export(
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_STOCK)),
+    db: Session = Depends(get_db),
+):
+    import csv
+    import io
+
+    issues = db.scalars(select(EventNode).where(EventNode.status == "problem")).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Poste", "Item", "Commentaire", "Dernière mise à jour"])
+    for issue in issues:
+        writer.writerow(
+            [
+                issue.event.name if issue.event else "Inconnu",
+                issue.name,
+                issue.comment or "",
+                format_date(issue.updated_at, ""),
+            ]
+        )
+    content = output.getvalue()
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=issues.csv"},
     )
 
 

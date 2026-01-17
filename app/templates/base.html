@@ -5,30 +5,84 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Verif Matos Pro</title>
   <link rel="stylesheet" href="/static/styles.css" />
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+  />
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">Verif Matos Pro</div>
-    {% if user %}
-    <nav>
-      <a href="/">Accueil</a>
-      {% if user.role == 'admin' %}
-      <a href="/users">Utilisateurs</a>
-      <a href="/materials">Matériel</a>
-      {% endif %}
-      {% if user.role in ['admin', 'chief'] %}
-      <a href="/events">Postes</a>
-      {% endif %}
-      {% if user.role in ['admin', 'stock'] %}
-      <a href="/stock/issues">Stock</a>
-      {% endif %}
-      <a href="/password">Mot de passe</a>
-      <a href="/logout">Déconnexion</a>
-    </nav>
-    {% endif %}
-  </header>
-  <main class="container">
+  {% if user %}
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <div class="sidebar-brand">Verif Matos Pro</div>
+        <p class="muted">Supervision matériel &amp; postes de secours</p>
+      </div>
+      <div class="sidebar-user">
+        <div class="avatar">{{ user.username[:1]|upper }}</div>
+        <div class="sidebar-user-info">
+          <strong>{{ user.username }}</strong>
+          <span>{{ user.role }}</span>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <a href="/" class="nav-link" data-path="/">🏠 Accueil</a>
+        {% if user.role == 'admin' %}
+        <a href="/users" class="nav-link" data-path="/users">👥 Utilisateurs</a>
+        <a href="/materials" class="nav-link" data-path="/materials">🧰 Matériel</a>
+        {% endif %}
+        {% if user.role in ['admin', 'chief'] %}
+        <a href="/events" class="nav-link" data-path="/events">🚑 Postes</a>
+        {% endif %}
+        {% if user.role in ['admin', 'stock'] %}
+        <a href="/stock/issues" class="nav-link" data-path="/stock/issues">📦 Stock</a>
+        {% endif %}
+        <a href="/password" class="nav-link" data-path="/password">🔐 Mot de passe</a>
+        <a href="/logout" class="nav-link">↗ Déconnexion</a>
+      </nav>
+      <div class="sidebar-footer">
+        <span class="tag live">Sécurisé</span>
+        <div>Console interne</div>
+      </div>
+    </aside>
+    <div class="app-main">
+      <header class="topbar">
+        <div class="topbar-main">
+          <div class="brand">Centre de pilotage</div>
+          <span class="topbar-meta" id="topbar-date">Chargement...</span>
+        </div>
+        <div class="topbar-actions">
+          <span class="pill">Session active</span>
+        </div>
+      </header>
+      <main class="container">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  {% else %}
+  <div class="auth-shell">
     {% block content %}{% endblock %}
-  </main>
+  </div>
+  {% endif %}
+
+  <script>
+    const today = new Date();
+    const formattedDate = today.toLocaleDateString('fr-FR', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+    });
+    const dateEl = document.getElementById('topbar-date');
+    if (dateEl) {
+      dateEl.textContent = `Aujourd'hui · ${formattedDate}`;
+    }
+    const currentPath = window.location.pathname;
+    document.querySelectorAll('[data-path]').forEach((link) => {
+      if (currentPath === link.dataset.path || currentPath.startsWith(`${link.dataset.path}/`)) {
+        link.classList.add('active');
+      }
+    });
+  </script>
 </body>
 </html>

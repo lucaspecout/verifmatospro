@@ -1,27 +1,98 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <div class="header-row">
-    <h1>Postes de secours</h1>
-    <a class="btn" href="/events/new">Nouveau poste</a>
-  </div>
-  <div class="list">
-    {% for event in events %}
-    <div class="list-item">
-      <div>
-        <strong>{{ event.name }}</strong> — {{ event.date or '' }}
-        <div class="muted">{{ event.info or '' }}</div>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Postes de secours</h1>
+      <p class="page-subtitle">Suivez l'état des postes actifs et leur progression de checklist.</p>
+    </div>
+    <div class="page-actions">
+      <div class="search-input">
+        🔍
+        <input type="text" id="event-search" placeholder="Rechercher un poste" />
       </div>
-      <div class="actions">
-        <a class="btn" href="/events/{{ event.id }}/monitor">Voir</a>
-        <form method="post" action="/events/{{ event.id }}/delete">
+      <a class="btn" href="/events/new">Nouveau poste</a>
+    </div>
+  </div>
+  <div class="filter-chips" id="event-filters">
+    <button class="filter-chip active" type="button" data-status="all">Tous</button>
+    <button class="filter-chip" type="button" data-status="open">Ouverts</button>
+    <button class="filter-chip" type="button" data-status="in_progress">En cours</button>
+    <button class="filter-chip" type="button" data-status="completed">Terminés</button>
+    <button class="filter-chip" type="button" data-status="closed">Fermés</button>
+  </div>
+
+  <div class="list-card" id="events-list">
+    {% for item in event_cards %}
+    <article
+      class="list-card-item"
+      data-name="{{ item.event.name | lower }}"
+      data-status="{{ item.state }}"
+    >
+      <div>
+        <h3>{{ item.event.name }}</h3>
+        <div class="list-card-meta">
+          <span class="pill {{ item.state_class }}">{{ item.state_label }}</span>
+          {% if item.event.date %}
+          <span>📅 {{ item.date_label }}</span>
+          {% endif %}
+          <span>🧰 {{ item.progress.total }} éléments</span>
+          {% if item.last_update_label %}
+          <span>⏱️ {{ item.last_update_label }}</span>
+          {% endif %}
+        </div>
+        <div class="progress">
+          <div class="progress-bar" style="width: {{ item.progress.percent }}%"></div>
+        </div>
+        <div class="stats modern">
+          <span class="stat-pill ok">OK: {{ item.progress.ok }}</span>
+          <span class="stat-pill problem">Problèmes: {{ item.progress.problem }}</span>
+          <span class="stat-pill pending">En attente: {{ item.progress.pending }}</span>
+        </div>
+        <p class="muted">{{ item.event.info or 'Aucune information complémentaire.' }}</p>
+      </div>
+      <div class="list-card-actions">
+        <a class="btn" href="/events/{{ item.event.id }}">Détails</a>
+        <a class="btn secondary" href="/events/{{ item.event.id }}/monitor">Suivi live</a>
+        <form method="post" action="/events/{{ item.event.id }}/delete">
           <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
             Supprimer
           </button>
         </form>
       </div>
-    </div>
+    </article>
+    {% else %}
+    <div class="empty-state">Aucun poste créé. Lancez un nouveau poste pour démarrer.</div>
     {% endfor %}
   </div>
 </section>
+
+<script>
+  const eventSearch = document.getElementById('event-search');
+  const eventFilters = document.getElementById('event-filters');
+  const eventList = document.getElementById('events-list');
+  let currentFilter = 'all';
+
+  const filterEvents = () => {
+    const query = eventSearch.value.trim().toLowerCase();
+    eventList.querySelectorAll('.list-card-item').forEach((card) => {
+      const matchesSearch = card.dataset.name.includes(query);
+      const matchesFilter = currentFilter === 'all' || card.dataset.status === currentFilter;
+      card.style.display = matchesSearch && matchesFilter ? 'grid' : 'none';
+    });
+  };
+
+  eventFilters.addEventListener('click', (event) => {
+    const button = event.target.closest('.filter-chip');
+    if (!button) {
+      return;
+    }
+    currentFilter = button.dataset.status;
+    eventFilters.querySelectorAll('.filter-chip').forEach((chip) => chip.classList.remove('active'));
+    button.classList.add('active');
+    filterEvents();
+  });
+
+  eventSearch.addEventListener('input', filterEvents);
+</script>
 {% endblock %}

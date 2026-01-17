@@ -11,6 +11,7 @@
             Vérificateur: {{ event.verifier_name or 'Non renseigné' }}
           </span>
           <span class="meta-pill live" id="sync-status">Synchronisé</span>
+          <span class="meta-pill">Statut: {{ event_state_label }}</span>
         </div>
       </div>
       <div class="actions monitor-actions">
@@ -59,6 +60,7 @@
           <li>Valider chaque équipement.</li>
           <li>Signaler les manquants ou pannes.</li>
           <li>Synchronisation instantanée avec le poste.</li>
+          <li>Statut final enregistré automatiquement.</li>
         </ul>
       </div>
     </div>
@@ -116,6 +118,13 @@
               <p class="muted">Conservez les notes pour le stock.</p>
             </div>
           </div>
+        </div>
+      </div>
+      <div class="card quick-panel">
+        <div class="panel-title">Journal des actions</div>
+        <p class="muted">Dernières modifications captées en direct.</p>
+        <div class="timeline" id="monitor-log">
+          <div class="timeline-item">En attente de mise à jour.</div>
         </div>
       </div>
     </aside>
@@ -193,9 +202,24 @@
         recomputeContainerStatus(node.dataset.parentId);
         const nodeName = node.querySelector('.tree-name')?.textContent || 'Équipement';
         const lastUpdate = document.querySelector('#last-update');
+        const log = document.querySelector('#monitor-log');
         if (lastUpdate) {
           const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           lastUpdate.textContent = `${nodeName} → ${statusLabels[data.status] || data.status} (${time})`;
+          if (log) {
+            const entry = document.createElement('div');
+            entry.className = 'timeline-item';
+            entry.innerHTML = `
+              <strong>${nodeName}</strong>
+              <span class="muted">${statusLabels[data.status] || data.status} · ${time}</span>
+              <span class="muted">${data.comment || 'Aucun commentaire'}</span>
+            `;
+            log.prepend(entry);
+            const entries = log.querySelectorAll('.timeline-item');
+            if (entries.length > 6) {
+              entries[entries.length - 1].remove();
+            }
+          }
         }
       }
     }
