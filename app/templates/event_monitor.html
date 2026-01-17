@@ -1,71 +1,214 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="header-row">
-    <div>
-      <h1>Suivi en direct — {{ event.name }}</h1>
-      <p class="muted"><strong>Vérificateur:</strong> {{ event.verifier_name or 'Non renseigné' }}</p>
-    </div>
-    <div class="actions">
-      <a class="btn secondary" href="/materials">Ajouter du matériel</a>
-      <form method="post" action="/events/{{ event.id }}/delete">
-        <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
-          Supprimer
-        </button>
-      </form>
-    </div>
-  </div>
-  <div class="panel public-link-panel">
-    <div>
-      <strong>Lien public</strong>
-      <div class="public-link" data-token="{{ event.public_token }}">
-        {{ request.base_url }}public/{{ event.id }}/{{ event.public_token }}
+<section class="monitor-page">
+  <header class="card monitor-hero">
+    <div class="monitor-hero-main">
+      <div>
+        <p class="eyebrow">Chef de poste</p>
+        <h1>Suivi en direct — {{ event.name }}</h1>
+        <div class="monitor-meta">
+          <span class="meta-pill">
+            Vérificateur: {{ event.verifier_name or 'Non renseigné' }}
+          </span>
+          <span class="meta-pill live" id="sync-status">Synchronisé</span>
+        </div>
       </div>
-      <div class="muted">Partagez ce lien avec le vérificateur.</div>
+      <div class="actions monitor-actions">
+        <a class="btn secondary" href="/materials">Ajouter du matériel</a>
+        <form method="post" action="/events/{{ event.id }}/delete">
+          <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
+            Supprimer
+          </button>
+        </form>
+      </div>
     </div>
-    <div class="public-link-actions">
-      <button class="btn secondary" type="button" data-action="toggle-link">Afficher</button>
-      <button class="btn" type="button" data-action="copy-link">Copier</button>
+    <div class="monitor-summary-grid">
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Progression globale</span>
+          <span class="summary-value" id="progress-percent">{{ progress.percent }}%</span>
+        </div>
+        <div class="progress" id="progress-bar">
+          <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+        </div>
+        <div class="stats modern" id="progress-stats">
+          <span class="stat-pill ok">OK: {{ progress.ok }}</span>
+          <span class="stat-pill problem">Problèmes: {{ progress.problem }}</span>
+          <span class="stat-pill pending">En attente: {{ progress.pending }}</span>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Synchronisation</span>
+          <span class="summary-value">Temps réel</span>
+        </div>
+        <div class="sync-status">
+          <span class="sync-dot"></span>
+          <div>
+            <strong>Flux actif</strong>
+            <p class="muted" id="last-update">En attente de mise à jour.</p>
+          </div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Prêt au départ</span>
+          <span class="summary-value">Checklist</span>
+        </div>
+        <ul class="summary-steps">
+          <li>Valider chaque équipement.</li>
+          <li>Signaler les manquants ou pannes.</li>
+          <li>Synchronisation instantanée avec le poste.</li>
+        </ul>
+      </div>
     </div>
-  </div>
-  <div class="progress" id="progress-bar">
-    <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
-  </div>
-  <div class="stats" id="progress-stats">
-    <span>OK: {{ progress.ok }}</span>
-    <span>Problèmes: {{ progress.problem }}</span>
-    <span>En attente: {{ progress.pending }}</span>
-  </div>
-  <div class="tree" id="monitor-tree">
-    {% for branch in tree %}
-      {% include "partials/node.html" with context %}
-    {% endfor %}
+  </header>
+
+  <div class="monitor-grid">
+    <section class="card monitor-checklist">
+      <div class="section-header">
+        <div>
+          <h2>Checklist matériel</h2>
+          <p class="muted">Mise à jour immédiate dès qu'un vérificateur agit.</p>
+        </div>
+        <span class="section-chip">Live</span>
+      </div>
+      <div class="tree" id="monitor-tree">
+        {% for branch in tree %}
+          {% include "partials/node.html" with context %}
+        {% endfor %}
+      </div>
+    </section>
+
+    <aside class="monitor-aside">
+      <div class="card quick-panel">
+        <div class="panel-title">Lien public</div>
+        <p class="muted">Partagez le lien avec le vérificateur terrain.</p>
+        <div class="public-link" data-token="{{ event.public_token }}">
+          {{ request.base_url }}public/{{ event.id }}/{{ event.public_token }}
+        </div>
+        <div class="public-link-actions">
+          <button class="btn secondary" type="button" data-action="toggle-link">Afficher</button>
+          <button class="btn" type="button" data-action="copy-link">Copier</button>
+        </div>
+      </div>
+      <div class="card quick-panel">
+        <div class="panel-title">Contrôle final</div>
+        <div class="final-checklist">
+          <div class="final-step">
+            <span>⚡</span>
+            <div>
+              <strong>Synchronisation active</strong>
+              <p class="muted">Les retours apparaissent en temps réel.</p>
+            </div>
+          </div>
+          <div class="final-step">
+            <span>🧭</span>
+            <div>
+              <strong>Validation départ</strong>
+              <p class="muted">Assurez-vous que chaque section est au vert.</p>
+            </div>
+          </div>
+          <div class="final-step">
+            <span>📝</span>
+            <div>
+              <strong>Commentaires</strong>
+              <p class="muted">Conservez les notes pour le stock.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
   </div>
 </section>
+
 <script>
-  const ws = new WebSocket(`ws://${location.host}/ws/events/{{ event.id }}`);
-  ws.onmessage = (event) => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'progress') {
-      const bar = document.querySelector('#progress-bar .progress-bar');
-      bar.style.width = `${data.progress.percent}%`;
-      document.querySelector('#progress-stats').innerHTML = `
-        <span>OK: ${data.progress.ok}</span>
-        <span>Problèmes: ${data.progress.problem}</span>
-        <span>En attente: ${data.progress.pending}</span>
-      `;
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${protocol}://${location.host}/ws/events/{{ event.id }}`);
+
+  const statusLabels = {
+    ok: 'OK',
+    problem: 'Problème',
+    pending: 'En attente',
+  };
+
+  const updateProgress = (progress) => {
+    const bar = document.querySelector('#progress-bar .progress-bar');
+    bar.style.width = `${progress.percent}%`;
+    document.querySelector('#progress-percent').textContent = `${progress.percent}%`;
+    document.querySelector('#progress-stats').innerHTML = `
+      <span class="stat-pill ok">OK: ${progress.ok}</span>
+      <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
+      <span class="stat-pill pending">En attente: ${progress.pending}</span>
+    `;
+  };
+
+  const setNodeStatus = (node, status, comment) => {
+    node.dataset.status = status || 'pending';
+    node.classList.remove('ok', 'problem', 'pending');
+    if (status) {
+      node.classList.add(status);
+    }
+    const badge = node.querySelector('[data-role="status"]');
+    if (badge) {
+      badge.textContent = statusLabels[status] || status;
+      badge.classList.remove('ok', 'problem', 'pending');
+      if (status) {
+        badge.classList.add(status);
+      }
+    }
+    const commentEl = node.querySelector('[data-role="comment"]');
+    if (commentEl && typeof comment !== 'undefined') {
+      commentEl.textContent = comment || 'Aucun commentaire.';
     }
   };
 
-  const linkPanel = document.querySelector('.public-link-panel');
-  const linkElement = linkPanel.querySelector('.public-link');
-  const toggleButton = linkPanel.querySelector('[data-action="toggle-link"]');
-  const copyButton = linkPanel.querySelector('[data-action="copy-link"]');
-  const linkValue = linkElement.textContent.trim();
+  const recomputeContainerStatus = (containerId) => {
+    if (!containerId || containerId === 'root') {
+      return;
+    }
+    const container = document.querySelector(`[data-node-id="${containerId}"]`);
+    if (!container) {
+      return;
+    }
+    const children = document.querySelectorAll(`[data-parent-id="${containerId}"]`);
+    const statuses = Array.from(children).map((child) => child.dataset.status || 'pending');
+    let nextStatus = 'pending';
+    if (statuses.every((status) => status === 'ok')) {
+      nextStatus = 'ok';
+    } else if (statuses.some((status) => status === 'problem')) {
+      nextStatus = 'problem';
+    }
+    setNodeStatus(container, nextStatus);
+    recomputeContainerStatus(container.dataset.parentId);
+  };
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'progress') {
+      updateProgress(data.progress);
+      const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
+      if (node) {
+        setNodeStatus(node, data.status, data.comment);
+        recomputeContainerStatus(node.dataset.parentId);
+        const nodeName = node.querySelector('.tree-name')?.textContent || 'Équipement';
+        const lastUpdate = document.querySelector('#last-update');
+        if (lastUpdate) {
+          const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          lastUpdate.textContent = `${nodeName} → ${statusLabels[data.status] || data.status} (${time})`;
+        }
+      }
+    }
+  };
+
+  const linkPanel = document.querySelector('.public-link');
+  const toggleButton = document.querySelector('[data-action="toggle-link"]');
+  const copyButton = document.querySelector('[data-action="copy-link"]');
+  const linkValue = linkPanel.textContent.trim();
 
   toggleButton.addEventListener('click', () => {
-    linkElement.classList.toggle('visible');
-    toggleButton.textContent = linkElement.classList.contains('visible') ? 'Masquer' : 'Afficher';
+    linkPanel.classList.toggle('visible');
+    toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
   });
 
   copyButton.addEventListener('click', async () => {

@@ -11,25 +11,142 @@
     <section class="card check-hero">
       <div class="check-hero-header">
         <div>
-          <p class="check-eyebrow">Vérification matériel</p>
+          <p class="check-eyebrow">Vérification avant départ</p>
           <h1>{{ event.name }}</h1>
+          <p class="check-subtitle">Poste de secours — checklist digitale synchronisée.</p>
         </div>
-        <div class="check-progress-pill">{{ progress.percent }}%</div>
+        <div class="check-progress-pill" id="public-progress">{{ progress.percent }}%</div>
       </div>
-      <div class="progress">
+      <div class="progress" id="public-progress-bar">
         <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
       </div>
-      <div class="stats">
+      <div class="stats" id="public-progress-stats">
         <span class="stat-chip ok">OK: {{ progress.ok }}</span>
         <span class="stat-chip problem">Problèmes: {{ progress.problem }}</span>
         <span class="stat-chip pending">En attente: {{ progress.pending }}</span>
       </div>
+      <div class="sync-pill">
+        <span class="sync-dot"></span>
+        Synchronisation instantanée active
+        <span class="sync-time" id="public-last-sync">En attente</span>
+      </div>
     </section>
-    <section class="card check-body">
+
+    <section class="card check-guide">
+      <h2>Parcours rapide</h2>
+      <div class="guide-steps">
+        <div class="guide-step">
+          <span>1</span>
+          <div>
+            <strong>Contrôle visuel</strong>
+            <p>Vérifiez l'état et la quantité indiquée.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <span>2</span>
+          <div>
+            <strong>Signaler un problème</strong>
+            <p>Ajoutez un commentaire pour le chef de poste.</p>
+          </div>
+        </div>
+        <div class="guide-step">
+          <span>3</span>
+          <div>
+            <strong>Valider l'élément</strong>
+            <p>Le suivi se met à jour instantanément.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card check-body" id="public-tree">
       {% for branch in tree %}
         {% include "partials/public_node.html" with context %}
       {% endfor %}
     </section>
   </main>
+
+  <script>
+    const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+    const ws = new WebSocket(`${protocol}://${location.host}/ws/events/{{ event.id }}`);
+
+    const statusLabels = {
+      ok: 'OK',
+      problem: 'Problème',
+      pending: 'En attente',
+    };
+
+    const updatePublicProgress = (progress) => {
+      const bar = document.querySelector('#public-progress-bar .progress-bar');
+      bar.style.width = `${progress.percent}%`;
+      document.querySelector('#public-progress').textContent = `${progress.percent}%`;
+      document.querySelector('#public-progress-stats').innerHTML = `
+        <span class="stat-chip ok">OK: ${progress.ok}</span>
+        <span class="stat-chip problem">Problèmes: ${progress.problem}</span>
+        <span class="stat-chip pending">En attente: ${progress.pending}</span>
+      `;
+    };
+
+    const setNodeStatus = (node, status, comment) => {
+      node.dataset.status = status || 'pending';
+      node.classList.remove('ok', 'problem', 'pending');
+      if (status) {
+        node.classList.add(status);
+      }
+      const badge = node.querySelector('[data-role="status"]');
+      if (badge) {
+        badge.textContent = statusLabels[status] || status;
+        badge.classList.remove('ok', 'problem', 'pending');
+        if (status) {
+          badge.classList.add(status);
+        }
+      }
+      const commentEl = node.querySelector('[data-role="comment"]');
+      if (commentEl && typeof comment !== 'undefined') {
+        commentEl.textContent = comment || 'Aucun commentaire signalé.';
+      }
+      const input = node.querySelector('input[name="comment"]');
+      if (input && typeof comment !== 'undefined') {
+        input.value = comment || '';
+      }
+    };
+
+    const recomputeContainerStatus = (containerId) => {
+      if (!containerId || containerId === 'root') {
+        return;
+      }
+      const container = document.querySelector(`[data-node-id="${containerId}"]`);
+      if (!container) {
+        return;
+      }
+      const children = document.querySelectorAll(`[data-parent-id="${containerId}"]`);
+      const statuses = Array.from(children).map((child) => child.dataset.status || 'pending');
+      let nextStatus = 'pending';
+      if (statuses.every((status) => status === 'ok')) {
+        nextStatus = 'ok';
+      } else if (statuses.some((status) => status === 'problem')) {
+        nextStatus = 'problem';
+      }
+      setNodeStatus(container, nextStatus);
+      recomputeContainerStatus(container.dataset.parentId);
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'progress') {
+        updatePublicProgress(data.progress);
+        const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
+        if (node) {
+          setNodeStatus(node, data.status, data.comment);
+          recomputeContainerStatus(node.dataset.parentId);
+        }
+        const syncTime = document.querySelector('#public-last-sync');
+        if (syncTime) {
+          const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          syncTime.textContent = `Mis à jour à ${time}`;
+        }
+      }
+    };
+  </script>
 </body>
 </html>
