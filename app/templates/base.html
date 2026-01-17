@@ -56,13 +56,15 @@
         </div>
       </header>
       <main class="container">
+  {% else %}
+  <div class="auth-shell">
+  {% endif %}
         {% block content %}{% endblock %}
+  {% if user %}
       </main>
     </div>
   </div>
   {% else %}
-  <div class="auth-shell">
-    {% block content %}{% endblock %}
   </div>
   {% endif %}
 
