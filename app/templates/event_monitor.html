@@ -1,8 +1,33 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h1>Suivi en direct — {{ event.name }}</h1>
-  <p><strong>Vérificateur:</strong> {{ event.verifier_name or 'Non renseigné' }}</p>
+  <div class="header-row">
+    <div>
+      <h1>Suivi en direct — {{ event.name }}</h1>
+      <p class="muted"><strong>Vérificateur:</strong> {{ event.verifier_name or 'Non renseigné' }}</p>
+    </div>
+    <div class="actions">
+      <a class="btn secondary" href="/materials">Ajouter du matériel</a>
+      <form method="post" action="/events/{{ event.id }}/delete">
+        <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
+          Supprimer
+        </button>
+      </form>
+    </div>
+  </div>
+  <div class="panel public-link-panel">
+    <div>
+      <strong>Lien public</strong>
+      <div class="public-link" data-token="{{ event.public_token }}">
+        {{ request.base_url }}public/{{ event.id }}/{{ event.public_token }}
+      </div>
+      <div class="muted">Partagez ce lien avec le vérificateur.</div>
+    </div>
+    <div class="public-link-actions">
+      <button class="btn secondary" type="button" data-action="toggle-link">Afficher</button>
+      <button class="btn" type="button" data-action="copy-link">Copier</button>
+    </div>
+  </div>
   <div class="progress" id="progress-bar">
     <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
   </div>
@@ -31,5 +56,31 @@
       `;
     }
   };
+
+  const linkPanel = document.querySelector('.public-link-panel');
+  const linkElement = linkPanel.querySelector('.public-link');
+  const toggleButton = linkPanel.querySelector('[data-action="toggle-link"]');
+  const copyButton = linkPanel.querySelector('[data-action="copy-link"]');
+  const linkValue = linkElement.textContent.trim();
+
+  toggleButton.addEventListener('click', () => {
+    linkElement.classList.toggle('visible');
+    toggleButton.textContent = linkElement.classList.contains('visible') ? 'Masquer' : 'Afficher';
+  });
+
+  copyButton.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(linkValue);
+      copyButton.textContent = 'Copié';
+      setTimeout(() => {
+        copyButton.textContent = 'Copier';
+      }, 2000);
+    } catch (err) {
+      copyButton.textContent = 'Erreur';
+      setTimeout(() => {
+        copyButton.textContent = 'Copier';
+      }, 2000);
+    }
+  });
 </script>
 {% endblock %}

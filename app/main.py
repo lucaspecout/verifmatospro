@@ -304,7 +304,7 @@ def admin_delete_user(
 @app.get("/materials", response_class=HTMLResponse)
 def materials_list(
     request: Request,
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
     db: Session = Depends(get_db),
 ):
     return render_materials_page(request, user, db)
@@ -351,7 +351,7 @@ def materials_create(
     expected_qty: int | None = Form(None),
     parent_id: int | None = Form(None),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
     material = MaterialTemplate(
         name=name,
@@ -369,7 +369,7 @@ def materials_wizard_create(
     request: Request,
     wizard_payload: str = Form(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
     try:
         payload = json.loads(wizard_payload)
@@ -486,7 +486,7 @@ def materials_wizard_create(
 def materials_parents_export(
     ids: str | None = None,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
     if not ids:
         raise HTTPException(status_code=400, detail="Aucun parent sélectionné")
@@ -530,7 +530,7 @@ def materials_parents_import(
     request: Request,
     items_payload: str = Form(...),
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
     try:
         payload = json.loads(items_payload)
@@ -600,7 +600,7 @@ def materials_parents_import(
 def materials_delete(
     material_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(require_roles(ROLE_ADMIN)),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
     material = db.get(MaterialTemplate, material_id)
     if not material:
