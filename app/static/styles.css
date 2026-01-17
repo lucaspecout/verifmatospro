@@ -484,6 +484,36 @@ body {
   gap: 0.5rem;
 }
 
+.public-link-panel {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.public-link {
+  display: none;
+  margin: 0.4rem 0;
+  background: var(--card);
+  padding: 0.4rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 0.9rem;
+  word-break: break-all;
+}
+
+.public-link.visible {
+  display: block;
+}
+
+.public-link-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .wizard-grid {
   display: grid;
   gap: 1rem;
