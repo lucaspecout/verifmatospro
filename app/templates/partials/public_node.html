@@ -31,6 +31,8 @@
     data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
     data-node-type="{{ branch.node.node_type }}"
     data-status="{{ branch.status or 'pending' }}"
+    data-comment="{{ branch.node.comment or '' }}"
+    data-node-name="{{ branch.node.name }}"
   >
     <div class="checklist-item-title">
       <div>
@@ -52,10 +54,10 @@
       {% endif %}
     </div>
     <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="checklist-form">
-      <input type="text" name="comment" placeholder="Commentaire si problème" value="{{ branch.node.comment or '' }}" />
+      <input type="hidden" name="comment" value="{{ branch.node.comment or '' }}" />
       <div class="checklist-actions">
-        <button class="toggle-btn ok" type="submit" name="status" value="ok">OK</button>
-        <button class="toggle-btn problem" type="submit" name="status" value="problem">Problème</button>
+        <button class="toggle-btn ok" type="button" data-status="ok">OK</button>
+        <button class="toggle-btn problem" type="button" data-status="problem">Problème</button>
       </div>
     </form>
   </div>

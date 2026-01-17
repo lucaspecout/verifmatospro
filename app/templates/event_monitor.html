@@ -170,6 +170,9 @@
     if (commentEl && typeof comment !== 'undefined') {
       commentEl.textContent = comment || 'Aucun commentaire.';
     }
+    if (node.dataset.nodeType === 'container' && status === 'ok') {
+      node.removeAttribute('open');
+    }
   };
 
   const recomputeContainerStatus = (containerId) => {
@@ -224,6 +227,10 @@
       }
     }
   };
+
+  document.querySelectorAll('.tree-node.is-container[data-status="ok"]').forEach((node) => {
+    node.removeAttribute('open');
+  });
 
   const linkPanel = document.querySelector('.public-link');
   const toggleButton = document.querySelector('[data-action="toggle-link"]');

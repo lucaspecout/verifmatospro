@@ -53,7 +53,6 @@
       </div>
       <div class="list-card-actions">
         <a class="btn" href="/events/{{ item.event.id }}">Détails</a>
-        <a class="btn secondary" href="/events/{{ item.event.id }}/monitor">Suivi live</a>
         <form method="post" action="/events/{{ item.event.id }}/delete">
           <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
             Supprimer

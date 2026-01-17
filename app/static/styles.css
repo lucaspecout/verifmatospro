@@ -118,6 +118,17 @@ body {
   box-shadow: none;
 }
 
+.btn.ghost {
+  background: transparent;
+  color: #475569;
+  border: 1px solid rgba(100, 116, 139, 0.4);
+  box-shadow: none;
+}
+
+.btn.ghost:hover {
+  background: rgba(148, 163, 184, 0.2);
+}
+
 .btn.small {
   padding: 0.4rem 0.8rem;
   font-size: 0.9rem;
@@ -459,10 +470,6 @@ body {
   overflow: hidden;
 }
 
-.tree-node.is-container[open] > .tree-title::after {
-  transform: rotate(180deg);
-}
-
 .tree-node summary {
   list-style: none;
   cursor: pointer;
@@ -485,14 +492,18 @@ body {
   padding: 1rem;
 }
 
-.tree-node.is-container .tree-title::after {
-  content: '⌄';
+.tree-node .fold-icon {
   position: absolute;
   right: 1.2rem;
   top: 1.2rem;
-  font-size: 1rem;
+  font-size: 0.95rem;
   color: #64748b;
   transition: transform 0.2s ease;
+  pointer-events: none;
+}
+
+.tree-node.is-container[open] .fold-icon {
+  transform: rotate(180deg);
 }
 
 .tree-title-main {
@@ -913,6 +924,57 @@ body {
 .toggle-btn.problem {
   background: rgba(239, 68, 68, 0.2);
   color: #fecaca;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 40;
+}
+
+.modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: min(92vw, 420px);
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.25);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.modal-title {
+  margin: 0;
+}
+
+.modal-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.modal-form textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 0.75rem;
+  font-family: inherit;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
 }
 
 .inline-form {

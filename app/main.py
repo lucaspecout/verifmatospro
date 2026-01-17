@@ -825,6 +825,125 @@ def event_detail(
     )
 
 
+def render_event_materials_page(
+    request: Request,
+    user: User,
+    event: Event,
+    nodes: list[EventNode],
+    error: str | None = None,
+) -> HTMLResponse:
+    tree = build_tree(nodes)
+    containers = [node for node in nodes if node.node_type == "container"]
+    return templates.TemplateResponse(
+        "event_materials.html",
+        {
+            "request": request,
+            "user": user,
+            "event": event,
+            "tree": tree,
+            "containers": containers,
+            "error": error,
+        },
+    )
+
+
+@app.get("/events/{event_id}/materials", response_class=HTMLResponse)
+def event_materials(
+    request: Request,
+    event_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    return render_event_materials_page(request, user, event, nodes)
+
+
+@app.post("/events/{event_id}/materials")
+def event_materials_add(
+    request: Request,
+    event_id: int,
+    name: str = Form(...),
+    node_type: str = Form("container"),
+    parent_id: str | None = Form(None),
+    expected_qty: str | None = Form(None),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    name = name.strip()
+    if not name:
+        return render_event_materials_page(
+            request, user, event, nodes, error="Le nom est obligatoire."
+        )
+    if node_type not in {"container", "item"}:
+        node_type = "container"
+    selected_parent_id: int | None = None
+    if parent_id:
+        try:
+            selected_parent_id = int(parent_id)
+        except ValueError:
+            return render_event_materials_page(
+                request, user, event, nodes, error="Parent invalide."
+            )
+        parent_node = db.get(EventNode, selected_parent_id)
+        if (
+            not parent_node
+            or parent_node.event_id != event_id
+            or parent_node.node_type != "container"
+        ):
+            return render_event_materials_page(
+                request, user, event, nodes, error="Parent introuvable."
+            )
+    qty_value: int | None = None
+    if node_type == "item" and expected_qty:
+        try:
+            qty_value = int(expected_qty)
+        except ValueError:
+            return render_event_materials_page(
+                request, user, event, nodes, error="Quantité invalide."
+            )
+
+    new_node = EventNode(
+        event_id=event_id,
+        name=name,
+        node_type=node_type,
+        expected_qty=qty_value if node_type == "item" else None,
+        parent_id=selected_parent_id,
+    )
+    db.add(new_node)
+    db.commit()
+    return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
+
+
+@app.post("/events/{event_id}/materials/{node_id}/delete")
+def event_materials_delete(
+    event_id: int,
+    node_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    node = db.get(EventNode, node_id)
+    if not node or node.event_id != event_id:
+        raise HTTPException(status_code=404, detail="Item introuvable")
+
+    def delete_descendants(node_id: int) -> None:
+        children = db.scalars(select(EventNode).where(EventNode.parent_id == node_id)).all()
+        for child in children:
+            delete_descendants(child.id)
+            db.delete(child)
+
+    delete_descendants(node.id)
+    db.delete(node)
+    db.commit()
+    return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
+
+
 @app.get("/events/{event_id}/monitor", response_class=HTMLResponse)
 def event_monitor(
     request: Request,
@@ -942,6 +1061,7 @@ def public_check(
 
 @app.post("/public/{event_id}/{token}/item/{node_id}")
 def update_item(
+    request: Request,
     event_id: int,
     token: str,
     node_id: int,
@@ -983,6 +1103,9 @@ def update_item(
         anyio.from_thread.run(manager.broadcast, event_id, manager_payload)
     except RuntimeError:
         pass
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(manager_payload)
     return RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
 
 
