@@ -687,6 +687,7 @@ def event_detail(
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
+    items = [node for node in nodes if node.node_type == "item"]
     return templates.TemplateResponse(
         "event_detail.html",
         {
@@ -695,6 +696,7 @@ def event_detail(
             "event": event,
             "tree": tree,
             "progress": progress,
+            "items": items,
         },
     )
 
@@ -899,11 +901,13 @@ def build_tree(nodes: list[Any]) -> list[dict[str, Any]]:
         for node in nodes_by_parent.get(parent_id, []):
             children = _build(node.id)
             status = compute_node_status(node, children)
+            counts = compute_node_counts(node, children, status)
             items.append(
                 {
                     "node": node,
                     "children": children,
                     "status": status,
+                    "counts": counts,
                 }
             )
         return items
@@ -927,6 +931,25 @@ def compute_node_status(node: EventNode, children: list[dict[str, Any]]) -> str:
     if any(status == "problem" for status in child_statuses):
         return "problem"
     return "pending"
+
+
+def compute_node_counts(
+    node: EventNode, children: list[dict[str, Any]], status: str
+) -> dict[str, int]:
+    if node.node_type == "item":
+        return {
+            "total": 1,
+            "ok": 1 if status == "ok" else 0,
+            "problem": 1 if status == "problem" else 0,
+            "pending": 1 if status == "pending" else 0,
+        }
+    if not children:
+        return {"total": 0, "ok": 0, "problem": 0, "pending": 0}
+    totals = {"total": 0, "ok": 0, "problem": 0, "pending": 0}
+    for child in children:
+        for key in totals:
+            totals[key] += child["counts"][key]
+    return totals
 
 
 def compute_progress(nodes: list[EventNode]) -> dict[str, Any]:

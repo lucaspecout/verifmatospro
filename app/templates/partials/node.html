@@ -1,22 +1,54 @@
-<div
-  class="tree-node {{ branch.status or '' }}"
-  data-node-id="{{ branch.node.id }}"
-  data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
-  data-node-type="{{ branch.node.node_type }}"
-  data-status="{{ branch.status or 'pending' }}"
->
-  <div class="tree-title">
-    <div class="tree-title-main">
-      <span class="tree-name">{{ branch.node.name }}</span>
-      {% if branch.node.node_type == 'item' %}
-        <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
-      {% endif %}
-    </div>
-    {% if branch.status %}
-      <span class="status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
+{% set status_label = 'OK' if branch.status == 'ok' else 'Problème' if branch.status == 'problem' else 'En attente' %}
+{% if branch.node.node_type == 'container' %}
+  <details
+    class="tree-node is-container {{ branch.status or '' }}"
+    data-node-id="{{ branch.node.id }}"
+    data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
+    data-node-type="{{ branch.node.node_type }}"
+    data-status="{{ branch.status or 'pending' }}"
+    open
+  >
+    <summary class="tree-title">
+      <div class="tree-title-main">
+        <span class="tree-name">{{ branch.node.name }}</span>
+        <span class="tree-subtitle">Contenant · {{ branch.counts.total }} élément{{ '' if branch.counts.total == 1 else 's' }}</span>
+      </div>
+      <div class="tree-meta">
+        <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+        <div class="count-row" aria-label="Compteurs de statut">
+          <span class="count-pill neutral">Total {{ branch.counts.total }}</span>
+          <span class="count-pill ok">OK {{ branch.counts.ok }}</span>
+          <span class="count-pill problem">Problèmes {{ branch.counts.problem }}</span>
+          <span class="count-pill pending">En attente {{ branch.counts.pending }}</span>
+        </div>
+      </div>
+    </summary>
+    {% if branch.children %}
+      <div class="tree-children">
+        {% for child in branch.children %}
+          {% set branch = child %}
+          {% include "partials/node.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tree-empty">Aucun élément dans ce contenant.</div>
     {% endif %}
-  </div>
-  {% if branch.node.node_type == 'item' %}
+  </details>
+{% else %}
+  <div
+    class="tree-node is-item {{ branch.status or '' }}"
+    data-node-id="{{ branch.node.id }}"
+    data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
+    data-node-type="{{ branch.node.node_type }}"
+    data-status="{{ branch.status or 'pending' }}"
+  >
+    <div class="tree-title">
+      <div class="tree-title-main">
+        <span class="tree-name">{{ branch.node.name }}</span>
+        <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
+      </div>
+      <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+    </div>
     <div class="tree-note" data-role="comment">
       {% if branch.node.comment %}
         {{ branch.node.comment }}
@@ -24,13 +56,5 @@
         Aucun commentaire.
       {% endif %}
     </div>
-  {% endif %}
-  {% if branch.children %}
-  <div class="tree-children">
-    {% for child in branch.children %}
-      {% set branch = child %}
-      {% include "partials/node.html" %}
-    {% endfor %}
   </div>
-  {% endif %}
-</div>
+{% endif %}
