@@ -1,34 +1,106 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
-  <div class="header-row">
-    <h1>{{ event.name }}</h1>
-    <div class="actions">
-      <form method="post" action="/events/{{ event.id }}/close">
-        <button class="btn secondary" type="submit">Fermer le poste</button>
-      </form>
-      <form method="post" action="/events/{{ event.id }}/delete">
-        <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
-          Supprimer
-        </button>
-      </form>
+<section class="event-page">
+  <header class="card event-hero">
+    <div class="event-hero-top">
+      <div>
+        <p class="eyebrow">Poste de secours</p>
+        <h1>{{ event.name }}</h1>
+        <div class="event-meta">
+          <span class="meta-pill">Date: {{ event.date or 'Non renseignée' }}</span>
+          <span class="meta-pill">Infos: {{ event.info or 'Aucune information' }}</span>
+        </div>
+      </div>
+      <div class="actions event-actions">
+        <button class="btn" type="button" data-action="copy-public">Copier le lien public</button>
+        <a class="btn secondary" href="/materials">Ajouter du matériel</a>
+        <a class="btn secondary" href="/materials">Supprimer du matériel</a>
+        <form method="post" action="/events/{{ event.id }}/close">
+          <button class="btn ghost" type="submit">Fermer le poste</button>
+        </form>
+        <form method="post" action="/events/{{ event.id }}/delete">
+          <button class="btn danger" type="submit" onclick="return confirm('Supprimer ce poste ?');">
+            Supprimer
+          </button>
+        </form>
+      </div>
     </div>
-  </div>
-  <p><strong>Date:</strong> {{ event.date or '' }}</p>
-  <p><strong>Infos:</strong> {{ event.info or '' }}</p>
-  <p><strong>Lien public:</strong> <span class="link">/public/{{ event.id }}/{{ event.public_token }}</span></p>
-  <div class="progress">
-    <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
-  </div>
-  <div class="stats">
-    <span>OK: {{ progress.ok }}</span>
-    <span>Problèmes: {{ progress.problem }}</span>
-    <span>En attente: {{ progress.pending }}</span>
-  </div>
-  <div class="tree">
-    {% for branch in tree %}
-      {% include "partials/node.html" with context %}
-    {% endfor %}
-  </div>
+
+    <div class="event-public">
+      <span class="label">Lien public</span>
+      <span class="link" id="public-link">{{ request.base_url }}public/{{ event.id }}/{{ event.public_token }}</span>
+    </div>
+
+    <div class="event-summary">
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Progression globale</span>
+          <span class="summary-value">{{ progress.percent }}%</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+        </div>
+        <div class="stats modern">
+          <span class="stat-pill ok">OK: {{ progress.ok }}</span>
+          <span class="stat-pill problem">Problèmes: {{ progress.problem }}</span>
+          <span class="stat-pill pending">En attente: {{ progress.pending }}</span>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-header">
+          <span>Équipements de l'événement</span>
+          <span class="summary-value">{{ progress.total }}</span>
+        </div>
+        <p class="muted">Chaque carré représente un élément du matériel.</p>
+        <div class="status-grid" aria-label="Statut des équipements">
+          {% for item in items %}
+            {% set item_status = item.status or 'pending' %}
+            <div
+              class="status-tile {{ item_status }}"
+              title="{{ item.name }} — {{ item_status }}"
+            >
+              <span class="sr-only">{{ item.name }} — {{ item_status }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section class="card event-checklist">
+    <div class="section-header">
+      <div>
+        <h2>Checklist matériel</h2>
+        <p class="muted">Pliez, dépliez et suivez chaque contenant avec son statut.</p>
+      </div>
+      <span class="section-chip">Poste</span>
+    </div>
+    <div class="tree">
+      {% for branch in tree %}
+        {% include "partials/node.html" with context %}
+      {% endfor %}
+    </div>
+  </section>
 </section>
+
+<script>
+  const copyButton = document.querySelector('[data-action="copy-public"]');
+  const linkEl = document.querySelector('#public-link');
+  if (copyButton && linkEl) {
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(linkEl.textContent.trim());
+        copyButton.textContent = 'Lien copié';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier le lien public';
+        }, 2000);
+      } catch (err) {
+        copyButton.textContent = 'Erreur';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier le lien public';
+        }, 2000);
+      }
+    });
+  }
+</script>
 {% endblock %}
