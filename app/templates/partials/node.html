@@ -1,13 +1,30 @@
-<div class="tree-node {{ branch.status or '' }}">
+<div
+  class="tree-node {{ branch.status or '' }}"
+  data-node-id="{{ branch.node.id }}"
+  data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
+  data-node-type="{{ branch.node.node_type }}"
+  data-status="{{ branch.status or 'pending' }}"
+>
   <div class="tree-title">
-    <span>{{ branch.node.name }}</span>
-    {% if branch.node.node_type == 'item' %}
-      <span class="qty">Qté: {{ branch.node.expected_qty or '-' }}</span>
-    {% endif %}
+    <div class="tree-title-main">
+      <span class="tree-name">{{ branch.node.name }}</span>
+      {% if branch.node.node_type == 'item' %}
+        <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
+      {% endif %}
+    </div>
     {% if branch.status %}
-      <span class="status">{{ branch.status }}</span>
+      <span class="status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
     {% endif %}
   </div>
+  {% if branch.node.node_type == 'item' %}
+    <div class="tree-note" data-role="comment">
+      {% if branch.node.comment %}
+        {{ branch.node.comment }}
+      {% else %}
+        Aucun commentaire.
+      {% endif %}
+    </div>
+  {% endif %}
   {% if branch.children %}
   <div class="tree-children">
     {% for child in branch.children %}
