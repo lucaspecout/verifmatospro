@@ -14,7 +14,7 @@
       </div>
       <div class="actions event-actions">
         <button class="btn" type="button" data-action="copy-public">Copier le lien public</button>
-        <a class="btn secondary" href="/events/{{ event.id }}/monitor">Suivi live</a>
+        <a class="btn secondary" href="/events/{{ event.id }}/materials">Modifier le matériel</a>
         <form method="post" action="/events/{{ event.id }}/close">
           <button class="btn ghost" type="submit">Fermer le poste</button>
         </form>
@@ -35,12 +35,12 @@
       <div class="summary-card">
         <div class="summary-header">
           <span>Progression globale</span>
-          <span class="summary-value">{{ progress.percent }}%</span>
+          <span class="summary-value" id="event-progress-percent">{{ progress.percent }}%</span>
         </div>
         <div class="progress">
-          <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
+          <div class="progress-bar" id="event-progress-bar" style="width: {{ progress.percent }}%"></div>
         </div>
-        <div class="stats modern">
+        <div class="stats modern" id="event-progress-stats">
           <span class="stat-pill ok">OK: {{ progress.ok }}</span>
           <span class="stat-pill problem">Problèmes: {{ progress.problem }}</span>
           <span class="stat-pill pending">En attente: {{ progress.pending }}</span>
@@ -58,6 +58,8 @@
             <div
               class="status-tile {{ item_status }}"
               title="{{ item.name }} — {{ item_status }}"
+              data-node-id="{{ item.id }}"
+              data-node-name="{{ item.name }}"
             >
               <span class="sr-only">{{ item.name }} — {{ item_status }}</span>
             </div>
@@ -83,9 +85,9 @@
     <div class="section-header">
       <div>
         <h2>Checklist matériel</h2>
-        <p class="muted">Pliez, dépliez et suivez chaque contenant avec son statut.</p>
+        <p class="muted">Mise à jour en direct dès qu'un vérificateur agit.</p>
       </div>
-      <span class="section-chip">Poste</span>
+      <span class="section-chip">Live</span>
     </div>
     <div class="tree">
       {% for branch in tree %}
@@ -114,5 +116,99 @@
       }
     });
   }
+
+  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
+  const ws = new WebSocket(`${protocol}://${location.host}/ws/events/{{ event.id }}`);
+
+  const statusLabels = {
+    ok: 'OK',
+    problem: 'Problème',
+    pending: 'En attente',
+  };
+
+  const updateProgress = (progress) => {
+    const bar = document.querySelector('#event-progress-bar');
+    if (bar) {
+      bar.style.width = `${progress.percent}%`;
+    }
+    const percent = document.querySelector('#event-progress-percent');
+    if (percent) {
+      percent.textContent = `${progress.percent}%`;
+    }
+    const stats = document.querySelector('#event-progress-stats');
+    if (stats) {
+      stats.innerHTML = `
+        <span class="stat-pill ok">OK: ${progress.ok}</span>
+        <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
+        <span class="stat-pill pending">En attente: ${progress.pending}</span>
+      `;
+    }
+  };
+
+  const setNodeStatus = (node, status, comment) => {
+    node.dataset.status = status || 'pending';
+    node.classList.remove('ok', 'problem', 'pending');
+    if (status) {
+      node.classList.add(status);
+    }
+    const badge = node.querySelector('[data-role="status"]');
+    if (badge) {
+      badge.textContent = statusLabels[status] || status;
+      badge.classList.remove('ok', 'problem', 'pending');
+      if (status) {
+        badge.classList.add(status);
+      }
+    }
+    const commentEl = node.querySelector('[data-role="comment"]');
+    if (commentEl && typeof comment !== 'undefined') {
+      commentEl.textContent = comment || 'Aucun commentaire.';
+    }
+    if (node.dataset.nodeType === 'container' && status === 'ok') {
+      node.removeAttribute('open');
+    }
+  };
+
+  const recomputeContainerStatus = (containerId) => {
+    if (!containerId || containerId === 'root') {
+      return;
+    }
+    const container = document.querySelector(`[data-node-id="${containerId}"]`);
+    if (!container) {
+      return;
+    }
+    const children = document.querySelectorAll(`[data-parent-id="${containerId}"]`);
+    const statuses = Array.from(children).map((child) => child.dataset.status || 'pending');
+    let nextStatus = 'pending';
+    if (statuses.every((status) => status === 'ok')) {
+      nextStatus = 'ok';
+    } else if (statuses.some((status) => status === 'problem')) {
+      nextStatus = 'problem';
+    }
+    setNodeStatus(container, nextStatus);
+    recomputeContainerStatus(container.dataset.parentId);
+  };
+
+  document.querySelectorAll('.tree-node.is-container[data-status="ok"]').forEach((node) => {
+    node.removeAttribute('open');
+  });
+
+  ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+    if (data.type === 'progress') {
+      updateProgress(data.progress);
+      const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
+      if (node) {
+        setNodeStatus(node, data.status, data.comment);
+        recomputeContainerStatus(node.dataset.parentId);
+      }
+      const tile = document.querySelector(`.status-tile[data-node-id="${data.node_id}"]`);
+      if (tile) {
+        tile.classList.remove('ok', 'problem', 'pending');
+        tile.classList.add(data.status || 'pending');
+        const tileName = tile.dataset.nodeName || 'Équipement';
+        tile.title = `${tileName} — ${data.status || 'pending'}`;
+      }
+    }
+  };
 </script>
 {% endblock %}

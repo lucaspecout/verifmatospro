@@ -1,0 +1,55 @@
+{% if branch.node.node_type == 'container' %}
+  <details
+    class="tree-node is-container"
+    data-node-id="{{ branch.node.id }}"
+    data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
+    data-node-type="{{ branch.node.node_type }}"
+    open
+  >
+    <summary class="tree-title">
+      <div class="tree-title-main">
+        <span class="tree-name">{{ branch.node.name }}</span>
+        <span class="tree-subtitle">Sac / Conteneur</span>
+      </div>
+      <div class="tree-meta">
+        <form method="post" action="/events/{{ event.id }}/materials/{{ branch.node.id }}/delete">
+          <button class="btn ghost" type="submit" onclick="return confirm('Supprimer ce sac et son contenu ?');">
+            Supprimer
+          </button>
+        </form>
+      </div>
+      <span class="fold-icon" aria-hidden="true">⌄</span>
+    </summary>
+    {% if branch.children %}
+      <div class="tree-children">
+        {% for child in branch.children %}
+          {% set branch = child %}
+          {% include "partials/event_material_node.html" %}
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="tree-empty">Aucun élément dans ce sac.</div>
+    {% endif %}
+  </details>
+{% else %}
+  <div
+    class="tree-node is-item"
+    data-node-id="{{ branch.node.id }}"
+    data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
+    data-node-type="{{ branch.node.node_type }}"
+  >
+    <div class="tree-title">
+      <div class="tree-title-main">
+        <span class="tree-name">{{ branch.node.name }}</span>
+        <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
+      </div>
+      <div class="tree-meta">
+        <form method="post" action="/events/{{ event.id }}/materials/{{ branch.node.id }}/delete">
+          <button class="btn ghost" type="submit" onclick="return confirm('Supprimer cet équipement ?');">
+            Supprimer
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endif %}

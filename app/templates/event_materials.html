@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="event-page">
+  <header class="card event-hero">
+    <div class="event-hero-top">
+      <div>
+        <p class="eyebrow">Chef de poste</p>
+        <h1>Matériel — {{ event.name }}</h1>
+        <p class="muted">Ajoutez ou retirez des sacs et équipements pour la vérification.</p>
+      </div>
+      <div class="actions event-actions">
+        <a class="btn secondary" href="/events/{{ event.id }}">Retour au poste</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="section-header">
+      <div>
+        <h2>Ajouter un élément</h2>
+        <p class="muted">Créez un sac (conteneur) ou un équipement à vérifier.</p>
+      </div>
+    </div>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/events/{{ event.id }}/materials" class="form">
+      <label>
+        Nom de l'élément
+        <input type="text" name="name" required />
+      </label>
+      <label>
+        Type
+        <select name="node_type">
+          <option value="container">Sac / Conteneur</option>
+          <option value="item">Équipement</option>
+        </select>
+      </label>
+      <label>
+        Parent (facultatif)
+        <select name="parent_id">
+          <option value="">Racine</option>
+          {% for container in containers %}
+            <option value="{{ container.id }}">{{ container.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Quantité attendue (si équipement)
+        <input type="number" name="expected_qty" min="0" />
+      </label>
+      <button class="btn" type="submit">Ajouter à la vérification</button>
+    </form>
+  </section>
+
+  <section class="card event-checklist">
+    <div class="section-header">
+      <div>
+        <h2>Matériel du poste</h2>
+        <p class="muted">Supprimez un sac ou un équipement si nécessaire.</p>
+      </div>
+    </div>
+    <div class="tree">
+      {% for branch in tree %}
+        {% include "partials/event_material_node.html" with context %}
+      {% endfor %}
+    </div>
+  </section>
+</section>
+{% endblock %}
