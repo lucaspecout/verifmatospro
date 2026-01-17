@@ -1,59 +1,124 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h1>Utilisateurs</h1>
-  {% if error %}<p class="error">{{ error }}</p>{% endif %}
-  {% if success %}<p class="success">{{ success }}</p>{% endif %}
-  <form method="post" class="form">
-    <label>Identifiant
-      <input type="text" name="username" required />
-    </label>
-    <label>Mot de passe
-      <input type="password" name="password" required />
-    </label>
-    <label>Rôle
-      <select name="role" required>
-        <option value="admin">Admin</option>
-        <option value="chief">Chef de poste</option>
-        <option value="stock">Stock</option>
-      </select>
-    </label>
-    <button type="submit" class="btn">Créer</button>
-  </form>
-  <div class="list">
-    {% for item in users %}
-    <div class="list-item">
-      <div>
-        <strong>{{ item.username }}</strong> — {{ item.role }}
-        {% if item.id == user.id %}
-        <span class="badge">Vous</span>
-        {% endif %}
-        {% if item.must_change_password %}
-        <span class="badge">Mot de passe à changer</span>
-        {% endif %}
-      </div>
-      <div class="list-item-actions">
-        <form method="post" action="/users/{{ item.id }}/password" class="inline-form">
-          <input
-            type="password"
-            name="new_password"
-            placeholder="Nouveau mot de passe"
-            required
-          />
-          <button type="submit" class="btn small">Changer</button>
-        </form>
-        <form method="post" action="/users/{{ item.id }}/delete" class="inline-form">
-          <button
-            type="submit"
-            class="btn danger small"
-            {% if item.id == user.id %}disabled{% endif %}
-          >
-            Supprimer
-          </button>
-        </form>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Gestion des utilisateurs</h1>
+      <p class="page-subtitle">Créez, réinitialisez et sécurisez les accès de l'équipe.</p>
+    </div>
+    <div class="page-actions">
+      <div class="search-input">
+        🔍
+        <input type="text" id="user-search" placeholder="Rechercher un utilisateur" />
       </div>
     </div>
-    {% endfor %}
+  </div>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if success %}<p class="success">{{ success }}</p>{% endif %}
+  <div class="section-grid">
+    <div class="card">
+      <h2 class="page-title">Créer un compte</h2>
+      <form method="post" class="form">
+        <label>Identifiant
+          <input type="text" name="username" required />
+        </label>
+        <label>Mot de passe
+          <input type="password" name="password" required />
+        </label>
+        <label>Rôle
+          <select name="role" required>
+            <option value="admin">Admin</option>
+            <option value="chief">Chef de poste</option>
+            <option value="stock">Stock</option>
+          </select>
+        </label>
+        <button type="submit" class="btn">Créer</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <div class="page-header">
+        <div>
+          <h2 class="page-title">Liste des comptes</h2>
+          <p class="page-subtitle">Cliquez sur un utilisateur pour filtrer par rôle.</p>
+        </div>
+      </div>
+      <div class="filter-chips" id="role-filters">
+        <button class="filter-chip active" data-role="all" type="button">Tous</button>
+        <button class="filter-chip" data-role="admin" type="button">Admins</button>
+        <button class="filter-chip" data-role="chief" type="button">Chefs de poste</button>
+        <button class="filter-chip" data-role="stock" type="button">Stock</button>
+      </div>
+      <div class="list-card" id="users-list">
+        {% for item in users %}
+        <div class="list-card-item" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
+          <div>
+            <h3>{{ item.username }}</h3>
+            <div class="list-card-meta">
+              <span class="pill">{{ item.role }}</span>
+              {% if item.id == user.id %}
+              <span class="pill">Vous</span>
+              {% endif %}
+              {% if item.must_change_password %}
+              <span class="pill pending">Mot de passe à changer</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="list-card-actions">
+            <form method="post" action="/users/{{ item.id }}/password" class="inline-form">
+              <input
+                type="password"
+                name="new_password"
+                placeholder="Nouveau mot de passe"
+                required
+              />
+              <button type="submit" class="btn small">Changer</button>
+            </form>
+            <form method="post" action="/users/{{ item.id }}/delete" class="inline-form">
+              <button
+                type="submit"
+                class="btn danger small"
+                {% if item.id == user.id %}disabled{% endif %}
+              >
+                Supprimer
+              </button>
+            </form>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state">Aucun utilisateur enregistré.</div>
+        {% endfor %}
+      </div>
+    </div>
   </div>
 </section>
+
+<script>
+  const searchInput = document.getElementById('user-search');
+  const list = document.getElementById('users-list');
+  const roleFilters = document.getElementById('role-filters');
+  let activeRole = 'all';
+
+  const filterUsers = () => {
+    const query = searchInput.value.trim().toLowerCase();
+    list.querySelectorAll('.list-card-item').forEach((item) => {
+      const matchesSearch = item.dataset.username.includes(query);
+      const matchesRole = activeRole === 'all' || item.dataset.role === activeRole;
+      item.style.display = matchesSearch && matchesRole ? 'grid' : 'none';
+    });
+  };
+
+  roleFilters.addEventListener('click', (event) => {
+    const button = event.target.closest('.filter-chip');
+    if (!button) {
+      return;
+    }
+    activeRole = button.dataset.role;
+    roleFilters.querySelectorAll('.filter-chip').forEach((chip) => chip.classList.remove('active'));
+    button.classList.add('active');
+    filterUsers();
+  });
+
+  searchInput.addEventListener('input', filterUsers);
+</script>
 {% endblock %}

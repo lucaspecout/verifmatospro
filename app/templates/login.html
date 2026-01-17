@@ -1,11 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="card auth-card">
+  <div class="auth-brand">Verif Matos Pro</div>
   <h1>Connexion</h1>
+  <p class="muted">Accès réservé aux responsables de poste et équipes stock.</p>
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <form method="post" class="form">
     <label>Identifiant
       <input type="text" name="username" required />
+      <span class="help-text">Exemple : chef-poste1</span>
     </label>
     <label>Mot de passe
       <input type="password" name="password" required />

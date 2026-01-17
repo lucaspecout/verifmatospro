@@ -30,6 +30,8 @@
         Synchronisation instantanée active
         <span class="sync-time" id="public-last-sync">En attente</span>
       </div>
+      <div class="divider"></div>
+      <div class="pill pending" id="completion-banner">Checklist en cours</div>
     </section>
 
     <section class="card check-guide">
@@ -85,7 +87,21 @@
         <span class="stat-chip problem">Problèmes: ${progress.problem}</span>
         <span class="stat-chip pending">En attente: ${progress.pending}</span>
       `;
+      const banner = document.querySelector('#completion-banner');
+      if (banner) {
+        if (progress.pending === 0) {
+          banner.textContent = 'Checklist terminée ✅';
+          banner.classList.add('ok');
+          banner.classList.remove('pending');
+        } else {
+          banner.textContent = 'Checklist en cours';
+          banner.classList.remove('ok');
+          banner.classList.add('pending');
+        }
+      }
     };
+
+    updatePublicProgress({{ progress | tojson }});
 
     const setNodeStatus = (node, status, comment) => {
       node.dataset.status = status || 'pending';

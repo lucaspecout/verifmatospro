@@ -1,17 +1,50 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h1>Problèmes signalés</h1>
-  <div class="list">
-    {% for issue in issues %}
-    <div class="list-item">
-      <div>
-        <strong>{{ issue.name }}</strong>
-        <div class="muted">Commentaire: {{ issue.comment or 'Aucun' }}</div>
-      </div>
-      <span class="badge danger">Problème</span>
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Problèmes signalés</h1>
+      <p class="page-subtitle">Liste des anomalies remontées depuis les checklists terrain.</p>
     </div>
+    <div class="page-actions">
+      <div class="search-input">
+        🔍
+        <input type="text" id="issue-search" placeholder="Rechercher un item" />
+      </div>
+      <a class="btn secondary" href="/stock/issues/export">Exporter CSV</a>
+    </div>
+  </div>
+  <div class="list-card" id="issues-list">
+    {% for issue in issues %}
+    <div class="list-card-item" data-name="{{ issue.name | lower }}">
+      <div>
+        <h3>{{ issue.name }}</h3>
+        <div class="list-card-meta">
+          <span class="pill problem">Problème</span>
+          <span class="muted">Poste: {{ issue.event.name if issue.event else 'Inconnu' }}</span>
+        </div>
+        <p class="muted">{{ issue.comment or 'Aucun commentaire fourni.' }}</p>
+      </div>
+      <div class="list-card-actions">
+        <span class="pill pending">À traiter</span>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state">Aucun problème signalé pour le moment.</div>
     {% endfor %}
   </div>
 </section>
+
+<script>
+  const issueSearch = document.getElementById('issue-search');
+  const issuesList = document.getElementById('issues-list');
+
+  issueSearch.addEventListener('input', () => {
+    const query = issueSearch.value.trim().toLowerCase();
+    issuesList.querySelectorAll('.list-card-item').forEach((card) => {
+      const matches = card.dataset.name.includes(query);
+      card.style.display = matches ? 'grid' : 'none';
+    });
+  });
+</script>
 {% endblock %}
