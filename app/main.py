@@ -830,10 +830,34 @@ def render_event_materials_page(
     user: User,
     event: Event,
     nodes: list[EventNode],
+    db: Session,
     error: str | None = None,
 ) -> HTMLResponse:
     tree = build_tree(nodes)
     containers = [node for node in nodes if node.node_type == "container"]
+    templates_list = db.scalars(select(MaterialTemplate)).all()
+    templates_by_id = {template.id: template for template in templates_list}
+
+    def template_label(template: MaterialTemplate) -> str:
+        segments = [template.name]
+        parent = template.parent_id
+        while parent:
+            parent_template = templates_by_id.get(parent)
+            if not parent_template:
+                break
+            segments.append(parent_template.name)
+            parent = parent_template.parent_id
+        return " > ".join(reversed(segments))
+
+    template_choices = [
+        {
+            "id": template.id,
+            "label": template_label(template),
+            "node_type": template.node_type,
+        }
+        for template in templates_list
+    ]
+    template_choices.sort(key=lambda item: item["label"].lower())
     return templates.TemplateResponse(
         "event_materials.html",
         {
@@ -842,6 +866,7 @@ def render_event_materials_page(
             "event": event,
             "tree": tree,
             "containers": containers,
+            "material_templates": template_choices,
             "error": error,
         },
     )
@@ -858,7 +883,7 @@ def event_materials(
     if not event:
         raise HTTPException(status_code=404)
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
-    return render_event_materials_page(request, user, event, nodes)
+    return render_event_materials_page(request, user, event, nodes, db)
 
 
 @app.post("/events/{event_id}/materials")
@@ -879,7 +904,7 @@ def event_materials_add(
     name = name.strip()
     if not name:
         return render_event_materials_page(
-            request, user, event, nodes, error="Le nom est obligatoire."
+            request, user, event, nodes, db, error="Le nom est obligatoire."
         )
     if node_type not in {"container", "item"}:
         node_type = "container"
@@ -889,7 +914,7 @@ def event_materials_add(
             selected_parent_id = int(parent_id)
         except ValueError:
             return render_event_materials_page(
-                request, user, event, nodes, error="Parent invalide."
+                request, user, event, nodes, db, error="Parent invalide."
             )
         parent_node = db.get(EventNode, selected_parent_id)
         if (
@@ -898,7 +923,7 @@ def event_materials_add(
             or parent_node.node_type != "container"
         ):
             return render_event_materials_page(
-                request, user, event, nodes, error="Parent introuvable."
+                request, user, event, nodes, db, error="Parent introuvable."
             )
     qty_value: int | None = None
     if node_type == "item" and expected_qty:
@@ -906,7 +931,7 @@ def event_materials_add(
             qty_value = int(expected_qty)
         except ValueError:
             return render_event_materials_page(
-                request, user, event, nodes, error="Quantité invalide."
+                request, user, event, nodes, db, error="Quantité invalide."
             )
 
     new_node = EventNode(
@@ -917,6 +942,74 @@ def event_materials_add(
         parent_id=selected_parent_id,
     )
     db.add(new_node)
+    db.commit()
+    return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
+
+
+@app.post("/events/{event_id}/materials/from-template")
+def event_materials_add_from_template(
+    request: Request,
+    event_id: int,
+    template_id: str = Form(...),
+    parent_id: str | None = Form(None),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    try:
+        template_id_value = int(template_id)
+    except ValueError:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Matériel sélectionné invalide.",
+        )
+    template = db.get(MaterialTemplate, template_id_value)
+    if not template:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Matériel sélectionné introuvable.",
+        )
+
+    selected_parent_id: int | None = None
+    if parent_id:
+        try:
+            selected_parent_id = int(parent_id)
+        except ValueError:
+            return render_event_materials_page(
+                request,
+                user,
+                event,
+                nodes,
+                db,
+                error="Parent invalide.",
+            )
+        parent_node = db.get(EventNode, selected_parent_id)
+        if (
+            not parent_node
+            or parent_node.event_id != event_id
+            or parent_node.node_type != "container"
+        ):
+            return render_event_materials_page(
+                request,
+                user,
+                event,
+                nodes,
+                db,
+                error="Parent introuvable.",
+            )
+
+    copy_template_to_event(db, event.id, template, selected_parent_id)
     db.commit()
     return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
 
