@@ -116,8 +116,47 @@
   </form>
   <div class="sacs-grid">
     {% for lot in lots %}
-      <article class="sac-card">
-        <form method="post" action="/lots/{{ lot.id }}" class="form">
+      <article class="sac-card lot-card" data-lot-id="{{ lot.id }}">
+        <div class="lot-card-header">
+          <div>
+            <h3>{{ lot.name }}</h3>
+            <p class="muted">{{ lot.materials | length }} sac(s) inclus</p>
+          </div>
+        </div>
+        <ul class="lot-card-list">
+          {% for template in lot.materials %}
+            <li>{{ template.name }}</li>
+          {% else %}
+            <li class="muted">Aucun sac associé pour le moment.</li>
+          {% endfor %}
+        </ul>
+        <div class="sac-card-actions">
+          <button
+            class="btn small secondary"
+            type="button"
+            data-action="toggle-lot-form"
+            data-lot-id="{{ lot.id }}"
+          >
+            Modifier
+          </button>
+          <form method="post" action="/lots/{{ lot.id }}/delete" class="inline-form sac-action-form">
+            <button
+              type="submit"
+              class="btn small danger"
+              onclick="return confirm('Supprimer définitivement ce lot ?');"
+            >
+              Supprimer
+            </button>
+          </form>
+        </div>
+        <form
+          method="post"
+          action="/lots/{{ lot.id }}"
+          class="form lot-edit-form"
+          id="lot-form-{{ lot.id }}"
+          data-lot-id="{{ lot.id }}"
+          hidden
+        >
           <label>Nom du lot
             <input type="text" name="name" value="{{ lot.name }}" required />
           </label>
@@ -135,16 +174,10 @@
           </label>
           <div class="sac-card-actions">
             <button class="btn small" type="submit">Enregistrer</button>
+            <button class="btn small secondary" type="button" data-action="close-lot-form">
+              Annuler
+            </button>
           </div>
-        </form>
-        <form method="post" action="/lots/{{ lot.id }}/delete" class="inline-form sac-action-form">
-          <button
-            type="submit"
-            class="btn small danger"
-            onclick="return confirm('Supprimer définitivement ce lot ?');"
-          >
-            Supprimer
-          </button>
         </form>
       </article>
     {% else %}
@@ -287,6 +320,8 @@
   const parentsImportFile = document.getElementById("parents-import-file");
   const parentsImportPayload = document.getElementById("parents-import-payload");
   const parentsImportForm = document.getElementById("parents-import-form");
+  const lotToggleButtons = document.querySelectorAll('[data-action="toggle-lot-form"]');
+  const lotCloseButtons = document.querySelectorAll('[data-action="close-lot-form"]');
 
   const nodeModal = document.getElementById("node-modal");
   const nodeModalTitle = document.getElementById("node-modal-title");
@@ -882,6 +917,41 @@
 
   duplicateModalCancel?.addEventListener("click", () => {
     closeDialog(duplicateModal);
+  });
+
+  const closeAllLotForms = () => {
+    document.querySelectorAll(".lot-edit-form").forEach((form) => {
+      form.setAttribute("hidden", "");
+      const lotId = form.dataset.lotId;
+      const toggleButton = document.querySelector(
+        `[data-action="toggle-lot-form"][data-lot-id="${lotId}"]`
+      );
+      if (toggleButton) {
+        toggleButton.textContent = "Modifier";
+      }
+    });
+  };
+
+  lotToggleButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const lotId = button.dataset.lotId;
+      const form = document.getElementById(`lot-form-${lotId}`);
+      if (!form) {
+        return;
+      }
+      const isHidden = form.hasAttribute("hidden");
+      closeAllLotForms();
+      if (isHidden) {
+        form.removeAttribute("hidden");
+        button.textContent = "Fermer";
+      }
+    });
+  });
+
+  lotCloseButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      closeAllLotForms();
+    });
   });
 
   importParentsButtons.forEach((button) => {
