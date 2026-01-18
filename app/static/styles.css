@@ -386,30 +386,31 @@ body {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
-  color: #0f172a;
+  color: #f8fafc !important;
 }
 
 .event-hero #event-parent-summary .summary-header span,
 .event-hero #event-parent-summary .muted {
-  color: #0f172a;
+  color: #f8fafc !important;
 }
 
 .event-hero #event-parent-summary .summary-header span:first-child {
   font-size: 0.92rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  background: rgba(226, 232, 240, 0.8);
-  color: #1e293b;
+  background: rgba(15, 23, 42, 0.6);
+  color: #f8fafc !important;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .event-hero #event-parent-summary .muted {
   font-size: 0.75rem;
   line-height: 1.4;
-  color: #475569;
-  background: #f8fafc;
-  border: 1px dashed rgba(148, 163, 184, 0.6);
+  color: #e2e8f0 !important;
+  background: rgba(15, 23, 42, 0.55);
+  border: 1px dashed rgba(148, 163, 184, 0.4);
   padding: 0.35rem 0.6rem;
   border-radius: 12px;
   display: inline-block;
@@ -418,7 +419,17 @@ body {
 .event-hero #event-parent-summary .status-card {
   background: transparent;
   box-shadow: none;
-  color: #0f172a;
+  color: #f8fafc !important;
+}
+
+.event-hero #event-parent-summary .status-card-name {
+  color: #f8fafc !important;
+}
+
+.event-hero #event-parent-summary .event-parent-summary-text,
+.event-hero #event-parent-summary .event-parent-summary-text span,
+.event-hero #event-parent-summary .event-parent-summary-text strong {
+  color: #f8fafc !important;
 }
 
 .event-hero .summary-header {
