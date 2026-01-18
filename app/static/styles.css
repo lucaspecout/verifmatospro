@@ -390,27 +390,75 @@ body {
   padding-top: 0.35rem;
 }
 
-.status-tile {
+.status-grid--parents {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.75rem;
+  padding-top: 0.5rem;
+}
+
+.status-card {
   width: 100%;
   aspect-ratio: 1 / 1;
-  border-radius: 6px;
-  background: rgba(148, 163, 184, 0.25);
-  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.6rem;
+  gap: 0.45rem;
 }
 
-.status-tile.ok {
-  background: rgba(34, 197, 94, 0.7);
-  border-color: rgba(34, 197, 94, 0.9);
+.status-card-name {
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.2;
 }
 
-.status-tile.problem {
-  background: rgba(239, 68, 68, 0.7);
-  border-color: rgba(239, 68, 68, 0.9);
+.status-card-pill {
+  align-self: flex-start;
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(148, 163, 184, 0.35);
+  color: #1f2937;
 }
 
-.status-tile.pending {
-  background: rgba(249, 115, 22, 0.7);
-  border-color: rgba(249, 115, 22, 0.9);
+.status-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.status-card.ok {
+  background: rgba(34, 197, 94, 0.2);
+  border-color: rgba(34, 197, 94, 0.45);
+}
+
+.status-card.problem {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+}
+
+.status-card.pending {
+  background: rgba(249, 115, 22, 0.2);
+  border-color: rgba(249, 115, 22, 0.45);
+}
+
+.status-card-pill.ok {
+  background: rgba(34, 197, 94, 0.2);
+  color: #166534;
+}
+
+.status-card-pill.problem {
+  background: rgba(239, 68, 68, 0.2);
+  color: #991b1b;
+}
+
+.status-card-pill.pending {
+  background: rgba(249, 115, 22, 0.2);
+  color: #9a3412;
 }
 
 .event-checklist .section-header {

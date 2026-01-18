@@ -49,19 +49,27 @@
       <div class="summary-card">
         <div class="summary-header">
           <span>Équipements de l'événement</span>
-          <span class="summary-value">{{ progress.total }}</span>
+          <span class="summary-value">{{ parent_total }}</span>
         </div>
-        <p class="muted">Chaque carré représente un élément du matériel.</p>
-        <div class="status-grid" aria-label="Statut des équipements">
-          {% for item in items %}
-            {% set item_status = item.status or 'pending' %}
+        <p class="muted">Chaque carré représente un parent (sac ou lot).</p>
+        <div class="status-grid status-grid--parents" aria-label="Statut des parents">
+          {% for parent in parent_tiles %}
+            {% set parent_status = parent.status or 'pending' %}
             <div
-              class="status-tile {{ item_status }}"
-              title="{{ item.name }} — {{ item_status }}"
-              data-node-id="{{ item.id }}"
-              data-node-name="{{ item.name }}"
+              class="status-card {{ parent_status }}"
+              title="{{ parent.node.name }} — {{ parent_status }}"
+              data-node-id="{{ parent.node.id }}"
             >
-              <span class="sr-only">{{ item.name }} — {{ item_status }}</span>
+              <div class="status-card-name">{{ parent.node.name }}</div>
+              <div class="status-card-pill {{ parent_status }}">
+                {% if parent_status == 'ok' %}
+                  OK
+                {% elif parent_status == 'problem' %}
+                  Problème
+                {% else %}
+                  En attente
+                {% endif %}
+              </div>
             </div>
           {% endfor %}
         </div>
@@ -168,6 +176,32 @@
     }
   };
 
+  const refreshParentTiles = () => {
+    document.querySelectorAll('.status-card[data-node-id]').forEach((tile) => {
+      const nodeId = tile.dataset.nodeId;
+      const node = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+      if (!node) {
+        return;
+      }
+      const status = node.dataset.status || 'pending';
+      tile.classList.remove('ok', 'problem', 'pending');
+      tile.classList.add(status);
+      const pill = tile.querySelector('.status-card-pill');
+      if (pill) {
+        pill.classList.remove('ok', 'problem', 'pending');
+        pill.classList.add(status);
+        if (status === 'ok') {
+          pill.textContent = 'OK';
+        } else if (status === 'problem') {
+          pill.textContent = 'Problème';
+        } else {
+          pill.textContent = 'En attente';
+        }
+      }
+      tile.title = `${node.dataset.nodeName || node.querySelector('.tree-name')?.textContent?.trim() || 'Parent'} — ${status}`;
+    });
+  };
+
   const recomputeContainerStatus = (containerId) => {
     if (!containerId || containerId === 'root') {
       return;
@@ -201,13 +235,7 @@
         setNodeStatus(node, data.status, data.comment);
         recomputeContainerStatus(node.dataset.parentId);
       }
-      const tile = document.querySelector(`.status-tile[data-node-id="${data.node_id}"]`);
-      if (tile) {
-        tile.classList.remove('ok', 'problem', 'pending');
-        tile.classList.add(data.status || 'pending');
-        const tileName = tile.dataset.nodeName || 'Équipement';
-        tile.title = `${tileName} — ${data.status || 'pending'}`;
-      }
+      refreshParentTiles();
     }
   };
 </script>

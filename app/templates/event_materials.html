@@ -17,8 +17,8 @@
   <section class="card">
     <div class="section-header">
       <div>
-        <h2>Ajouter un élément</h2>
-        <p class="muted">Créez un sac (conteneur) ou un équipement à vérifier.</p>
+        <h2>Ajouter un parent</h2>
+        <p class="muted">Ajoutez un sac ou un équipement racine pour le poste.</p>
       </div>
     </div>
     {% if error %}
@@ -26,7 +26,7 @@
     {% endif %}
     <form method="post" action="/events/{{ event.id }}/materials" class="form">
       <label>
-        Nom de l'élément
+        Nom du parent
         <input type="text" name="name" required />
       </label>
       <label>
@@ -34,15 +34,6 @@
         <select name="node_type">
           <option value="container">Sac / Conteneur</option>
           <option value="item">Équipement</option>
-        </select>
-      </label>
-      <label>
-        Parent (facultatif)
-        <select name="parent_id">
-          <option value="">Racine</option>
-          {% for container in containers %}
-            <option value="{{ container.id }}">{{ container.name }}</option>
-          {% endfor %}
         </select>
       </label>
       <label>
@@ -57,7 +48,7 @@
     <div class="section-header">
       <div>
         <h2>Ajouter depuis le matériel existant</h2>
-        <p class="muted">Choisissez un sac, un lot ou un équipement déjà créé.</p>
+        <p class="muted">Choisissez un parent déjà créé dans le catalogue.</p>
       </div>
     </div>
     {% if error %}
@@ -75,15 +66,6 @@
           {% endfor %}
         </select>
       </label>
-      <label>
-        Parent (facultatif)
-        <select name="parent_id">
-          <option value="">Racine</option>
-          {% for container in containers %}
-            <option value="{{ container.id }}">{{ container.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
       <button class="btn" type="submit">Ajouter depuis le catalogue</button>
     </form>
   </section>
@@ -92,13 +74,35 @@
     <div class="section-header">
       <div>
         <h2>Matériel du poste</h2>
-        <p class="muted">Supprimez un sac ou un équipement si nécessaire.</p>
+        <p class="muted">Supprimez un parent pour retirer tout son contenu.</p>
       </div>
     </div>
-    <div class="tree">
-      {% for branch in tree %}
-        {% include "partials/event_material_node.html" with context %}
+    <div class="status-grid status-grid--parents" aria-label="Parents du matériel">
+      {% for parent in parent_cards %}
+        {% set parent_status = parent.status or 'pending' %}
+        <div class="status-card {{ parent_status }}">
+          <div class="status-card-name">{{ parent.node.name }}</div>
+          <div class="status-card-meta">
+            <span class="status-card-pill {{ parent_status }}">
+              {% if parent_status == 'ok' %}
+                OK
+              {% elif parent_status == 'problem' %}
+                Problème
+              {% else %}
+                En attente
+              {% endif %}
+            </span>
+            <form method="post" action="/events/{{ event.id }}/materials/{{ parent.node.id }}/delete">
+              <button class="btn ghost" type="submit" onclick="return confirm('Supprimer ce parent et son contenu ?');">
+                Supprimer
+              </button>
+            </form>
+          </div>
+        </div>
       {% endfor %}
+      {% if not parent_cards %}
+        <p class="muted">Aucun parent ajouté pour le moment.</p>
+      {% endif %}
     </div>
   </section>
 </section>
