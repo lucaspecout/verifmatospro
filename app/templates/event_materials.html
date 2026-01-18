@@ -53,6 +53,41 @@
     </form>
   </section>
 
+  <section class="card">
+    <div class="section-header">
+      <div>
+        <h2>Ajouter depuis le matériel existant</h2>
+        <p class="muted">Choisissez un sac, un lot ou un équipement déjà créé.</p>
+      </div>
+    </div>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/events/{{ event.id }}/materials/from-template" class="form">
+      <label>
+        Matériel
+        <select name="template_id" required>
+          <option value="">Sélectionner un matériel</option>
+          {% for template in material_templates %}
+            <option value="{{ template.id }}">
+              {{ template.label }}{% if template.node_type == 'item' %} (Équipement){% else %} (Sac / Conteneur){% endif %}
+            </option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Parent (facultatif)
+        <select name="parent_id">
+          <option value="">Racine</option>
+          {% for container in containers %}
+            <option value="{{ container.id }}">{{ container.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn" type="submit">Ajouter depuis le catalogue</button>
+    </form>
+  </section>
+
   <section class="card event-checklist">
     <div class="section-header">
       <div>
