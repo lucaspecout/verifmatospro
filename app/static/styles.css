@@ -398,15 +398,16 @@ body {
 }
 
 .event-hero #event-parent-summary .parent-summary-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #f8fafc;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #cbd5f5;
 }
 
 .event-hero #event-parent-summary .parent-summary-count {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: #e2e8f0;
   background: rgba(15, 23, 42, 0.45);
   border: 1px solid rgba(148, 163, 184, 0.4);
@@ -416,9 +417,9 @@ body {
 
 .event-hero #event-parent-summary .parent-summary-note {
   margin: 0;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   line-height: 1.4;
-  color: #cbd5f5;
+  color: #94a3b8;
   max-width: 42ch;
 }
 

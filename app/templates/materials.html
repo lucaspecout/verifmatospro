@@ -266,14 +266,21 @@
 
   const normalizeLabel = (value) => value?.trim();
   const generateId = () => `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const normalizeSearchText = (value) =>
+    value
+      ?.toString()
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim() ?? "";
   const updateSacSearch = () => {
     if (!sacSearchInput || !sacCards.length) {
       return;
     }
-    const query = sacSearchInput.value.toLowerCase().trim();
+    const query = normalizeSearchText(sacSearchInput.value);
     let visibleCount = 0;
     sacCards.forEach((card) => {
-      const name = card.querySelector("h3")?.textContent?.toLowerCase() ?? "";
+      const name = normalizeSearchText(card.querySelector("h3")?.textContent ?? "");
       const matches = !query || name.includes(query);
       card.classList.toggle("is-hidden", !matches);
       if (matches) {
