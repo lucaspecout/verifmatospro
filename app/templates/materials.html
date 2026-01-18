@@ -130,7 +130,7 @@
       <input type="number" id="root-qty" min="0" placeholder="Qté (item)" />
     </label>
     <div class="modal-actions">
-      <button class="btn secondary" type="button" onclick="document.getElementById('root-modal').close()">Annuler</button>
+      <button class="btn secondary" type="button" id="root-modal-cancel">Annuler</button>
       <button class="btn" type="button" id="create-root">Créer</button>
     </div>
   </div>
@@ -204,6 +204,7 @@
   const nodeModalEdit = document.getElementById("node-modal-edit");
   const nodeModalAdd = document.getElementById("node-modal-add");
   const nodeModalCancel = document.getElementById("node-modal-cancel");
+  const rootModalCancel = document.getElementById("root-modal-cancel");
   const nodeNameInput = document.getElementById("node-name");
   const nodeTypeSelect = document.getElementById("node-type");
   const nodeQtyInput = document.getElementById("node-qty");
@@ -218,6 +219,28 @@
 
   const normalizeLabel = (value) => value?.trim();
   const generateId = () => `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const openDialog = (dialog) => {
+    if (!dialog) {
+      return;
+    }
+    if (typeof dialog.showModal === "function") {
+      dialog.showModal();
+      return;
+    }
+    dialog.setAttribute("open", "");
+    dialog.classList.add("is-open");
+  };
+  const closeDialog = (dialog) => {
+    if (!dialog) {
+      return;
+    }
+    if (typeof dialog.close === "function") {
+      dialog.close();
+      return;
+    }
+    dialog.classList.remove("is-open");
+    dialog.removeAttribute("open");
+  };
 
   const materialMap = new Map();
   existingMaterials.forEach((material) => {
@@ -393,7 +416,7 @@
       nodeTypeSelect.disabled = existingChildren.length > 0;
     }
 
-    nodeModal.showModal();
+    openDialog(nodeModal);
     if (isAddMode) {
       childNameInput.focus();
     } else {
@@ -602,7 +625,7 @@
     childNameInput.value = "";
     childQtyInput.value = "";
     renderBuilder();
-    nodeModal.close();
+    closeDialog(nodeModal);
   };
 
   saveNodeButton.addEventListener("click", () => {
@@ -628,7 +651,7 @@
       }
     }
     renderBuilder();
-    nodeModal.close();
+    closeDialog(nodeModal);
   });
 
   duplicateNodeButton.addEventListener("click", () => {
@@ -648,7 +671,7 @@
     };
     cloneSubtree(node, node.parentId);
     renderBuilder();
-    nodeModal.close();
+    closeDialog(nodeModal);
   });
 
   deleteNodeButton.addEventListener("click", () => {
@@ -658,7 +681,7 @@
     }
     if (confirm("Supprimer cet élément ?")) {
       deleteNodeById(node.id);
-      nodeModal.close();
+      closeDialog(nodeModal);
     }
   });
 
@@ -718,7 +741,7 @@
     button.addEventListener("click", () => {
       const modal = document.getElementById("root-modal");
       toggleRootQty();
-      modal.showModal();
+      openDialog(modal);
     });
   });
 
@@ -740,11 +763,15 @@
     addDraftSac(name, builderState.rootId);
     input.value = "";
     rootQtyInput.value = "";
-    document.getElementById("root-modal").close();
+    closeDialog(document.getElementById("root-modal"));
   });
 
   nodeModalCancel.addEventListener("click", () => {
-    nodeModal.close();
+    closeDialog(nodeModal);
+  });
+
+  rootModalCancel?.addEventListener("click", () => {
+    closeDialog(document.getElementById("root-modal"));
   });
 
   importParentsButtons.forEach((button) => {
