@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
+{% if error %}
+  <p class="error">{{ error }}</p>
+{% endif %}
 <section class="card">
   <div class="page-header">
     <div>
@@ -19,13 +22,21 @@
     <label>Informations utiles
       <textarea name="info" rows="3" placeholder="Adresse, consignes, horaires..."></textarea>
     </label>
-    <label>Sélectionner les sacs / lots
-      <select name="template_ids" multiple required id="template-select">
+    <label>Sélectionner des lots
+      <select name="lot_ids" multiple id="lot-select">
+        {% for lot in lots %}
+        <option value="{{ lot.id }}">{{ lot.name }}</option>
+        {% endfor %}
+      </select>
+      <span class="help-text">Exemple : lot rouge, lot VPS, lot bleu.</span>
+    </label>
+    <label>Sélectionner des sacs spécifiques
+      <select name="template_ids" multiple id="template-select">
         {% for item in templates %}
         <option value="{{ item.id }}">{{ item.name }}</option>
         {% endfor %}
       </select>
-      <span class="help-text">Choisissez un ou plusieurs sacs pour générer la checklist.</span>
+      <span class="help-text">Choisissez des sacs supplémentaires si besoin.</span>
     </label>
     <div class="stat-grid">
       <div class="stat-card">
@@ -43,36 +54,60 @@
 </section>
 
 <script>
+  const templateIndex = {{ template_index | tojson }};
+  const lotsData = {{ lot_payload | tojson }};
+  const lotsById = new Map(lotsData.map((lot) => [String(lot.id), lot]));
   const select = document.getElementById('template-select');
+  const lotSelect = document.getElementById('lot-select');
   const preview = document.getElementById('template-preview');
   const count = document.getElementById('template-count');
 
+  const collectTemplateIds = () => {
+    const selectedTemplateIds = new Set(
+      Array.from(select.selectedOptions).map((option) => option.value)
+    );
+    Array.from(lotSelect.selectedOptions).forEach((option) => {
+      const lot = lotsById.get(option.value);
+      if (!lot) {
+        return;
+      }
+      lot.template_ids.forEach((templateId) => selectedTemplateIds.add(String(templateId)));
+    });
+    return Array.from(selectedTemplateIds);
+  };
+
   const updatePreview = () => {
-    const selected = Array.from(select.selectedOptions);
-    count.textContent = selected.length;
+    const templateIds = collectTemplateIds();
+    count.textContent = templateIds.length;
     preview.innerHTML = '';
-    if (!selected.length) {
+    if (!templateIds.length) {
       preview.innerHTML = '<span class="muted">Aucun sac sélectionné.</span>';
       return;
     }
-    selected.forEach((option) => {
+    templateIds
+      .map((id) => templateIndex[id])
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+      .forEach((label) => {
       const item = document.createElement('div');
-      item.textContent = `• ${option.textContent}`;
+      item.textContent = `• ${label}`;
       preview.appendChild(item);
     });
   };
 
-  const toggleOption = (event) => {
+  const toggleOption = (event, selectElement) => {
     if (event.target.tagName !== 'OPTION') {
       return;
     }
     event.preventDefault();
     event.target.selected = !event.target.selected;
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    selectElement.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
   select.addEventListener('change', updatePreview);
-  select.addEventListener('mousedown', toggleOption);
+  lotSelect.addEventListener('change', updatePreview);
+  select.addEventListener('mousedown', (event) => toggleOption(event, select));
+  lotSelect.addEventListener('mousedown', (event) => toggleOption(event, lotSelect));
   updatePreview();
 </script>
 {% endblock %}

@@ -19,11 +19,11 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth import AuthError, create_access_token, hash_password, verify_password
 from app.db import SessionLocal, init_db
-from app.models import Event, EventNode, MaterialTemplate, User
+from app.models import Event, EventNode, Lot, MaterialTemplate, User
 
 app = FastAPI()
 
@@ -428,8 +428,10 @@ def render_materials_page(
     error: str | None = None,
 ) -> HTMLResponse:
     materials = db.scalars(select(MaterialTemplate)).all()
+    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
     materials_index = {item.id: item.name for item in materials}
     tree = build_tree(materials)
+    root_templates = [item for item in materials if item.parent_id is None]
     materials_payload = [
         {
             "id": item.id,
@@ -440,6 +442,18 @@ def render_materials_page(
         }
         for item in materials
     ]
+    lot_payload = [
+        {
+            "id": lot.id,
+            "name": lot.name,
+            "template_ids": [
+                material.id
+                for material in lot.materials
+                if material.parent_id is None
+            ],
+        }
+        for lot in lots
+    ]
     return templates.TemplateResponse(
         "materials.html",
         {
@@ -447,6 +461,9 @@ def render_materials_page(
             "user": user,
             "tree": tree,
             "materials": materials,
+            "lots": lots,
+            "root_templates": root_templates,
+            "lot_payload": lot_payload,
             "materials_index": materials_index,
             "materials_payload": materials_payload,
             "error": error,
@@ -785,6 +802,79 @@ def materials_delete(
     return RedirectResponse("/materials", status_code=303)
 
 
+@app.post("/lots")
+def lot_create(
+    request: Request,
+    name: str = Form(...),
+    template_ids: list[int] = Form([]),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+):
+    lot_name = name.strip()
+    if not lot_name:
+        return render_materials_page(
+            request, user, db, error="Le nom du lot est obligatoire."
+        )
+    templates = []
+    if template_ids:
+        templates = db.scalars(
+            select(MaterialTemplate).where(
+                MaterialTemplate.id.in_(template_ids),
+                MaterialTemplate.parent_id.is_(None),
+            )
+        ).all()
+    lot = Lot(name=lot_name)
+    lot.materials = templates
+    db.add(lot)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+@app.post("/lots/{lot_id}")
+def lot_update(
+    request: Request,
+    lot_id: int,
+    name: str = Form(...),
+    template_ids: list[int] = Form([]),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+):
+    lot = db.get(Lot, lot_id)
+    if not lot:
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    lot_name = name.strip()
+    if not lot_name:
+        return render_materials_page(
+            request, user, db, error="Le nom du lot est obligatoire."
+        )
+    templates = []
+    if template_ids:
+        templates = db.scalars(
+            select(MaterialTemplate).where(
+                MaterialTemplate.id.in_(template_ids),
+                MaterialTemplate.parent_id.is_(None),
+            )
+        ).all()
+    lot.name = lot_name
+    lot.materials = templates
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+@app.post("/lots/{lot_id}/delete")
+def lot_delete(
+    lot_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+):
+    lot = db.get(Lot, lot_id)
+    if not lot:
+        raise HTTPException(status_code=404, detail="Lot introuvable")
+    db.delete(lot)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
 @app.get("/events", response_class=HTMLResponse)
 def events_list(
     request: Request,
@@ -833,12 +923,48 @@ def event_new_form(
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
     db: Session = Depends(get_db),
 ):
+    return render_event_new_page(request, user, db)
+
+
+def load_event_template_data(db: Session) -> tuple[list[MaterialTemplate], list[Lot], dict[int, str], list[dict[str, Any]]]:
     templates_list = db.scalars(
         select(MaterialTemplate).where(MaterialTemplate.parent_id.is_(None))
     ).all()
+    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
+    template_index = {template.id: template.name for template in templates_list}
+    lot_payload = [
+        {
+            "id": lot.id,
+            "name": lot.name,
+            "template_ids": [
+                material.id
+                for material in lot.materials
+                if material.parent_id is None
+            ],
+        }
+        for lot in lots
+    ]
+    return templates_list, lots, template_index, lot_payload
+
+
+def render_event_new_page(
+    request: Request,
+    user: User,
+    db: Session,
+    error: str | None = None,
+) -> HTMLResponse:
+    templates_list, lots, template_index, lot_payload = load_event_template_data(db)
     return templates.TemplateResponse(
         "event_new.html",
-        {"request": request, "user": user, "templates": templates_list},
+        {
+            "request": request,
+            "user": user,
+            "templates": templates_list,
+            "lots": lots,
+            "template_index": template_index,
+            "lot_payload": lot_payload,
+            "error": error,
+        },
     )
 
 
@@ -848,10 +974,33 @@ def event_create(
     name: str = Form(...),
     date_value: str = Form(""),
     info: str = Form(""),
-    template_ids: list[int] = Form(...),
+    template_ids: list[int] = Form([]),
+    lot_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
+    selected_template_ids = set(template_ids)
+    if lot_ids:
+        lots = db.scalars(
+            select(Lot).where(Lot.id.in_(lot_ids)).options(selectinload(Lot.materials))
+        ).all()
+        if len(lots) != len(set(lot_ids)):
+            return render_event_new_page(
+                request, user, db, error="Lot sélectionné introuvable."
+            )
+        for lot in lots:
+            selected_template_ids.update(
+                material.id
+                for material in lot.materials
+                if material.parent_id is None
+            )
+    if not selected_template_ids:
+        return render_event_new_page(
+            request,
+            user,
+            db,
+            error="Sélectionnez au moins un sac ou un lot.",
+        )
     parsed_date = date.fromisoformat(date_value) if date_value else None
     event = Event(
         name=name,
@@ -861,7 +1010,7 @@ def event_create(
     )
     db.add(event)
     db.flush()
-    for template_id in template_ids:
+    for template_id in selected_template_ids:
         root_template = db.get(MaterialTemplate, template_id)
         if root_template:
             copy_template_to_event(db, event.id, root_template, None)

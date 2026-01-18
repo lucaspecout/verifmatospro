@@ -1,8 +1,16 @@
 from datetime import datetime
-from sqlalchemy import Date, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Column, Date, DateTime, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
+
+
+lot_materials = Table(
+    "lot_materials",
+    Base.metadata,
+    Column("lot_id", ForeignKey("lots.id"), primary_key=True),
+    Column("material_template_id", ForeignKey("material_templates.id"), primary_key=True),
+)
 
 
 class User(Base):
@@ -28,6 +36,23 @@ class MaterialTemplate(Base):
     )
 
     parent = relationship("MaterialTemplate", remote_side=[id], backref="children")
+    lots = relationship(
+        "Lot", secondary=lot_materials, back_populates="materials", lazy="selectin"
+    )
+
+
+class Lot(Base):
+    __tablename__ = "lots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+
+    materials = relationship(
+        "MaterialTemplate",
+        secondary=lot_materials,
+        back_populates="lots",
+        lazy="selectin",
+    )
 
 
 class Event(Base):
