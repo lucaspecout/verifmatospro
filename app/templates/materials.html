@@ -554,8 +554,8 @@
     info.innerHTML = `
       <div class="checklist-item-name">
         <strong>${node.name}</strong>
+        <span class="qty">× ${node.qty ?? "-"}</span>
       </div>
-      <span class="qty">Attendu: ${node.qty ?? "-"}</span>
     `;
 
     const actions = document.createElement("div");
