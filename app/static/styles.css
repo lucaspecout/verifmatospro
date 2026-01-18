@@ -1057,9 +1057,12 @@ body {
   pointer-events: none;
   transition: opacity 0.2s ease;
   z-index: 40;
+  border: none;
+  padding: 0;
 }
 
-.modal.is-open {
+.modal.is-open,
+.modal[open] {
   opacity: 1;
   pointer-events: auto;
 }
