@@ -132,16 +132,15 @@
           badge.classList.add(status);
         }
       }
-      const commentEl = node.querySelector('[data-role="comment"]');
-      if (commentEl && typeof comment !== 'undefined') {
-        commentEl.textContent = comment || 'Aucun commentaire signalé.';
-      }
       const input = node.querySelector('input[name="comment"]');
       if (input && typeof comment !== 'undefined') {
         input.value = comment || '';
       }
       if (typeof comment !== 'undefined') {
         node.dataset.comment = comment || '';
+      }
+      if (node.dataset.nodeType === 'container' && status === 'ok') {
+        node.removeAttribute('open');
       }
     };
 
@@ -263,6 +262,10 @@
       }
       submitStatus(activeForm, 'problem', modalComment?.value || '');
       closeModal();
+    });
+
+    document.querySelectorAll('.checklist-section[data-status="ok"]').forEach((node) => {
+      node.removeAttribute('open');
     });
 
     ws.onmessage = (event) => {
