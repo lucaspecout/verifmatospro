@@ -7,8 +7,11 @@
         <p class="eyebrow">Chef de poste</p>
         <h1>Suivi en direct — {{ event.name }}</h1>
         <div class="monitor-meta">
-          <span class="meta-pill">
-            Vérificateur: {{ event.verifier_name or 'Non renseigné' }}
+          <span class="meta-pill" data-role="last-verifier">
+            Dernier vérificateur: {{ last_verifier_name or 'Non renseigné' }}
+          </span>
+          <span class="meta-pill" data-role="verifier-list">
+            Vérificateurs actifs: {{ verifier_names | join(', ') if verifier_names else 'Aucun' }}
           </span>
           <span class="meta-pill live" id="sync-status">Synchronisé</span>
           <span class="meta-pill">Statut: {{ event_state_label }}</span>
@@ -75,6 +78,27 @@
         </div>
         <span class="section-chip">Live</span>
       </div>
+      {% if parent_tiles %}
+        <div class="status-grid status-grid--parents monitor-tiles" aria-label="Statut rapide du matériel">
+          {% for parent in parent_tiles %}
+            {% set parent_status = parent.status or 'pending' %}
+            <div class="status-card {{ parent_status }}" data-node-id="{{ parent.node.id }}">
+              <div class="status-card-name">{{ parent.node.name }}</div>
+              <div class="status-card-meta">
+                <span class="status-card-pill {{ parent_status }}">
+                  {% if parent_status == 'ok' %}
+                    OK
+                  {% elif parent_status == 'problem' %}
+                    Problème
+                  {% else %}
+                    En attente
+                  {% endif %}
+                </span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
       <div class="tree" id="monitor-tree">
         {% for branch in tree %}
           {% include "partials/node.html" with context %}
@@ -140,6 +164,7 @@
     problem: 'Problème',
     pending: 'En attente',
   };
+  const verifierSet = new Set({{ verifier_names | tojson }});
 
   const updateProgress = (progress) => {
     const bar = document.querySelector('#progress-bar .progress-bar');
@@ -152,7 +177,7 @@
     `;
   };
 
-  const setNodeStatus = (node, status, comment) => {
+  const setNodeStatus = (node, status, comment, verifierName) => {
     node.dataset.status = status || 'pending';
     node.classList.remove('ok', 'problem', 'pending');
     if (status) {
@@ -170,9 +195,38 @@
     if (commentEl && typeof comment !== 'undefined') {
       commentEl.textContent = comment || 'Aucun commentaire.';
     }
+    const verifierEl = node.querySelector('[data-role="verifier"]');
+    if (verifierEl && typeof verifierName !== 'undefined') {
+      verifierEl.textContent = verifierName ? `Dernière action: ${verifierName}` : 'Dernière action: Non renseigné';
+    }
     if (node.dataset.nodeType === 'container' && status === 'ok') {
       node.removeAttribute('open');
     }
+  };
+
+  const refreshParentTiles = () => {
+    document.querySelectorAll('.status-card[data-node-id]').forEach((tile) => {
+      const nodeId = tile.dataset.nodeId;
+      const node = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+      if (!node) {
+        return;
+      }
+      const status = node.dataset.status || 'pending';
+      tile.classList.remove('ok', 'problem', 'pending');
+      tile.classList.add(status);
+      const pill = tile.querySelector('.status-card-pill');
+      if (pill) {
+        pill.classList.remove('ok', 'problem', 'pending');
+        pill.classList.add(status);
+        if (status === 'ok') {
+          pill.textContent = 'OK';
+        } else if (status === 'problem') {
+          pill.textContent = 'Problème';
+        } else {
+          pill.textContent = 'En attente';
+        }
+      }
+    });
   };
 
   const recomputeContainerStatus = (containerId) => {
@@ -201,20 +255,21 @@
       updateProgress(data.progress);
       const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
       if (node) {
-        setNodeStatus(node, data.status, data.comment);
+        setNodeStatus(node, data.status, data.comment, data.verifier_name);
         recomputeContainerStatus(node.dataset.parentId);
         const nodeName = node.querySelector('.tree-name')?.textContent || 'Équipement';
         const lastUpdate = document.querySelector('#last-update');
         const log = document.querySelector('#monitor-log');
         if (lastUpdate) {
           const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-          lastUpdate.textContent = `${nodeName} → ${statusLabels[data.status] || data.status} (${time})`;
+          const verifierLabel = data.verifier_name ? `par ${data.verifier_name}` : 'par un vérificateur';
+          lastUpdate.textContent = `${nodeName} → ${statusLabels[data.status] || data.status} ${verifierLabel} (${time})`;
           if (log) {
             const entry = document.createElement('div');
             entry.className = 'timeline-item';
             entry.innerHTML = `
               <strong>${nodeName}</strong>
-              <span class="muted">${statusLabels[data.status] || data.status} · ${time}</span>
+              <span class="muted">${statusLabels[data.status] || data.status} · ${verifierLabel} · ${time}</span>
               <span class="muted">${data.comment || 'Aucun commentaire'}</span>
             `;
             log.prepend(entry);
@@ -224,6 +279,18 @@
             }
           }
         }
+        if (data.verifier_name) {
+          verifierSet.add(data.verifier_name);
+          const lastVerifierPill = document.querySelector('[data-role="last-verifier"]');
+          if (lastVerifierPill) {
+            lastVerifierPill.textContent = `Dernier vérificateur: ${data.verifier_name}`;
+          }
+          const verifierListPill = document.querySelector('[data-role="verifier-list"]');
+          if (verifierListPill) {
+            verifierListPill.textContent = `Vérificateurs actifs: ${Array.from(verifierSet).join(', ')}`;
+          }
+        }
+        refreshParentTiles();
       }
     }
   };

@@ -153,7 +153,7 @@
     }
   };
 
-  const setNodeStatus = (node, status, comment) => {
+  const setNodeStatus = (node, status, comment, verifierName) => {
     node.dataset.status = status || 'pending';
     node.classList.remove('ok', 'problem', 'pending');
     if (status) {
@@ -170,6 +170,10 @@
     const commentEl = node.querySelector('[data-role="comment"]');
     if (commentEl && typeof comment !== 'undefined') {
       commentEl.textContent = comment || 'Aucun commentaire.';
+    }
+    const verifierEl = node.querySelector('[data-role="verifier"]');
+    if (verifierEl && typeof verifierName !== 'undefined') {
+      verifierEl.textContent = verifierName ? `Dernière action: ${verifierName}` : 'Dernière action: Non renseigné';
     }
     if (node.dataset.nodeType === 'container' && status === 'ok') {
       node.removeAttribute('open');
@@ -232,7 +236,7 @@
       updateProgress(data.progress);
       const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
       if (node) {
-        setNodeStatus(node, data.status, data.comment);
+        setNodeStatus(node, data.status, data.comment, data.verifier_name);
         recomputeContainerStatus(node.dataset.parentId);
       }
       refreshParentTiles();

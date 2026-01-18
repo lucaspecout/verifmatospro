@@ -255,17 +255,17 @@ body {
 }
 
 .stat-pill.ok {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(34, 197, 94, 0.28);
   color: #166534;
 }
 
 .stat-pill.problem {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.28);
   color: #b91c1c;
 }
 
 .stat-pill.pending {
-  background: rgba(249, 115, 22, 0.15);
+  background: rgba(249, 115, 22, 0.28);
   color: #9a3412;
 }
 
@@ -432,32 +432,32 @@ body {
 }
 
 .status-card.ok {
-  background: rgba(34, 197, 94, 0.2);
-  border-color: rgba(34, 197, 94, 0.45);
+  background: rgba(34, 197, 94, 0.28);
+  border-color: rgba(34, 197, 94, 0.6);
 }
 
 .status-card.problem {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.28);
+  border-color: rgba(239, 68, 68, 0.6);
 }
 
 .status-card.pending {
-  background: rgba(249, 115, 22, 0.2);
-  border-color: rgba(249, 115, 22, 0.45);
+  background: rgba(249, 115, 22, 0.28);
+  border-color: rgba(249, 115, 22, 0.6);
 }
 
 .status-card-pill.ok {
-  background: rgba(34, 197, 94, 0.2);
+  background: rgba(34, 197, 94, 0.3);
   color: #166534;
 }
 
 .status-card-pill.problem {
-  background: rgba(239, 68, 68, 0.2);
+  background: rgba(239, 68, 68, 0.3);
   color: #991b1b;
 }
 
 .status-card-pill.pending {
-  background: rgba(249, 115, 22, 0.2);
+  background: rgba(249, 115, 22, 0.3);
   color: #9a3412;
 }
 
@@ -497,20 +497,20 @@ body {
 
 .tree-node.ok {
   border-left-color: var(--ok);
-  border-color: rgba(34, 197, 94, 0.2);
-  background: #f0fdf4;
+  border-color: rgba(34, 197, 94, 0.35);
+  background: #dcfce7;
 }
 
 .tree-node.problem {
   border-left-color: var(--problem);
-  border-color: rgba(239, 68, 68, 0.2);
-  background: #fef2f2;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: #fee2e2;
 }
 
 .tree-node.pending {
   border-left-color: var(--pending);
-  border-color: rgba(249, 115, 22, 0.2);
-  background: #fff7ed;
+  border-color: rgba(249, 115, 22, 0.35);
+  background: #ffedd5;
 }
 
 .tree-node.is-container {
@@ -585,18 +585,18 @@ body {
 }
 
 .tree-title .status.ok {
-  background: rgba(34, 197, 94, 0.2);
-  color: #166534;
+  background: rgba(34, 197, 94, 0.35);
+  color: #14532d;
 }
 
 .tree-title .status.problem {
-  background: rgba(239, 68, 68, 0.2);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.35);
+  color: #991b1b;
 }
 
 .tree-title .status.pending {
-  background: rgba(249, 115, 22, 0.2);
-  color: #9a3412;
+  background: rgba(249, 115, 22, 0.35);
+  color: #7c2d12;
 }
 
 .tree-meta {
@@ -623,18 +623,18 @@ body {
 }
 
 .count-pill.ok {
-  background: rgba(34, 197, 94, 0.2);
-  color: #166534;
+  background: rgba(34, 197, 94, 0.3);
+  color: #14532d;
 }
 
 .count-pill.problem {
-  background: rgba(239, 68, 68, 0.2);
-  color: #b91c1c;
+  background: rgba(239, 68, 68, 0.3);
+  color: #991b1b;
 }
 
 .count-pill.pending {
-  background: rgba(249, 115, 22, 0.2);
-  color: #9a3412;
+  background: rgba(249, 115, 22, 0.3);
+  color: #7c2d12;
 }
 
 .count-pill.neutral {
@@ -648,6 +648,15 @@ body {
   background: rgba(148, 163, 184, 0.15);
   padding: 0.5rem 0.75rem;
   border-radius: 12px;
+}
+
+.tree-actor {
+  font-size: 0.8rem;
+  color: #1e293b;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 0.45rem 0.75rem;
+  border-radius: 12px;
+  font-weight: 600;
 }
 
 .tree-children {
@@ -1242,6 +1251,10 @@ body {
 
 .monitor-checklist {
   min-height: 400px;
+}
+
+.monitor-tiles {
+  margin-bottom: 1rem;
 }
 
 .section-header {
