@@ -398,8 +398,8 @@ body {
 }
 
 .event-hero #event-parent-summary .parent-summary-title {
-  font-size: 0.96rem;
-  font-weight: 700;
+  font-size: 0.95rem;
+  font-weight: 600;
   letter-spacing: 0.02em;
   color: #f8fafc;
 }
@@ -408,8 +408,8 @@ body {
   font-size: 0.95rem;
   font-weight: 700;
   color: #e2e8f0;
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(148, 163, 184, 0.55);
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.4);
   padding: 0.15rem 0.5rem;
   border-radius: 999px;
 }
@@ -418,12 +418,8 @@ body {
   margin: 0;
   font-size: 0.78rem;
   line-height: 1.4;
-  color: #e2e8f0;
-  max-width: 36ch;
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  padding: 0.35rem 0.6rem;
-  border-radius: 12px;
+  color: #cbd5f5;
+  max-width: 34ch;
 }
 
 .event-hero #event-parent-summary .status-card {
