@@ -1256,6 +1256,35 @@ def stock_issues_export(
     )
 
 
+@app.post("/stock/issues/{node_id}/delete")
+def stock_issue_delete(
+    node_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_STOCK)),
+    db: Session = Depends(get_db),
+):
+    issue = db.get(EventNode, node_id)
+    if not issue or issue.status != "problem":
+        return RedirectResponse("/stock/issues", status_code=303)
+    issue.status = None
+    issue.comment = None
+    issue.updated_at = datetime.utcnow()
+    db.add(issue)
+    if issue.event_id:
+        nodes = db.scalars(
+            select(EventNode).where(EventNode.event_id == issue.event_id)
+        ).all()
+        progress = compute_progress(nodes)
+        event = issue.event
+        if event:
+            if progress["total"] and progress["pending"] == 0:
+                event.verification_completed_at = datetime.utcnow()
+            else:
+                event.verification_completed_at = None
+            db.add(event)
+    db.commit()
+    return RedirectResponse("/stock/issues", status_code=303)
+
+
 @app.websocket("/ws/events/{event_id}")
 async def websocket_event(websocket: WebSocket, event_id: int):
     await manager.connect(event_id, websocket)

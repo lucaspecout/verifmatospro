@@ -27,6 +27,15 @@
       </div>
       <div class="list-card-actions">
         <span class="pill pending">À traiter</span>
+        <form method="post" action="/stock/issues/{{ issue.id }}/delete">
+          <button
+            class="btn danger"
+            type="submit"
+            onclick="return confirm('Supprimer ce problème signalé ?');"
+          >
+            Supprimer
+          </button>
+        </form>
       </div>
     </div>
     {% else %}
