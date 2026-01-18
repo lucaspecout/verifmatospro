@@ -337,6 +337,12 @@ body {
   align-items: center;
 }
 
+.event-public-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
 .event-public .label {
   font-size: 0.75rem;
   letter-spacing: 0.2em;
@@ -344,8 +350,21 @@ body {
   color: rgba(226, 232, 240, 0.7);
 }
 
-.event-public .link {
-  font-weight: 600;
+.event-public-qr {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border-radius: 12px;
+  background: rgba(226, 232, 240, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.event-public .qr-code {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .event-summary {

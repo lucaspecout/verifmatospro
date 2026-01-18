@@ -25,9 +25,21 @@
       </div>
     </div>
 
+    {% set public_url = request.base_url ~ 'public/' ~ event.id ~ '/' ~ event.public_token %}
     <div class="event-public">
-      <span class="label">Lien public</span>
-      <span class="link" id="public-link">{{ request.base_url }}public/{{ event.id }}/{{ event.public_token }}</span>
+      <div class="event-public-text">
+        <span class="label">Lien public</span>
+        <span class="muted">Scanner le QR code pour ouvrir la checklist.</span>
+      </div>
+      <div class="event-public-qr">
+        <img
+          src="https://api.qrserver.com/v1/create-qr-code/?size=96x96&data={{ public_url | urlencode }}"
+          alt="QR code du lien public"
+          class="qr-code"
+          loading="lazy"
+        />
+      </div>
+      <span class="sr-only" id="public-link">{{ public_url }}</span>
     </div>
 
     <div class="event-summary">
@@ -63,18 +75,6 @@
             </div>
           {% endfor %}
         </div>
-      </div>
-      <div class="summary-card">
-        <div class="summary-header">
-          <span>Informations clés</span>
-          <span class="summary-value">Timeline</span>
-        </div>
-        <ul class="info-list">
-          <li><strong>Créé le :</strong> {{ event.created_label }}</li>
-          <li><strong>Démarré :</strong> {{ event.started_label }}</li>
-          <li><strong>Terminé :</strong> {{ event.completed_label }}</li>
-          <li><strong>Infos :</strong> {{ event.info or 'Aucune information' }}</li>
-        </ul>
       </div>
     </div>
   </header>
