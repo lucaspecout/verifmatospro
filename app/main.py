@@ -138,16 +138,16 @@ def require_roles(*roles: str):
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request, user: User = Depends(get_current_user)):
+def home(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     if user.must_change_password:
         return RedirectResponse("/password", status_code=303)
-    db = SessionLocal()
-    try:
-        events = db.scalars(select(Event)).all()
-        materials = db.scalars(select(MaterialTemplate)).all()
-        nodes = db.scalars(select(EventNode)).all()
-    finally:
-        db.close()
+    events = db.scalars(select(Event)).all()
+    materials = db.scalars(select(MaterialTemplate)).all()
+    nodes = db.scalars(select(EventNode)).all()
 
     nodes_by_event: dict[int, list[EventNode]] = defaultdict(list)
     for node in nodes:
