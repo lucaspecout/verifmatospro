@@ -395,12 +395,8 @@ body {
 }
 
 .event-hero #event-parent-summary .status-card {
-  background-color: transparent !important;
+  background: transparent;
   box-shadow: none;
-  color: #0f172a;
-}
-
-.event-hero #event-parent-summary .status-card-name {
   color: #0f172a;
 }
 
@@ -1734,10 +1730,6 @@ body {
 
 .stat-card strong {
   font-size: 1.4rem;
-  color: #0f172a;
-}
-
-.hero-card .stat-card .pill {
   color: #0f172a;
 }
 
