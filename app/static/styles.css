@@ -979,6 +979,10 @@ body {
   color: rgba(226, 232, 240, 0.7);
 }
 
+.builder-item .checklist-item-info .qty {
+  color: #2563eb;
+}
+
 .checklist-item-name .status {
   text-transform: uppercase;
   font-size: 0.55rem;
