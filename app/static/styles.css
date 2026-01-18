@@ -386,12 +386,12 @@ body {
   background: transparent;
   border-color: transparent;
   box-shadow: none;
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 
 .event-hero #event-parent-summary .summary-header span,
 .event-hero #event-parent-summary .muted {
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 
 .event-hero #event-parent-summary .summary-header span:first-child {
@@ -399,7 +399,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.02em;
   background: rgba(15, 23, 42, 0.6);
-  color: #f8fafc !important;
+  color: #f8fafc;
   padding: 0.2rem 0.6rem;
   border-radius: 999px;
   border: 1px solid rgba(148, 163, 184, 0.35);
@@ -408,7 +408,7 @@ body {
 .event-hero #event-parent-summary .muted {
   font-size: 0.75rem;
   line-height: 1.4;
-  color: #e2e8f0 !important;
+  color: #e2e8f0;
   background: rgba(15, 23, 42, 0.55);
   border: 1px dashed rgba(148, 163, 184, 0.4);
   padding: 0.35rem 0.6rem;
@@ -419,17 +419,11 @@ body {
 .event-hero #event-parent-summary .status-card {
   background: transparent;
   box-shadow: none;
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 
 .event-hero #event-parent-summary .status-card-name {
-  color: #f8fafc !important;
-}
-
-.event-hero #event-parent-summary .event-parent-summary-text,
-.event-hero #event-parent-summary .event-parent-summary-text span,
-.event-hero #event-parent-summary .event-parent-summary-text strong {
-  color: #f8fafc !important;
+  color: #f8fafc;
 }
 
 .event-hero .summary-header {
