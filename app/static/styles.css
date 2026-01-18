@@ -1151,6 +1151,117 @@ body {
   flex-wrap: wrap;
 }
 
+.sacs-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.sac-card {
+  background: var(--bg);
+  border-radius: 16px;
+  padding: 1.2rem;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 0.85rem;
+}
+
+.sac-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.builder-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.builder-canvas {
+  background: #0f172a;
+  color: #f8fafc;
+  border-radius: 18px;
+  padding: 1.25rem;
+  border: 1px solid rgba(30, 41, 59, 0.8);
+}
+
+.builder-canvas-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.builder-canvas-meta {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.builder-count-pill {
+  background: rgba(56, 189, 248, 0.2);
+  color: #bae6fd;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.builder-visual .builder-child-empty {
+  color: rgba(226, 232, 240, 0.7);
+}
+
+.builder-section {
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+}
+
+.builder-section.active,
+.builder-item.active {
+  border-color: rgba(56, 189, 248, 0.7);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.builder-section-header {
+  gap: 0.75rem;
+}
+
+.builder-node-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.builder-node-actions .btn {
+  box-shadow: none;
+}
+
+.builder-item {
+  background: rgba(30, 41, 59, 0.85);
+}
+
+.builder-panel {
+  background: var(--card);
+  border-radius: 18px;
+  padding: 1.25rem;
+  border: 1px solid var(--border);
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 960px) {
+  .builder-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .wizard-grid {
   display: grid;
   gap: 1rem;
