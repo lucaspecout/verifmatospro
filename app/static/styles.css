@@ -1169,6 +1169,33 @@ body {
   gap: 0.85rem;
 }
 
+.lot-card {
+  padding: 1rem;
+}
+
+.lot-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.lot-card-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.lot-edit-form {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
 .sac-card-actions {
   display: flex;
   flex-wrap: wrap;
