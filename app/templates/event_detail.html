@@ -147,9 +147,6 @@
     if (verifierEl && typeof verifierName !== 'undefined') {
       verifierEl.textContent = verifierName ? `Dernière action: ${verifierName}` : 'Dernière action: Non renseigné';
     }
-    if (node.dataset.nodeType === 'container' && status === 'ok') {
-      node.removeAttribute('open');
-    }
   };
 
   const refreshParentTiles = () => {
@@ -190,7 +187,23 @@
     node.removeAttribute('open');
   });
 
+  const getOpenNodeIds = () =>
+    Array.from(document.querySelectorAll('.tree-node.is-container[open]')).map((node) => node.dataset.nodeId);
+
+  const restoreOpenNodes = (openIds) => {
+    if (!openIds?.length) {
+      return;
+    }
+    openIds.forEach((nodeId) => {
+      const node = document.querySelector(`.tree-node.is-container[data-node-id="${nodeId}"]`);
+      if (node) {
+        node.setAttribute('open', '');
+      }
+    });
+  };
+
   const applyLiveChecklist = (payload) => {
+    const openNodeIds = getOpenNodeIds();
     const parentSummary = document.querySelector('#event-parent-summary');
     if (parentSummary && payload.parent_summary_html) {
       parentSummary.innerHTML = payload.parent_summary_html;
@@ -202,9 +215,7 @@
     if (payload.progress) {
       updateProgress(payload.progress);
     }
-    document.querySelectorAll('.tree-node.is-container').forEach((node) => {
-      node.removeAttribute('open');
-    });
+    restoreOpenNodes(openNodeIds);
     refreshParentTiles();
   };
 
