@@ -1259,6 +1259,12 @@ body {
   gap: 1rem;
 }
 
+.builder-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
 @media (max-width: 960px) {
   .builder-grid {
     grid-template-columns: 1fr;
