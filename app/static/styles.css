@@ -383,9 +383,9 @@ body {
 }
 
 .event-hero #event-parent-summary {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(148, 163, 184, 0.35);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.35);
   color: #f8fafc;
 }
 
@@ -423,13 +423,14 @@ body {
 }
 
 .event-hero #event-parent-summary .status-card {
-  background: transparent;
-  box-shadow: none;
+  background: rgba(15, 23, 42, 0.55);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.25);
   color: #f8fafc;
 }
 
 .event-hero #event-parent-summary .status-card-name {
   color: #f8fafc;
+  font-weight: 600;
 }
 
 .event-hero .summary-header {
