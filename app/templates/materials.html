@@ -223,9 +223,8 @@
     if (!dialog) {
       return;
     }
-    if (typeof dialog.showModal === "function") {
+    if (typeof dialog.showModal === "function" && !dialog.open) {
       dialog.showModal();
-      return;
     }
     dialog.setAttribute("open", "");
     dialog.classList.add("is-open");
@@ -234,9 +233,8 @@
     if (!dialog) {
       return;
     }
-    if (typeof dialog.close === "function") {
+    if (typeof dialog.close === "function" && dialog.open) {
       dialog.close();
-      return;
     }
     dialog.classList.remove("is-open");
     dialog.removeAttribute("open");
