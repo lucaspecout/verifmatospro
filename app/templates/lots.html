@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block content %}
+{% if error %}
+  <p class="error">{{ error }}</p>
+{% endif %}
+
+<section class="card hero-card">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Bibliothèque</p>
+      <h1 class="page-title">Lots de matériel</h1>
+      <p class="page-subtitle">Regroupez vos sacs pour les ajouter en un clic lors de la création d'un poste.</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn secondary" href="/materials">Retour au matériel</a>
+    </div>
+  </div>
+  <div class="stat-grid">
+    <div class="stat-card">
+      <span class="stat-label">Lots actifs</span>
+      <strong>{{ lots | length }}</strong>
+      <span class="pill">Lots</span>
+    </div>
+    <div class="stat-card">
+      <span class="stat-label">Sacs racine</span>
+      <strong>{{ root_templates | length }}</strong>
+      <span class="pill">Modèles</span>
+    </div>
+  </div>
+</section>
+
+<section class="card">
+  <div class="builder-header">
+    <div>
+      <h2>Créer un lot</h2>
+      <p class="muted">Sélectionnez des sacs parents pour composer un lot prêt à l'emploi.</p>
+    </div>
+  </div>
+  <form method="post" action="/lots" class="form">
+    <label>Nom du lot
+      <input type="text" name="name" placeholder="Exemple : Lot rouge" required />
+    </label>
+    <label>Sacs inclus
+      <select name="template_ids" multiple>
+        {% for template in root_templates %}
+        <option value="{{ template.id }}">{{ template.name }}</option>
+        {% endfor %}
+      </select>
+      <span class="help-text">Ajoutez uniquement des sacs parents (racine).</span>
+    </label>
+    <button type="submit" class="btn">Créer le lot</button>
+  </form>
+  <div class="sacs-grid">
+    {% for lot in lots %}
+      <article class="sac-card lot-card" data-lot-id="{{ lot.id }}">
+        <div class="lot-card-header">
+          <div>
+            <h3>{{ lot.name }}</h3>
+            <p class="muted">{{ lot.materials | length }} sac(s) inclus</p>
+          </div>
+        </div>
+        <ul class="lot-card-list">
+          {% for template in lot.materials %}
+            <li>{{ template.name }}</li>
+          {% else %}
+            <li class="muted">Aucun sac associé pour le moment.</li>
+          {% endfor %}
+        </ul>
+        <div class="sac-card-actions">
+          <button
+            class="btn small secondary"
+            type="button"
+            data-action="toggle-lot-form"
+            data-lot-id="{{ lot.id }}"
+          >
+            Modifier
+          </button>
+          <form method="post" action="/lots/{{ lot.id }}/delete" class="inline-form sac-action-form">
+            <button
+              type="submit"
+              class="btn small danger"
+              onclick="return confirm('Supprimer définitivement ce lot ?');"
+            >
+              Supprimer
+            </button>
+          </form>
+        </div>
+        <form
+          method="post"
+          action="/lots/{{ lot.id }}"
+          class="form lot-edit-form"
+          id="lot-form-{{ lot.id }}"
+          data-lot-id="{{ lot.id }}"
+          hidden
+        >
+          <label>Nom du lot
+            <input type="text" name="name" value="{{ lot.name }}" required />
+          </label>
+          <label>Sacs inclus
+            <select name="template_ids" multiple>
+              {% for template in root_templates %}
+              <option
+                value="{{ template.id }}"
+                {% if template in lot.materials %}selected{% endif %}
+              >
+                {{ template.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="sac-card-actions">
+            <button class="btn small" type="submit">Enregistrer</button>
+            <button class="btn small secondary" type="button" data-action="close-lot-form">
+              Annuler
+            </button>
+          </div>
+        </form>
+      </article>
+    {% else %}
+      <div class="sac-empty">
+        <p class="muted">Aucun lot créé. Utilisez le formulaire ci-dessus pour en ajouter.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
+<script>
+  const lotToggleButtons = document.querySelectorAll('[data-action="toggle-lot-form"]');
+  const lotCloseButtons = document.querySelectorAll('[data-action="close-lot-form"]');
+
+  const closeAllLotForms = () => {
+    document.querySelectorAll(".lot-edit-form").forEach((form) => {
+      form.setAttribute("hidden", "");
+      const lotId = form.dataset.lotId;
+      const toggleButton = document.querySelector(
+        `[data-action="toggle-lot-form"][data-lot-id="${lotId}"]`
+      );
+      if (toggleButton) {
+        toggleButton.textContent = "Modifier";
+      }
+    });
+  };
+
+  lotToggleButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const lotId = button.dataset.lotId;
+      const form = document.getElementById(`lot-form-${lotId}`);
+      if (!form) {
+        return;
+      }
+      const isHidden = form.hasAttribute("hidden");
+      closeAllLotForms();
+      if (isHidden) {
+        form.removeAttribute("hidden");
+        button.textContent = "Fermer";
+      }
+    });
+  });
+
+  lotCloseButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      closeAllLotForms();
+    });
+  });
+</script>
+{% endblock %}
