@@ -93,6 +93,68 @@
   </div>
 </section>
 
+<section class="card">
+  <div class="builder-header">
+    <div>
+      <h2>Lots de matériel</h2>
+      <p class="muted">Regroupez plusieurs sacs dans un lot pour les ajouter en un clic lors de la création d'un poste.</p>
+    </div>
+  </div>
+  <form method="post" action="/lots" class="form">
+    <label>Nom du lot
+      <input type="text" name="name" placeholder="Exemple : Lot rouge" required />
+    </label>
+    <label>Sacs inclus
+      <select name="template_ids" multiple>
+        {% for template in root_templates %}
+        <option value="{{ template.id }}">{{ template.name }}</option>
+        {% endfor %}
+      </select>
+      <span class="help-text">Ajoutez uniquement des sacs parents (racine).</span>
+    </label>
+    <button type="submit" class="btn">Créer le lot</button>
+  </form>
+  <div class="sacs-grid">
+    {% for lot in lots %}
+      <article class="sac-card">
+        <form method="post" action="/lots/{{ lot.id }}" class="form">
+          <label>Nom du lot
+            <input type="text" name="name" value="{{ lot.name }}" required />
+          </label>
+          <label>Sacs inclus
+            <select name="template_ids" multiple>
+              {% for template in root_templates %}
+              <option
+                value="{{ template.id }}"
+                {% if template in lot.materials %}selected{% endif %}
+              >
+                {{ template.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </label>
+          <div class="sac-card-actions">
+            <button class="btn small" type="submit">Enregistrer</button>
+          </div>
+        </form>
+        <form method="post" action="/lots/{{ lot.id }}/delete" class="inline-form sac-action-form">
+          <button
+            type="submit"
+            class="btn small danger"
+            onclick="return confirm('Supprimer définitivement ce lot ?');"
+          >
+            Supprimer
+          </button>
+        </form>
+      </article>
+    {% else %}
+      <div class="sac-empty">
+        <p class="muted">Aucun lot créé. Utilisez le formulaire ci-dessus pour en ajouter.</p>
+      </div>
+    {% endfor %}
+  </div>
+</section>
+
 <section class="card builder">
   <form method="post" action="/materials/wizard" id="builder-form">
     <input type="hidden" name="wizard_payload" id="builder_payload" />
