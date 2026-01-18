@@ -1027,6 +1027,20 @@ def event_monitor(
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
+    parent_tiles = [
+        {"node": branch["node"], "status": branch["status"]}
+        for branch in tree
+        if branch.get("node")
+    ]
+    verifier_names = sorted(
+        {node.last_verifier_name for node in nodes if node.last_verifier_name}
+    )
+    last_verifier_name = None
+    updated_nodes = [node for node in nodes if node.updated_at and node.last_verifier_name]
+    if updated_nodes:
+        last_verifier_name = max(updated_nodes, key=lambda item: item.updated_at).last_verifier_name
+    if not last_verifier_name:
+        last_verifier_name = event.verifier_name
     state = derive_event_state(event, progress)
     return templates.TemplateResponse(
         "event_monitor.html",
@@ -1036,6 +1050,9 @@ def event_monitor(
             "event": event,
             "tree": tree,
             "progress": progress,
+            "parent_tiles": parent_tiles,
+            "verifier_names": verifier_names,
+            "last_verifier_name": last_verifier_name,
             "event_state_label": state["label"],
         },
     )
@@ -1097,11 +1114,20 @@ def public_start(
     event = db.get(Event, event_id)
     if not event or event.public_token != token:
         raise HTTPException(status_code=404)
-    event.verifier_name = name
+    cleaned_name = name.strip()
+    event.verifier_name = cleaned_name or event.verifier_name
     event.verification_started_at = datetime.utcnow()
     db.add(event)
     db.commit()
-    return RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
+    response = RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
+    if cleaned_name:
+        response.set_cookie(
+            "verifier_name",
+            cleaned_name,
+            max_age=60 * 60 * 12,
+            samesite="lax",
+        )
+    return response
 
 
 @app.get("/public/{event_id}/{token}/check", response_class=HTMLResponse)
@@ -1125,6 +1151,7 @@ def public_check(
             "tree": tree,
             "progress": progress,
             "token": token,
+            "verifier_name": request.cookies.get("verifier_name"),
         },
     )
 
@@ -1137,6 +1164,7 @@ def update_item(
     node_id: int,
     status: str = Form(...),
     comment: str = Form(""),
+    verifier_name: str | None = Form(None),
     db: Session = Depends(get_db),
 ):
     event = db.get(Event, event_id)
@@ -1145,8 +1173,14 @@ def update_item(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id or node.node_type != "item":
         raise HTTPException(status_code=404)
+    verifier_value = (
+        (request.cookies.get("verifier_name") or verifier_name or "").strip()
+    )
     node.status = status
     node.comment = comment or None
+    if verifier_value:
+        node.last_verifier_name = verifier_value
+        event.verifier_name = verifier_value
     node.updated_at = datetime.utcnow()
     db.add(node)
     db.commit()
@@ -1166,6 +1200,7 @@ def update_item(
         "node_id": node.id,
         "status": node.status,
         "comment": node.comment or "",
+        "verifier_name": node.last_verifier_name or "",
     }
     try:
         import anyio
