@@ -85,63 +85,6 @@
 </section>
 
 <section class="card builder">
-  <div class="builder-header">
-    <div>
-      <h2>Atelier de checklist</h2>
-      <p class="muted">Construisez un arbre clair, avec une vue structurée et un panneau d’édition rapide.</p>
-    </div>
-  </div>
-  <div class="builder-toolbar">
-    <label>Sélection rapide
-      <select id="existing-parent-select">
-        <option value="">Choisir un sac de base</option>
-        {% for item in materials %}
-          {% if item.parent_id is none %}
-            <option value="{{ item.id }}">{{ item.name }}</option>
-          {% endif %}
-        {% endfor %}
-      </select>
-    </label>
-    <div class="builder-toolbar-actions">
-      <button class="btn secondary" type="button" id="load-parent">Charger la structure</button>
-    </div>
-  </div>
-  <div class="builder-toolbar builder-toolbar--secondary">
-    <div class="builder-toolbar-section">
-      <h4>Export / import des parents</h4>
-      <p class="muted">Sélectionnez des parents racine pour exporter une structure complète, puis réimportez-la.</p>
-    </div>
-    <div class="builder-toolbar-section">
-      <button class="btn secondary small" type="button" id="select-all-parents">Tout sélectionner</button>
-      <button class="btn secondary small" type="button" id="clear-all-parents">Tout désélectionner</button>
-    </div>
-    <div class="builder-toolbar-actions">
-      <button class="btn" type="button" id="export-parents">Exporter les parents</button>
-      <button class="btn secondary" type="button" id="import-parents" data-action="trigger-import">Importer les parents</button>
-      <input type="file" id="parents-import-file" accept="application/json" hidden />
-      <form method="post" action="/materials/parents/import" id="parents-import-form" class="hidden">
-        <input type="hidden" name="items_payload" id="parents-import-payload" />
-      </form>
-    </div>
-  </div>
-  <div class="builder-items-grid" id="parents-selection-grid">
-    {% for parent in parents %}
-      <label class="builder-item-card">
-        <input type="checkbox" class="parent-selector" value="{{ parent.id }}" />
-        <div>
-          <strong>{{ parent.name }}</strong>
-          <p class="muted">
-            Parent racine · {{ "Contenant" if parent.node_type == "container" else "Item" }}
-            {% if parent.node_type == "item" %}
-              · Qté {{ parent.expected_qty or 0 }}
-            {% endif %}
-          </p>
-        </div>
-      </label>
-    {% else %}
-      <p class="muted">Aucun parent racine disponible pour l’export.</p>
-    {% endfor %}
-  </div>
   <form method="post" action="/materials/wizard" id="builder-form">
     <input type="hidden" name="wizard_payload" id="builder_payload" />
     <div class="builder-grid">
@@ -161,50 +104,14 @@
           Créez un parent ou chargez un modèle existant pour démarrer.
         </p>
       </div>
-      <aside class="builder-panel">
-        <h3>Éditeur</h3>
-        <p class="muted" id="builder-panel-empty">Sélectionnez un carré pour afficher ses détails.</p>
-        <div class="builder-panel-form hidden" id="builder-panel-form">
-          <label>Nom
-            <input type="text" id="node-name" />
-          </label>
-          <label>Type
-            <select id="node-type"></select>
-          </label>
-          <label>Quantité (item uniquement)
-            <input type="number" id="node-qty" min="0" />
-          </label>
-          <label>Déplacer dans
-            <select id="node-parent"></select>
-          </label>
-          <div class="builder-panel-actions">
-            <button class="btn small" type="button" id="save-node">Enregistrer</button>
-            <button class="btn small secondary" type="button" id="duplicate-node">Dupliquer</button>
-            <button class="btn small danger" type="button" id="delete-node">Supprimer</button>
-          </div>
-          <div class="builder-divider"></div>
-          <div class="builder-add-child">
-            <h4>Ajouter un sous-élément</h4>
-            <label>Nom
-              <input type="text" id="child-name" placeholder="Nom du sous-élément" />
-            </label>
-            <label>Type
-              <select id="child-type"></select>
-            </label>
-            <label>Quantité
-              <input type="number" id="child-qty" min="0" placeholder="Qté (item)" />
-            </label>
-            <button class="btn small" type="button" id="add-child">Ajouter</button>
-          </div>
-        </div>
-      </aside>
-    </div>
-    <div class="wizard-actions">
-      <button type="submit" class="btn">Enregistrer la checklist</button>
-      <button type="button" class="btn secondary" id="builder-reset">Remettre à zéro</button>
     </div>
   </form>
 </section>
+
+<input type="file" id="parents-import-file" accept="application/json" hidden />
+<form method="post" action="/materials/parents/import" id="parents-import-form" class="hidden">
+  <input type="hidden" name="items_payload" id="parents-import-payload" />
+</form>
 
 <dialog class="modal" id="root-modal">
   <div class="modal-card">
@@ -229,6 +136,44 @@
   </div>
 </dialog>
 
+<dialog class="modal" id="node-modal">
+  <div class="modal-card">
+    <h3 id="node-modal-title">Modifier un élément</h3>
+    <div id="node-modal-edit">
+      <label>Nom
+        <input type="text" id="node-name" />
+      </label>
+      <label>Type
+        <select id="node-type"></select>
+      </label>
+      <label>Quantité (item uniquement)
+        <input type="number" id="node-qty" min="0" />
+      </label>
+      <label>Déplacer dans
+        <select id="node-parent"></select>
+      </label>
+    </div>
+    <div id="node-modal-add" class="hidden">
+      <label>Nom
+        <input type="text" id="child-name" placeholder="Nom du sous-élément" />
+      </label>
+      <label>Type
+        <select id="child-type"></select>
+      </label>
+      <label>Quantité
+        <input type="number" id="child-qty" min="0" placeholder="Qté (item)" />
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn secondary" type="button" id="node-modal-cancel">Annuler</button>
+      <button class="btn" type="button" id="save-node">Enregistrer</button>
+      <button class="btn secondary" type="button" id="duplicate-node">Dupliquer</button>
+      <button class="btn danger" type="button" id="delete-node">Supprimer</button>
+      <button class="btn" type="button" id="add-child">Ajouter</button>
+    </div>
+  </div>
+</dialog>
+
 <script>
   const existingMaterials = {{ materials_payload | tojson }};
   const builderState = {
@@ -238,8 +183,6 @@
     selectedId: null,
   };
 
-  const rootSelect = document.getElementById("existing-parent-select");
-  const loadParentButton = document.getElementById("load-parent");
   const openRootModalButtons = document.querySelectorAll('[data-action="open-root-modal"]');
   const sacsGrid = document.querySelector(".sacs-grid");
   const builderRoot = document.getElementById("builder-root");
@@ -247,22 +190,20 @@
   const builderEmpty = document.getElementById("builder-empty");
   const builderForm = document.getElementById("builder-form");
   const builderPayload = document.getElementById("builder_payload");
-  const resetButton = document.getElementById("builder-reset");
   const jumpToBuilderButton = document.getElementById("jump-to-builder");
   const rootTypeSelect = document.getElementById("root-type");
   const rootQtyInput = document.getElementById("root-qty");
   const rootQtyWrapper = document.getElementById("root-qty-wrapper");
-  const parentsSelectionGrid = document.getElementById("parents-selection-grid");
-  const selectAllParentsButton = document.getElementById("select-all-parents");
-  const clearAllParentsButton = document.getElementById("clear-all-parents");
-  const exportParentsButton = document.getElementById("export-parents");
   const importParentsButtons = document.querySelectorAll('[data-action="trigger-import"]');
   const parentsImportFile = document.getElementById("parents-import-file");
   const parentsImportPayload = document.getElementById("parents-import-payload");
   const parentsImportForm = document.getElementById("parents-import-form");
 
-  const panelEmpty = document.getElementById("builder-panel-empty");
-  const panelForm = document.getElementById("builder-panel-form");
+  const nodeModal = document.getElementById("node-modal");
+  const nodeModalTitle = document.getElementById("node-modal-title");
+  const nodeModalEdit = document.getElementById("node-modal-edit");
+  const nodeModalAdd = document.getElementById("node-modal-add");
+  const nodeModalCancel = document.getElementById("node-modal-cancel");
   const nodeNameInput = document.getElementById("node-name");
   const nodeTypeSelect = document.getElementById("node-type");
   const nodeQtyInput = document.getElementById("node-qty");
@@ -294,7 +235,6 @@
   const selectNode = (nodeId) => {
     builderState.selectedId = nodeId;
     renderBuilder();
-    renderPanel();
   };
   const getDepth = (nodeId) => {
     let depth = 0;
@@ -343,7 +283,6 @@
       builderState.selectedId = null;
     }
     renderBuilder();
-    renderPanel();
   };
 
   const resetBuilder = () => {
@@ -352,7 +291,6 @@
     builderState.rootMaterialId = null;
     builderState.selectedId = null;
     renderBuilder();
-    renderPanel();
   };
 
   const createNode = ({ name, type, qty = null, parentId = null }) => {
@@ -411,7 +349,56 @@
     builderState.rootId = root.id;
     builderState.selectedId = root.id;
     renderBuilder();
-    renderPanel();
+  };
+
+  const openNodeModal = ({ mode, nodeId }) => {
+    const node = findNode(nodeId);
+    if (!node) {
+      return;
+    }
+    builderState.selectedId = nodeId;
+    renderBuilder();
+
+    if (mode === "add" && node.type !== "container") {
+      return;
+    }
+
+    const isAddMode = mode === "add";
+    nodeModalTitle.textContent = isAddMode ? "Ajouter un sous-élément" : "Modifier un élément";
+    nodeModalEdit.classList.toggle("hidden", isAddMode);
+    nodeModalAdd.classList.toggle("hidden", !isAddMode);
+    saveNodeButton.classList.toggle("hidden", isAddMode);
+    duplicateNodeButton.classList.toggle("hidden", isAddMode);
+    deleteNodeButton.classList.toggle("hidden", isAddMode);
+    addChildButton.classList.toggle("hidden", !isAddMode);
+
+    if (isAddMode) {
+      const childAllowedTypes = ["container", "item"];
+      renderNodeTypeOptions(childTypeSelect, childAllowedTypes, childAllowedTypes[0]);
+      childQtyInput.disabled = childTypeSelect.value !== "item";
+      childNameInput.value = "";
+      childQtyInput.value = "";
+    } else {
+      const existingChildren = getChildren(node.id);
+      const allowedTypes = existingChildren.length ? ["container"] : ["container", "item"];
+      renderNodeTypeOptions(nodeTypeSelect, allowedTypes, node.type);
+
+      nodeNameInput.value = node.name;
+      nodeQtyInput.value = node.qty ?? "";
+      nodeQtyInput.disabled = node.type !== "item";
+      renderParentOptions(node);
+
+      duplicateNodeButton.disabled = node.id === builderState.rootId;
+      deleteNodeButton.disabled = node.id === builderState.rootId;
+      nodeTypeSelect.disabled = existingChildren.length > 0;
+    }
+
+    nodeModal.showModal();
+    if (isAddMode) {
+      childNameInput.focus();
+    } else {
+      nodeNameInput.focus();
+    }
   };
 
   const renderNode = (node) => {
@@ -424,11 +411,10 @@
       button.addEventListener("click", (event) => {
         event.stopPropagation();
         if (action === "edit") {
-          selectNode(node.id);
+          openNodeModal({ mode: "edit", nodeId: node.id });
         }
         if (action === "add") {
-          selectNode(node.id);
-          childNameInput.focus();
+          openNodeModal({ mode: "add", nodeId: node.id });
         }
         if (action === "delete") {
           if (confirm("Supprimer cet élément ?")) {
@@ -492,7 +478,7 @@
       if (!children.length) {
         const empty = document.createElement("p");
         empty.className = "muted builder-child-empty";
-        empty.textContent = "Ajoutez un sous-élément depuis l’éditeur.";
+        empty.textContent = "Ajoutez un sous-élément via le bouton “Ajouter”.";
         childrenWrap.appendChild(empty);
       } else {
         children.forEach((child) => childrenWrap.appendChild(renderNode(child)));
@@ -601,42 +587,6 @@
       });
   };
 
-  const renderPanel = () => {
-    if (!builderState.selectedId) {
-      panelEmpty.classList.remove("hidden");
-      panelForm.classList.add("hidden");
-      return;
-    }
-    const node = findNode(builderState.selectedId);
-    if (!node) {
-      panelEmpty.classList.remove("hidden");
-      panelForm.classList.add("hidden");
-      return;
-    }
-    panelEmpty.classList.add("hidden");
-    panelForm.classList.remove("hidden");
-
-    const existingChildren = getChildren(node.id);
-    const allowedTypes = existingChildren.length ? ["container"] : ["container", "item"];
-    renderNodeTypeOptions(nodeTypeSelect, allowedTypes, node.type);
-
-    nodeNameInput.value = node.name;
-    nodeQtyInput.value = node.qty ?? "";
-    nodeQtyInput.disabled = node.type !== "item";
-    renderParentOptions(node);
-
-    duplicateNodeButton.disabled = node.id === builderState.rootId;
-    deleteNodeButton.disabled = node.id === builderState.rootId;
-
-    nodeTypeSelect.disabled = existingChildren.length > 0;
-
-    const childAllowedTypes = ["container", "item"];
-    renderNodeTypeOptions(childTypeSelect, childAllowedTypes, childAllowedTypes[0]);
-    childQtyInput.disabled = childTypeSelect.value !== "item";
-    childNameInput.value = "";
-    childQtyInput.value = "";
-  };
-
   const addChild = () => {
     const parent = findNode(builderState.selectedId);
     if (!parent || parent.type !== "container") {
@@ -652,7 +602,7 @@
     childNameInput.value = "";
     childQtyInput.value = "";
     renderBuilder();
-    renderPanel();
+    nodeModal.close();
   };
 
   saveNodeButton.addEventListener("click", () => {
@@ -678,7 +628,7 @@
       }
     }
     renderBuilder();
-    renderPanel();
+    nodeModal.close();
   });
 
   duplicateNodeButton.addEventListener("click", () => {
@@ -698,7 +648,7 @@
     };
     cloneSubtree(node, node.parentId);
     renderBuilder();
-    renderPanel();
+    nodeModal.close();
   });
 
   deleteNodeButton.addEventListener("click", () => {
@@ -708,6 +658,7 @@
     }
     if (confirm("Supprimer cet élément ?")) {
       deleteNodeById(node.id);
+      nodeModal.close();
     }
   });
 
@@ -723,11 +674,7 @@
     }
   });
 
-  loadParentButton.addEventListener("click", () => {
-    const selectedId = Number(rootSelect.value);
-    if (!selectedId) {
-      return;
-    }
+  const loadParentById = (selectedId) => {
     const material = materialMap.get(selectedId);
     if (!material) {
       return;
@@ -737,8 +684,7 @@
     builderState.rootMaterialId = selectedId;
     builderState.selectedId = builderState.rootId;
     renderBuilder();
-    renderPanel();
-  });
+  };
 
   sacsGrid?.addEventListener("click", (event) => {
     const button = event.target.closest(".sac-open");
@@ -749,17 +695,14 @@
     if (draftId) {
       builderState.selectedId = builderState.rootId;
       renderBuilder();
-      renderPanel();
       builderRoot.scrollIntoView({ behavior: "smooth", block: "start" });
-      nodeNameInput.focus();
       return;
     }
     const selectedId = Number(button.dataset.parentId);
     if (!selectedId) {
       return;
     }
-    rootSelect.value = selectedId;
-    loadParentButton.click();
+    loadParentById(selectedId);
     builderRoot.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
@@ -795,36 +738,13 @@
     setRoot(name, rootType, rootQty);
     builderState.rootMaterialId = null;
     addDraftSac(name, builderState.rootId);
-    nodeNameInput.focus();
     input.value = "";
     rootQtyInput.value = "";
     document.getElementById("root-modal").close();
   });
 
-  resetButton.addEventListener("click", resetBuilder);
-
-  const getSelectedParentIds = () =>
-    Array.from(document.querySelectorAll(".parent-selector:checked")).map((input) => input.value);
-
-  selectAllParentsButton?.addEventListener("click", () => {
-    document.querySelectorAll(".parent-selector").forEach((input) => {
-      input.checked = true;
-    });
-  });
-
-  clearAllParentsButton?.addEventListener("click", () => {
-    document.querySelectorAll(".parent-selector").forEach((input) => {
-      input.checked = false;
-    });
-  });
-
-  exportParentsButton?.addEventListener("click", () => {
-    const selectedIds = getSelectedParentIds();
-    if (!selectedIds.length) {
-      return;
-    }
-    const query = new URLSearchParams({ ids: selectedIds.join(",") });
-    window.location.href = `/materials/parents/export?${query.toString()}`;
+  nodeModalCancel.addEventListener("click", () => {
+    nodeModal.close();
   });
 
   importParentsButtons.forEach((button) => {
@@ -877,6 +797,5 @@
   });
 
   renderBuilder();
-  renderPanel();
 </script>
 {% endblock %}
