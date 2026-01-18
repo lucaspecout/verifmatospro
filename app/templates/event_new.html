@@ -62,7 +62,17 @@
     });
   };
 
+  const toggleOption = (event) => {
+    if (event.target.tagName !== 'OPTION') {
+      return;
+    }
+    event.preventDefault();
+    event.target.selected = !event.target.selected;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
   select.addEventListener('change', updatePreview);
+  select.addEventListener('mousedown', toggleOption);
   updatePreview();
 </script>
 {% endblock %}
