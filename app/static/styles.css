@@ -400,11 +400,11 @@ body {
   width: 100%;
   aspect-ratio: 1 / 1;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.2);
-  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: #fff;
+  border: 2px solid rgba(148, 163, 184, 0.7);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   padding: 0.6rem;
   gap: 0.45rem;
 }
@@ -413,6 +413,7 @@ body {
   font-weight: 600;
   font-size: 0.95rem;
   line-height: 1.2;
+  text-align: center;
 }
 
 .status-card-pill {
@@ -432,18 +433,15 @@ body {
 }
 
 .status-card.ok {
-  background: rgba(34, 197, 94, 0.28);
-  border-color: rgba(34, 197, 94, 0.6);
+  border-color: #16a34a;
 }
 
 .status-card.problem {
-  background: rgba(239, 68, 68, 0.28);
-  border-color: rgba(239, 68, 68, 0.6);
+  border-color: #dc2626;
 }
 
 .status-card.pending {
-  background: rgba(249, 115, 22, 0.28);
-  border-color: rgba(249, 115, 22, 0.6);
+  border-color: #ea580c;
 }
 
 .status-card-pill.ok {

@@ -8,7 +8,6 @@
         <h1>{{ event.name }}</h1>
         <div class="event-meta">
           <span class="meta-pill">Date: {{ event.date_label }}</span>
-          <span class="meta-pill">Responsable: {{ event.verifier_name or 'Non renseigné' }}</span>
           <span class="meta-pill {{ event_state_class }}">{{ event_state_label }}</span>
         </div>
       </div>
@@ -51,7 +50,7 @@
           <span>Équipements de l'événement</span>
           <span class="summary-value">{{ parent_total }}</span>
         </div>
-        <p class="muted">Chaque carré représente un parent (sac ou lot).</p>
+        <p class="muted">Chaque carré représente un parent (sac ou lot) et son statut via la couleur du contour.</p>
         <div class="status-grid status-grid--parents" aria-label="Statut des parents">
           {% for parent in parent_tiles %}
             {% set parent_status = parent.status or 'pending' %}
@@ -61,15 +60,6 @@
               data-node-id="{{ parent.node.id }}"
             >
               <div class="status-card-name">{{ parent.node.name }}</div>
-              <div class="status-card-pill {{ parent_status }}">
-                {% if parent_status == 'ok' %}
-                  OK
-                {% elif parent_status == 'problem' %}
-                  Problème
-                {% else %}
-                  En attente
-                {% endif %}
-              </div>
             </div>
           {% endfor %}
         </div>
@@ -190,18 +180,6 @@
       const status = node.dataset.status || 'pending';
       tile.classList.remove('ok', 'problem', 'pending');
       tile.classList.add(status);
-      const pill = tile.querySelector('.status-card-pill');
-      if (pill) {
-        pill.classList.remove('ok', 'problem', 'pending');
-        pill.classList.add(status);
-        if (status === 'ok') {
-          pill.textContent = 'OK';
-        } else if (status === 'problem') {
-          pill.textContent = 'Problème';
-        } else {
-          pill.textContent = 'En attente';
-        }
-      }
       tile.title = `${node.dataset.nodeName || node.querySelector('.tree-name')?.textContent?.trim() || 'Parent'} — ${status}`;
     });
   };
@@ -226,7 +204,7 @@
     recomputeContainerStatus(container.dataset.parentId);
   };
 
-  document.querySelectorAll('.tree-node.is-container[data-status="ok"]').forEach((node) => {
+  document.querySelectorAll('.tree-node.is-container').forEach((node) => {
     node.removeAttribute('open');
   });
 
