@@ -1,12 +1,13 @@
 {% if branch.node.node_type == 'container' %}
-  <div
+  <details
     class="checklist-section {{ branch.status or '' }}"
     data-node-id="{{ branch.node.id }}"
     data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
     data-node-type="{{ branch.node.node_type }}"
     data-status="{{ branch.status or 'pending' }}"
+    open
   >
-    <div class="checklist-section-header">
+    <summary class="checklist-section-header">
       <div>
         <h2>{{ branch.node.name }}</h2>
         <p class="section-subtitle">Contrôlez le contenu avant le départ.</p>
@@ -14,7 +15,7 @@
       {% if branch.status %}
         <span class="section-status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
       {% endif %}
-    </div>
+    </summary>
     {% if branch.children %}
       <div class="checklist-section-body">
         {% for child in branch.children %}
@@ -23,7 +24,7 @@
         {% endfor %}
       </div>
     {% endif %}
-  </div>
+  </details>
 {% else %}
   <div
     class="checklist-item {{ branch.status or '' }}"
@@ -34,31 +35,23 @@
     data-comment="{{ branch.node.comment or '' }}"
     data-node-name="{{ branch.node.name }}"
   >
-    <div class="checklist-item-title">
-      <div>
-        <strong>{{ branch.node.name }}</strong>
-        <div class="checklist-item-meta">
-          <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
+    <div class="checklist-item-row">
+      <div class="checklist-item-info">
+        <div class="checklist-item-name">
+          <strong>{{ branch.node.name }}</strong>
           {% if branch.status %}
             <span class="status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
           {% endif %}
         </div>
+        <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
       </div>
-      <span class="item-priority">À vérifier</span>
+      <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="checklist-form compact">
+        <input type="hidden" name="comment" value="{{ branch.node.comment or '' }}" />
+        <div class="checklist-actions">
+          <button class="toggle-btn ok" type="button" data-status="ok">OK</button>
+          <button class="toggle-btn problem" type="button" data-status="problem">Non</button>
+        </div>
+      </form>
     </div>
-    <div class="checklist-item-note" data-role="comment">
-      {% if branch.node.comment %}
-        {{ branch.node.comment }}
-      {% else %}
-        Aucun commentaire signalé.
-      {% endif %}
-    </div>
-    <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="checklist-form">
-      <input type="hidden" name="comment" value="{{ branch.node.comment or '' }}" />
-      <div class="checklist-actions">
-        <button class="toggle-btn ok" type="button" data-status="ok">OK</button>
-        <button class="toggle-btn problem" type="button" data-status="problem">Problème</button>
-      </div>
-    </form>
   </div>
 {% endif %}
