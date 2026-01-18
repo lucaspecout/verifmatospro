@@ -46,6 +46,12 @@
       <p class="muted">
         Sélectionnez un sac existant pour reprendre sa structure ou lancez une nouvelle création.
       </p>
+      <div class="sacs-controls">
+        <label class="sac-search">
+          <span class="sr-only">Rechercher un matériel</span>
+          <input type="search" id="sac-search" placeholder="Rechercher un matériel" autocomplete="off" />
+        </label>
+      </div>
     </div>
     <div class="builder-header-actions">
       <button class="btn" type="button" data-action="open-root-modal">Nouveau materiel</button>
@@ -95,6 +101,9 @@
         <p class="muted">Aucun sac créé pour l'instant. Utilisez “Nouveau sac” pour démarrer.</p>
       </div>
     {% endfor %}
+  </div>
+  <div class="sac-empty" id="sac-search-empty" hidden>
+    <p class="muted">Aucun sac ne correspond à votre recherche.</p>
   </div>
 </section>
 
@@ -217,6 +226,9 @@
 
   const openRootModalButtons = document.querySelectorAll('[data-action="open-root-modal"]');
   const sacsGrid = document.querySelector(".sacs-grid");
+  const sacSearchInput = document.getElementById("sac-search");
+  const sacSearchEmpty = document.getElementById("sac-search-empty");
+  const sacCards = Array.from(document.querySelectorAll(".sac-card"));
   const builderRoot = document.getElementById("builder-root");
   const builderCount = document.getElementById("builder-count");
   const builderEmpty = document.getElementById("builder-empty");
@@ -254,6 +266,24 @@
 
   const normalizeLabel = (value) => value?.trim();
   const generateId = () => `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const updateSacSearch = () => {
+    if (!sacSearchInput || !sacCards.length) {
+      return;
+    }
+    const query = sacSearchInput.value.toLowerCase().trim();
+    let visibleCount = 0;
+    sacCards.forEach((card) => {
+      const name = card.querySelector("h3")?.textContent?.toLowerCase() ?? "";
+      const matches = !query || name.includes(query);
+      card.classList.toggle("is-hidden", !matches);
+      if (matches) {
+        visibleCount += 1;
+      }
+    });
+    if (sacSearchEmpty) {
+      sacSearchEmpty.hidden = !query || visibleCount > 0;
+    }
+  };
   const openDialog = (dialog) => {
     if (!dialog) {
       return;
@@ -285,6 +315,10 @@
       parent.children.push(materialMap.get(material.id));
     }
   });
+
+  if (sacSearchInput) {
+    sacSearchInput.addEventListener("input", updateSacSearch);
+  }
 
   const findNode = (nodeId) => builderState.nodes.find((node) => node.id === nodeId);
   const getChildren = (parentId) => builderState.nodes.filter((node) => node.parentId === parentId);
