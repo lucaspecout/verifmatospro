@@ -53,10 +53,15 @@
     </div>
   </div>
   <div class="sacs-grid">
-    {% for item in materials if item.parent_id is none and item.node_type == 'container' %}
+    {% for item in parents %}
       <article class="sac-card" data-parent-id="{{ item.id }}">
         <div>
           <h3>{{ item.name }}</h3>
+          {% if item.node_type == 'item' %}
+            <p class="muted">
+              Item racine{% if item.expected_qty is not none %} · Qté {{ item.expected_qty }}{% endif %}
+            </p>
+          {% endif %}
         </div>
         <div class="sac-card-actions">
           <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
