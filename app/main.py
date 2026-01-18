@@ -428,10 +428,8 @@ def render_materials_page(
     error: str | None = None,
 ) -> HTMLResponse:
     materials = db.scalars(select(MaterialTemplate)).all()
-    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
     materials_index = {item.id: item.name for item in materials}
     tree = build_tree(materials)
-    root_templates = [item for item in materials if item.parent_id is None]
     materials_payload = [
         {
             "id": item.id,
@@ -442,18 +440,6 @@ def render_materials_page(
         }
         for item in materials
     ]
-    lot_payload = [
-        {
-            "id": lot.id,
-            "name": lot.name,
-            "template_ids": [
-                material.id
-                for material in lot.materials
-                if material.parent_id is None
-            ],
-        }
-        for lot in lots
-    ]
     return templates.TemplateResponse(
         "materials.html",
         {
@@ -461,11 +447,38 @@ def render_materials_page(
             "user": user,
             "tree": tree,
             "materials": materials,
-            "lots": lots,
-            "root_templates": root_templates,
-            "lot_payload": lot_payload,
             "materials_index": materials_index,
             "materials_payload": materials_payload,
+            "error": error,
+        },
+    )
+
+
+@app.get("/lots", response_class=HTMLResponse)
+def lots_list(
+    request: Request,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    return render_lots_page(request, user, db)
+
+
+def render_lots_page(
+    request: Request,
+    user: User,
+    db: Session,
+    error: str | None = None,
+) -> HTMLResponse:
+    materials = db.scalars(select(MaterialTemplate)).all()
+    root_templates = [item for item in materials if item.parent_id is None]
+    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
+    return templates.TemplateResponse(
+        "lots.html",
+        {
+            "request": request,
+            "user": user,
+            "lots": lots,
+            "root_templates": root_templates,
             "error": error,
         },
     )
@@ -812,9 +825,7 @@ def lot_create(
 ):
     lot_name = name.strip()
     if not lot_name:
-        return render_materials_page(
-            request, user, db, error="Le nom du lot est obligatoire."
-        )
+        return render_lots_page(request, user, db, error="Le nom du lot est obligatoire.")
     templates = []
     if template_ids:
         templates = db.scalars(
@@ -827,7 +838,7 @@ def lot_create(
     lot.materials = templates
     db.add(lot)
     db.commit()
-    return RedirectResponse("/materials", status_code=303)
+    return RedirectResponse("/lots", status_code=303)
 
 
 @app.post("/lots/{lot_id}")
@@ -844,9 +855,7 @@ def lot_update(
         raise HTTPException(status_code=404, detail="Lot introuvable")
     lot_name = name.strip()
     if not lot_name:
-        return render_materials_page(
-            request, user, db, error="Le nom du lot est obligatoire."
-        )
+        return render_lots_page(request, user, db, error="Le nom du lot est obligatoire.")
     templates = []
     if template_ids:
         templates = db.scalars(
@@ -858,7 +867,7 @@ def lot_update(
     lot.name = lot_name
     lot.materials = templates
     db.commit()
-    return RedirectResponse("/materials", status_code=303)
+    return RedirectResponse("/lots", status_code=303)
 
 
 @app.post("/lots/{lot_id}/delete")
@@ -872,7 +881,7 @@ def lot_delete(
         raise HTTPException(status_code=404, detail="Lot introuvable")
     db.delete(lot)
     db.commit()
-    return RedirectResponse("/materials", status_code=303)
+    return RedirectResponse("/lots", status_code=303)
 
 
 @app.get("/events", response_class=HTMLResponse)
