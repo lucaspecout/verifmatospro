@@ -1,11 +1,11 @@
-<div class="summary-header event-parent-summary-text">
-  <span>Équipements de l'événement</span>
-  <span class="summary-value">{{ parent_total }}</span>
+<div class="parent-summary-header">
+  <span class="parent-summary-title">Équipements de l'événement</span>
+  <span class="parent-summary-count">{{ parent_total }}</span>
 </div>
-<p class="muted event-parent-summary-text">
+<p class="parent-summary-note">
   Chaque carré représente un parent (sac ou lot) et son statut via la couleur du contour.
 </p>
-<div class="status-grid status-grid--parents" aria-label="Statut des parents">
+<div class="status-grid status-grid--parents parent-summary-grid" aria-label="Statut des parents">
   {% for parent in parent_tiles %}
     {% set parent_status = parent.status or 'pending' %}
     <div
