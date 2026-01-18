@@ -3,17 +3,31 @@
   <span class="parent-summary-count">{{ parent_total }}</span>
 </div>
 <p class="parent-summary-note">
-  Chaque carré représente un parent (sac ou lot) et son statut via la couleur du contour.
+  Suivi rapide des sacs et lots, avec un statut visible en un coup d'œil.
 </p>
-<div class="status-grid status-grid--parents parent-summary-grid" aria-label="Statut des parents">
+<div class="parent-summary-list" aria-label="Statut des parents">
   {% for parent in parent_tiles %}
     {% set parent_status = parent.status or 'pending' %}
-    <div
-      class="status-card {{ parent_status }}"
+    {% if parent_status == 'ok' %}
+      {% set parent_label = 'OK' %}
+    {% elif parent_status == 'problem' %}
+      {% set parent_label = 'Problème' %}
+    {% else %}
+      {% set parent_label = 'En attente' %}
+    {% endif %}
+    <article
+      class="parent-summary-item status-card {{ parent_status }}"
       title="{{ parent.node.name }} — {{ parent_status }}"
       data-node-id="{{ parent.node.id }}"
     >
-      <div class="status-card-name">{{ parent.node.name }}</div>
-    </div>
+      <div class="parent-summary-item-top">
+        <span class="parent-summary-item-name">{{ parent.node.name }}</span>
+        <span class="parent-summary-item-badge {{ parent_status }}" data-role="status">{{ parent_label }}</span>
+      </div>
+      <div class="parent-summary-item-meta">
+        <span class="parent-summary-item-dot {{ parent_status }}"></span>
+        <span class="parent-summary-item-caption">Parent</span>
+      </div>
+    </article>
   {% endfor %}
 </div>
