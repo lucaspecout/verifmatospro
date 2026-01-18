@@ -382,6 +382,28 @@ body {
   gap: 0.75rem;
 }
 
+.event-hero #event-parent-summary {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.event-hero #event-parent-summary .summary-header span,
+.event-hero #event-parent-summary .muted {
+  color: #0f172a;
+}
+
+.event-hero #event-parent-summary .status-card {
+  background-color: transparent !important;
+  box-shadow: none;
+  color: #0f172a;
+}
+
+.event-hero #event-parent-summary .status-card-name {
+  color: #0f172a;
+}
+
 .event-hero .summary-header {
   display: flex;
   justify-content: space-between;
@@ -1712,6 +1734,11 @@ body {
 
 .stat-card strong {
   font-size: 1.4rem;
+  color: #0f172a;
+}
+
+.hero-card .stat-card .pill {
+  color: #0f172a;
 }
 
 .stat-card .stat-label {
@@ -1738,12 +1765,12 @@ body {
 
 .pill.problem {
   background: rgba(239, 68, 68, 0.15);
-  color: #b91c1c;
+  color: #0f172a;
 }
 
 .pill.pending {
   background: rgba(245, 158, 11, 0.18);
-  color: #92400e;
+  color: #0f172a;
 }
 
 .search-input {
