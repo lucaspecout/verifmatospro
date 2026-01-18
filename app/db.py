@@ -3,7 +3,7 @@ import os
 import socket
 from urllib.parse import urlparse
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
@@ -78,3 +78,26 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_event_node_columns()
+
+
+def ensure_event_node_columns() -> None:
+    inspector = inspect(engine)
+    if "event_nodes" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("event_nodes")}
+    missing = []
+    if "last_verifier_name" not in columns:
+        missing.append(
+            ("last_verifier_name", "VARCHAR(80)")
+        )
+    if not missing:
+        return
+    with engine.begin() as connection:
+        for column_name, column_type in missing:
+            logging.warning("Adding missing column %s to event_nodes.", column_name)
+            connection.execute(
+                text(
+                    f"ALTER TABLE event_nodes ADD COLUMN {column_name} {column_type}"
+                )
+            )
