@@ -804,7 +804,11 @@ def event_detail(
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
-    items = [node for node in nodes if node.node_type == "item"]
+    parent_tiles = [
+        {"node": branch["node"], "status": branch["status"]}
+        for branch in tree
+        if branch.get("node")
+    ]
     event.date_label = format_date(event.date)
     event.created_label = format_date(event.created_at)
     event.started_label = format_date(event.verification_started_at, "Non démarré")
@@ -818,7 +822,8 @@ def event_detail(
             "event": event,
             "tree": tree,
             "progress": progress,
-            "items": items,
+            "parent_tiles": parent_tiles,
+            "parent_total": len(parent_tiles),
             "event_state_label": state["label"],
             "event_state_class": state["class"],
         },
@@ -835,29 +840,27 @@ def render_event_materials_page(
 ) -> HTMLResponse:
     tree = build_tree(nodes)
     containers = [node for node in nodes if node.node_type == "container"]
-    templates_list = db.scalars(select(MaterialTemplate)).all()
-    templates_by_id = {template.id: template for template in templates_list}
-
-    def template_label(template: MaterialTemplate) -> str:
-        segments = [template.name]
-        parent = template.parent_id
-        while parent:
-            parent_template = templates_by_id.get(parent)
-            if not parent_template:
-                break
-            segments.append(parent_template.name)
-            parent = parent_template.parent_id
-        return " > ".join(reversed(segments))
-
+    templates_list = db.scalars(
+        select(MaterialTemplate).where(MaterialTemplate.parent_id.is_(None))
+    ).all()
     template_choices = [
         {
             "id": template.id,
-            "label": template_label(template),
+            "label": template.name,
             "node_type": template.node_type,
         }
         for template in templates_list
     ]
     template_choices.sort(key=lambda item: item["label"].lower())
+    parent_cards = [
+        {
+            "node": branch["node"],
+            "status": branch["status"],
+            "counts": branch["counts"],
+        }
+        for branch in tree
+        if branch.get("node")
+    ]
     return templates.TemplateResponse(
         "event_materials.html",
         {
@@ -867,6 +870,7 @@ def render_event_materials_page(
             "tree": tree,
             "containers": containers,
             "material_templates": template_choices,
+            "parent_cards": parent_cards,
             "error": error,
         },
     )
@@ -910,21 +914,14 @@ def event_materials_add(
         node_type = "container"
     selected_parent_id: int | None = None
     if parent_id:
-        try:
-            selected_parent_id = int(parent_id)
-        except ValueError:
-            return render_event_materials_page(
-                request, user, event, nodes, db, error="Parent invalide."
-            )
-        parent_node = db.get(EventNode, selected_parent_id)
-        if (
-            not parent_node
-            or parent_node.event_id != event_id
-            or parent_node.node_type != "container"
-        ):
-            return render_event_materials_page(
-                request, user, event, nodes, db, error="Parent introuvable."
-            )
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Ajoutez le matériel en parent (sans sous-niveau).",
+        )
     qty_value: int | None = None
     if node_type == "item" and expected_qty:
         try:
@@ -951,7 +948,6 @@ def event_materials_add_from_template(
     request: Request,
     event_id: int,
     template_id: str = Form(...),
-    parent_id: str | None = Form(None),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
     db: Session = Depends(get_db),
 ):
@@ -980,36 +976,17 @@ def event_materials_add_from_template(
             db,
             error="Matériel sélectionné introuvable.",
         )
+    if template.parent_id is not None:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Sélectionnez uniquement un parent (racine) du catalogue.",
+        )
 
-    selected_parent_id: int | None = None
-    if parent_id:
-        try:
-            selected_parent_id = int(parent_id)
-        except ValueError:
-            return render_event_materials_page(
-                request,
-                user,
-                event,
-                nodes,
-                db,
-                error="Parent invalide.",
-            )
-        parent_node = db.get(EventNode, selected_parent_id)
-        if (
-            not parent_node
-            or parent_node.event_id != event_id
-            or parent_node.node_type != "container"
-        ):
-            return render_event_materials_page(
-                request,
-                user,
-                event,
-                nodes,
-                db,
-                error="Parent introuvable.",
-            )
-
-    copy_template_to_event(db, event.id, template, selected_parent_id)
+    copy_template_to_event(db, event.id, template, None)
     db.commit()
     return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
 
