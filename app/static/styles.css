@@ -1184,11 +1184,12 @@ body {
 }
 
 .builder-canvas {
-  background: #0f172a;
-  color: #f8fafc;
+  background: #f8fafc;
+  color: #0f172a;
   border-radius: 18px;
   padding: 1.25rem;
-  border: 1px solid rgba(30, 41, 59, 0.8);
+  border: 1px solid #cbd5f5;
+  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.08);
 }
 
 .builder-canvas-header {
@@ -1217,12 +1218,13 @@ body {
 }
 
 .builder-visual .builder-child-empty {
-  color: rgba(226, 232, 240, 0.7);
+  color: #475569;
 }
 
 .builder-section {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #e2e8f0;
+  border: 1px solid #cbd5f5;
+  color: #0f172a;
 }
 
 .builder-section.active,
@@ -1247,7 +1249,9 @@ body {
 }
 
 .builder-item {
-  background: rgba(30, 41, 59, 0.85);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
 }
 
 .builder-panel {
