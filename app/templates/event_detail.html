@@ -57,24 +57,8 @@
           <span class="stat-pill pending">En attente: {{ progress.pending }}</span>
         </div>
       </div>
-      <div class="summary-card">
-        <div class="summary-header">
-          <span>Équipements de l'événement</span>
-          <span class="summary-value">{{ parent_total }}</span>
-        </div>
-        <p class="muted">Chaque carré représente un parent (sac ou lot) et son statut via la couleur du contour.</p>
-        <div class="status-grid status-grid--parents" aria-label="Statut des parents">
-          {% for parent in parent_tiles %}
-            {% set parent_status = parent.status or 'pending' %}
-            <div
-              class="status-card {{ parent_status }}"
-              title="{{ parent.node.name }} — {{ parent_status }}"
-              data-node-id="{{ parent.node.id }}"
-            >
-              <div class="status-card-name">{{ parent.node.name }}</div>
-            </div>
-          {% endfor %}
-        </div>
+      <div class="summary-card" id="event-parent-summary">
+        {% include "partials/event_detail_parent_summary.html" %}
       </div>
     </div>
   </header>
@@ -87,10 +71,8 @@
       </div>
       <span class="section-chip">Live</span>
     </div>
-    <div class="tree">
-      {% for branch in tree %}
-        {% include "partials/node.html" with context %}
-      {% endfor %}
+    <div class="tree" id="event-checklist-tree">
+      {% include "partials/event_detail_tree.html" %}
     </div>
   </section>
 </section>
@@ -207,6 +189,44 @@
   document.querySelectorAll('.tree-node.is-container').forEach((node) => {
     node.removeAttribute('open');
   });
+
+  const applyLiveChecklist = (payload) => {
+    const parentSummary = document.querySelector('#event-parent-summary');
+    if (parentSummary && payload.parent_summary_html) {
+      parentSummary.innerHTML = payload.parent_summary_html;
+    }
+    const tree = document.querySelector('#event-checklist-tree');
+    if (tree && payload.tree_html) {
+      tree.innerHTML = payload.tree_html;
+    }
+    if (payload.progress) {
+      updateProgress(payload.progress);
+    }
+    document.querySelectorAll('.tree-node.is-container').forEach((node) => {
+      node.removeAttribute('open');
+    });
+    refreshParentTiles();
+  };
+
+  const fetchLiveChecklist = async () => {
+    try {
+      const response = await fetch(`/events/{{ event.id }}/live`, {
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        return;
+      }
+      const payload = await response.json();
+      applyLiveChecklist(payload);
+    } catch (error) {
+      // Ignore refresh failures to avoid noisy logs.
+    }
+  };
+
+  fetchLiveChecklist();
+  setInterval(fetchLiveChecklist, 10000);
 
   ws.onmessage = (event) => {
     const data = JSON.parse(event.data);

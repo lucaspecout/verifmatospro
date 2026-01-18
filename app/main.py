@@ -78,6 +78,30 @@ class ConnectionManager:
             await connection.send_json(payload)
 
 
+def build_event_detail_payload(event_id: int, db: Session) -> dict[str, Any]:
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    tree = build_tree(nodes)
+    progress = compute_progress(nodes)
+    parent_tiles = [
+        {"node": branch["node"], "status": branch["status"]}
+        for branch in tree
+        if branch.get("node")
+    ]
+    state = derive_event_state(event, progress)
+    return {
+        "event": event,
+        "tree": tree,
+        "progress": progress,
+        "parent_tiles": parent_tiles,
+        "parent_total": len(parent_tiles),
+        "event_state_label": state["label"],
+        "event_state_class": state["class"],
+    }
+
+
 manager = ConnectionManager()
 
 
@@ -798,35 +822,34 @@ def event_detail(
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
     db: Session = Depends(get_db),
 ):
-    event = db.get(Event, event_id)
-    if not event:
-        raise HTTPException(status_code=404)
-    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
-    tree = build_tree(nodes)
-    progress = compute_progress(nodes)
-    parent_tiles = [
-        {"node": branch["node"], "status": branch["status"]}
-        for branch in tree
-        if branch.get("node")
-    ]
+    context = build_event_detail_payload(event_id, db)
+    event = context["event"]
     event.date_label = format_date(event.date)
     event.created_label = format_date(event.created_at)
     event.started_label = format_date(event.verification_started_at, "Non démarré")
     event.completed_label = format_date(event.verification_completed_at, "En attente")
-    state = derive_event_state(event, progress)
-    return templates.TemplateResponse(
-        "event_detail.html",
+    context["request"] = request
+    context["user"] = user
+    return templates.TemplateResponse("event_detail.html", context)
+
+
+@app.get("/events/{event_id}/live")
+def event_detail_live(
+    event_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    context = build_event_detail_payload(event_id, db)
+    parent_summary_html = templates.get_template(
+        "partials/event_detail_parent_summary.html"
+    ).render(context)
+    tree_html = templates.get_template("partials/event_detail_tree.html").render(context)
+    return JSONResponse(
         {
-            "request": request,
-            "user": user,
-            "event": event,
-            "tree": tree,
-            "progress": progress,
-            "parent_tiles": parent_tiles,
-            "parent_total": len(parent_tiles),
-            "event_state_label": state["label"],
-            "event_state_class": state["class"],
-        },
+            "parent_summary_html": parent_summary_html,
+            "tree_html": tree_html,
+            "progress": context["progress"],
+        }
     )
 
 
