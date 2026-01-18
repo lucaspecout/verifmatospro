@@ -1167,10 +1167,81 @@ body {
 .sac-card {
   background: var(--bg);
   border-radius: 16px;
-  padding: 1.2rem;
+  padding: 1rem;
   border: 1px solid var(--border);
   display: grid;
   gap: 0.85rem;
+}
+
+.kanban {
+  display: grid;
+  gap: 1rem;
+}
+
+.kanban-board {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: start;
+}
+
+.kanban-column {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.75rem;
+  min-height: 180px;
+}
+
+.kanban-column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.kanban-column-title {
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 0.35rem 0.5rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  background: transparent;
+  width: 100%;
+}
+
+.kanban-column-title:focus {
+  outline: none;
+  border-color: #94a3b8;
+  background: #fff;
+}
+
+.kanban-column-body {
+  display: grid;
+  gap: 0.5rem;
+  min-height: 120px;
+}
+
+.kanban-column-body.is-over {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 12px;
+}
+
+.kanban-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  cursor: grab;
+  font-size: 0.9rem;
+}
+
+.kanban-card.is-dragging {
+  opacity: 0.6;
+  cursor: grabbing;
 }
 
 .lot-card {
