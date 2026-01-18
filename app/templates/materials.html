@@ -62,6 +62,15 @@
           <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
             Modifier
           </button>
+          <button
+            class="btn small secondary"
+            type="button"
+            data-action="open-duplicate-modal"
+            data-parent-id="{{ item.id }}"
+            data-parent-name="{{ item.name }}"
+          >
+            Dupliquer
+          </button>
           <a class="btn small secondary" href="/materials/parents/export?ids={{ item.id }}">
             Exporter
           </a>
@@ -177,6 +186,21 @@
   </div>
 </dialog>
 
+<dialog class="modal" id="duplicate-modal">
+  <form method="post" action="/materials/parents/duplicate" class="modal-card">
+    <h3>Dupliquer un parent</h3>
+    <p class="muted">Choisissez le nom du nouveau sac avant de copier la structure.</p>
+    <input type="hidden" name="source_id" id="duplicate-source-id" />
+    <label>Nom du parent
+      <input type="text" name="name" id="duplicate-name" placeholder="Nom du parent" required />
+    </label>
+    <div class="modal-actions">
+      <button class="btn secondary" type="button" id="duplicate-modal-cancel">Annuler</button>
+      <button class="btn" type="submit">Dupliquer</button>
+    </div>
+  </form>
+</dialog>
+
 <script>
   const existingMaterials = {{ materials_payload | tojson }};
   const builderState = {
@@ -208,6 +232,10 @@
   const nodeModalAdd = document.getElementById("node-modal-add");
   const nodeModalCancel = document.getElementById("node-modal-cancel");
   const rootModalCancel = document.getElementById("root-modal-cancel");
+  const duplicateModal = document.getElementById("duplicate-modal");
+  const duplicateModalCancel = document.getElementById("duplicate-modal-cancel");
+  const duplicateSourceIdInput = document.getElementById("duplicate-source-id");
+  const duplicateNameInput = document.getElementById("duplicate-name");
   const nodeNameInput = document.getElementById("node-name");
   const nodeTypeSelect = document.getElementById("node-type");
   const nodeQtyInput = document.getElementById("node-qty");
@@ -773,6 +801,25 @@
 
   rootModalCancel?.addEventListener("click", () => {
     closeDialog(document.getElementById("root-modal"));
+  });
+
+  document.querySelectorAll('[data-action="open-duplicate-modal"]').forEach((button) => {
+    button.addEventListener("click", () => {
+      const sourceId = button.dataset.parentId;
+      const parentName = button.dataset.parentName || "";
+      if (!sourceId) {
+        return;
+      }
+      duplicateSourceIdInput.value = sourceId;
+      duplicateNameInput.value = parentName ? `${parentName} (copie)` : "";
+      openDialog(duplicateModal);
+      duplicateNameInput.focus();
+      duplicateNameInput.select();
+    });
+  });
+
+  duplicateModalCancel?.addEventListener("click", () => {
+    closeDialog(duplicateModal);
   });
 
   importParentsButtons.forEach((button) => {

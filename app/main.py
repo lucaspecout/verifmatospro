@@ -707,6 +707,60 @@ def materials_parents_import(
     return RedirectResponse("/materials", status_code=303)
 
 
+@app.post("/materials/parents/duplicate")
+def materials_parents_duplicate(
+    request: Request,
+    source_id: int = Form(...),
+    name: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+):
+    new_name = name.strip()
+    if not new_name:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Le nom du parent est obligatoire pour dupliquer.",
+        )
+    source = db.get(MaterialTemplate, source_id)
+    if not source or source.parent_id is not None:
+        return render_materials_page(
+            request,
+            user,
+            db,
+            error="Le parent à dupliquer est introuvable.",
+        )
+
+    def _clone_subtree(node: MaterialTemplate, parent_id: int) -> None:
+        for child in node.children:
+            child_expected = child.expected_qty if child.node_type == "item" else None
+            clone = MaterialTemplate(
+                name=child.name,
+                node_type=child.node_type,
+                expected_qty=child_expected,
+                parent_id=parent_id,
+            )
+            db.add(clone)
+            db.flush()
+            if child.node_type == "container":
+                _clone_subtree(child, clone.id)
+
+    root_expected = source.expected_qty if source.node_type == "item" else None
+    root = MaterialTemplate(
+        name=new_name,
+        node_type=source.node_type,
+        expected_qty=root_expected,
+        parent_id=None,
+    )
+    db.add(root)
+    db.flush()
+    if source.node_type == "container":
+        _clone_subtree(source, root.id)
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
 @app.post("/materials/{material_id}/delete")
 def materials_delete(
     material_id: int,
