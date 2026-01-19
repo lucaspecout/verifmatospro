@@ -94,6 +94,16 @@
                     En attente
                   {% endif %}
                 </span>
+                <span class="status-card-location" data-role="load-info" hidden></span>
+                <button
+                  class="btn small secondary status-card-load"
+                  type="button"
+                  data-action="open-load-modal"
+                  data-node-id="{{ parent.node.id }}"
+                  hidden
+                >
+                  Chargé
+                </button>
               </div>
             </div>
           {% endfor %}
@@ -155,6 +165,28 @@
   </div>
 </section>
 
+<div class="modal" id="load-modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="load-modal-title">
+    <h2 id="load-modal-title" class="modal-title">Sac chargé</h2>
+    <p class="muted" id="load-modal-subtitle"></p>
+    <form class="modal-form">
+      <label>Nom du véhicule
+        <input
+          type="text"
+          id="load-vehicle-name"
+          name="vehicle_name"
+          placeholder="Ex: Véhicule 1"
+          required
+        />
+      </label>
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" data-action="cancel-load">Annuler</button>
+        <button class="btn" type="submit">Confirmer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
   const ws = new WebSocket(`${protocol}://${location.host}/ws/events/{{ event.id }}`);
@@ -175,6 +207,73 @@
       <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
       <span class="stat-pill pending">En attente: ${progress.pending}</span>
     `;
+  };
+
+  const loadModal = document.querySelector('#load-modal');
+  const loadForm = loadModal?.querySelector('.modal-form');
+  const loadCancelButton = loadModal?.querySelector('[data-action="cancel-load"]');
+  const loadVehicleInput = loadModal?.querySelector('#load-vehicle-name');
+  const loadModalSubtitle = loadModal?.querySelector('#load-modal-subtitle');
+  const loadStorageKey = `event-{{ event.id }}-load-info`;
+  const loadState = new Map(Object.entries(JSON.parse(localStorage.getItem(loadStorageKey) || '{}')));
+  let activeLoadNodeId = null;
+
+  const persistLoadState = () => {
+    localStorage.setItem(loadStorageKey, JSON.stringify(Object.fromEntries(loadState)));
+  };
+
+  const closeLoadModal = () => {
+    if (!loadModal) {
+      return;
+    }
+    loadModal.classList.remove('is-open');
+    loadModal.setAttribute('aria-hidden', 'true');
+    activeLoadNodeId = null;
+  };
+
+  const openLoadModal = (tile) => {
+    if (!loadModal || !tile || !loadVehicleInput || !loadModalSubtitle) {
+      return;
+    }
+    activeLoadNodeId = tile.dataset.nodeId;
+    const nodeName = tile.querySelector('.status-card-name')?.textContent?.trim() || 'Sac';
+    const currentInfo = loadState.get(activeLoadNodeId);
+    loadModalSubtitle.textContent = `Où le sac "${nodeName}" a-t-il été chargé ?`;
+    loadVehicleInput.value = currentInfo?.vehicle || '';
+    loadModal.classList.add('is-open');
+    loadModal.setAttribute('aria-hidden', 'false');
+    loadVehicleInput.focus();
+  };
+
+  const applyLoadState = (tile, status) => {
+    if (!tile) {
+      return;
+    }
+    const nodeId = tile.dataset.nodeId;
+    const loadInfo = loadState.get(nodeId);
+    const isOk = status === 'ok';
+    const loadInfoEl = tile.querySelector('[data-role="load-info"]');
+    const loadButton = tile.querySelector('[data-action="open-load-modal"]');
+    const statusPill = tile.querySelector('.status-card-pill');
+    if (loadButton) {
+      loadButton.hidden = !isOk;
+    }
+    if (loadInfoEl) {
+      if (loadInfo && isOk) {
+        loadInfoEl.textContent = `Chargé dans ${loadInfo.vehicle}`;
+        loadInfoEl.hidden = false;
+      } else {
+        loadInfoEl.hidden = true;
+      }
+    }
+    const isLoaded = Boolean(loadInfo && isOk);
+    tile.classList.toggle('loaded', isLoaded);
+    if (statusPill) {
+      statusPill.classList.toggle('loaded', isLoaded);
+    }
+    if (loadButton) {
+      loadButton.textContent = loadInfo ? 'Modifier' : 'Chargé';
+    }
   };
 
   const setNodeStatus = (node, status, comment, verifierName) => {
@@ -226,6 +325,7 @@
           pill.textContent = 'En attente';
         }
       }
+      applyLoadState(tile, status);
     });
   };
 
@@ -323,5 +423,45 @@
       }, 2000);
     }
   });
+
+  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const tile = button.closest('.status-card');
+      if (!tile || button.hidden) {
+        return;
+      }
+      openLoadModal(tile);
+    });
+  });
+
+  loadCancelButton?.addEventListener('click', closeLoadModal);
+
+  loadModal?.addEventListener('click', (event) => {
+    if (event.target === loadModal) {
+      closeLoadModal();
+    }
+  });
+
+  loadForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!activeLoadNodeId || !loadVehicleInput) {
+      return;
+    }
+    const vehicle = loadVehicleInput.value.trim();
+    if (!vehicle) {
+      loadVehicleInput.focus();
+      return;
+    }
+    loadState.set(activeLoadNodeId, { vehicle });
+    persistLoadState();
+    const tile = document.querySelector(`.status-card[data-node-id="${activeLoadNodeId}"]`);
+    if (tile) {
+      const status = tile.classList.contains('ok') ? 'ok' : tile.classList.contains('problem') ? 'problem' : 'pending';
+      applyLoadState(tile, status);
+    }
+    closeLoadModal();
+  });
+
+  refreshParentTiles();
 </script>
 {% endblock %}

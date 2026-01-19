@@ -618,6 +618,28 @@ body {
   color: #9a3412;
 }
 
+.status-card.loaded {
+  border-color: #7c3aed;
+  box-shadow: 0 6px 16px rgba(124, 58, 237, 0.18);
+}
+
+.status-card-pill.loaded {
+  background: rgba(124, 58, 237, 0.2);
+  color: #4c1d95;
+}
+
+.status-card-location {
+  font-size: 0.72rem;
+  color: #4c1d95;
+  font-weight: 600;
+  text-align: center;
+}
+
+.status-card-load {
+  width: 100%;
+  justify-content: center;
+}
+
 .event-checklist .section-header {
   display: flex;
   justify-content: space-between;
