@@ -770,11 +770,6 @@ body {
   flex-wrap: wrap;
 }
 
-.inline-form {
-  margin: 0;
-  display: inline-flex;
-}
-
 .tree-name {
   font-weight: 700;
 }
