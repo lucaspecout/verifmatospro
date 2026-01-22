@@ -228,12 +228,14 @@
   const loadState = new Map();
   let activeLoadNodeId = null;
 
-  document.querySelectorAll('.status-card[data-node-id]').forEach((tile) => {
-    const vehicle = tile.dataset.loadVehicle?.trim();
-    if (vehicle) {
-      loadState.set(tile.dataset.nodeId, { vehicle });
-    }
-  });
+  document
+    .querySelectorAll('.status-card[data-load-vehicle], .tree-node.is-container[data-load-vehicle]')
+    .forEach((node) => {
+      const vehicle = node.dataset.loadVehicle?.trim();
+      if (vehicle) {
+        loadState.set(node.dataset.nodeId, { vehicle });
+      }
+    });
 
   const closeLoadModal = () => {
     if (!loadModal) {
@@ -244,14 +246,14 @@
     activeLoadNodeId = null;
   };
 
-  const openLoadModal = (tile) => {
-    if (!loadModal || !tile || !loadVehicleInput || !loadModalSubtitle) {
+  const openLoadModal = (nodeId, nodeName) => {
+    if (!loadModal || !nodeId || !loadVehicleInput || !loadModalSubtitle) {
       return;
     }
-    activeLoadNodeId = tile.dataset.nodeId;
-    const nodeName = tile.querySelector('.status-card-name')?.textContent?.trim() || 'Sac';
-    const currentInfo = loadState.get(activeLoadNodeId);
-    loadModalSubtitle.textContent = `Où le sac "${nodeName}" a-t-il été chargé ?`;
+    activeLoadNodeId = nodeId;
+    const currentInfo = loadState.get(nodeId);
+    const resolvedName = nodeName?.trim() || 'Sac';
+    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" a-t-il été chargé ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
     loadModal.setAttribute('aria-hidden', 'false');
@@ -302,6 +304,7 @@
       treeNode.dataset.loadVehicle = value || '';
       treeNode.classList.toggle('loaded', Boolean(value));
       const destination = treeNode.querySelector('[data-role="load-destination"]');
+      const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
       if (destination) {
         if (value) {
           destination.textContent = `Destination: ${value}`;
@@ -309,6 +312,9 @@
         } else {
           destination.hidden = true;
         }
+      }
+      if (loadButton) {
+        loadButton.textContent = value ? 'Modifier' : 'Destination';
       }
     }
   };
@@ -465,12 +471,18 @@
   });
 
   document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const tile = button.closest('.status-card');
-      if (!tile || button.hidden) {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const container = button.closest('.status-card, .tree-node.is-container');
+      if (!container || button.hidden) {
         return;
       }
-      openLoadModal(tile);
+      const nodeName =
+        container.querySelector('.status-card-name')?.textContent?.trim() ||
+        container.querySelector('.tree-name')?.textContent?.trim() ||
+        'Sac';
+      openLoadModal(container.dataset.nodeId, nodeName);
     });
   });
 

@@ -26,6 +26,18 @@
           <span class="count-pill problem">Problèmes {{ branch.counts.problem }}</span>
           <span class="count-pill pending">En attente {{ branch.counts.pending }}</span>
         </div>
+        <button
+          class="btn small secondary tree-load-btn"
+          type="button"
+          data-action="open-load-modal"
+          data-node-id="{{ branch.node.id }}"
+        >
+          {% if branch.node.load_vehicle %}
+            Modifier
+          {% else %}
+            Destination
+          {% endif %}
+        </button>
       </div>
       <span class="fold-icon" aria-hidden="true">⌄</span>
     </summary>
