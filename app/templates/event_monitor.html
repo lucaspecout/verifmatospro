@@ -108,11 +108,27 @@
                   type="button"
                   data-action="open-load-modal"
                   data-node-id="{{ parent.node.id }}"
+                  data-load-mode="destination"
                 >
                   {% if parent.node.load_vehicle %}
                     Modifier
                   {% else %}
                     Destination
+                  {% endif %}
+                </button>
+                <button
+                  class="btn small status-card-load"
+                  type="button"
+                  data-action="open-load-modal"
+                  data-node-id="{{ parent.node.id }}"
+                  data-load-mode="charge"
+                  data-role="charge-button"
+                  {% if parent.node.load_vehicle %}disabled{% endif %}
+                >
+                  {% if parent.node.load_vehicle %}
+                    Chargé
+                  {% else %}
+                    Charger
                   {% endif %}
                 </button>
               </div>
@@ -225,6 +241,8 @@
   const loadCancelButton = loadModal?.querySelector('[data-action="cancel-load"]');
   const loadVehicleInput = loadModal?.querySelector('#load-vehicle-name');
   const loadModalSubtitle = loadModal?.querySelector('#load-modal-subtitle');
+  const loadModalTitle = loadModal?.querySelector('#load-modal-title');
+  const loadSubmitButton = loadModal?.querySelector('button[type="submit"]');
   const loadState = new Map();
   let activeLoadNodeId = null;
 
@@ -268,6 +286,7 @@
     const loadInfo = loadState.get(nodeId);
     const loadInfoEl = tile.querySelector('[data-role="load-info"]');
     const loadButton = tile.querySelector('[data-action="open-load-modal"]');
+    const chargeButton = tile.querySelector('[data-role="charge-button"]');
     const statusPill = tile.querySelector('.status-card-pill');
     if (loadInfoEl) {
       if (loadInfo) {
@@ -284,6 +303,12 @@
     }
     if (loadButton) {
       loadButton.textContent = loadInfo ? 'Modifier' : 'Destination';
+    }
+    if (chargeButton) {
+      const isLoaded = Boolean(loadInfo);
+      chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
+      chargeButton.toggleAttribute('disabled', isLoaded);
+      chargeButton.setAttribute('aria-disabled', isLoaded ? 'true' : 'false');
     }
   };
 
