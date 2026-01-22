@@ -636,13 +636,29 @@
         },
       })
         .then(async (response) => {
+          button.textContent = previousLabel;
+          button.disabled = false;
           if (!response.ok) {
+            let message = 'Impossible de charger ce sac pour le moment.';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload?.detail) {
+                message = errorPayload.detail;
+              }
+            } catch (err) {
+              // Ignore parse errors
+            }
+            alert(message);
             return;
           }
           const data = await response.json();
           updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
         })
-        .catch(() => {});
+        .catch(() => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          alert('Erreur réseau pendant le chargement.');
+        });
     });
   });
 
