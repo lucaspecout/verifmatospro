@@ -471,10 +471,8 @@
   });
 
   document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const container = button.closest('.status-card, .tree-node.is-container');
+    button.addEventListener('click', () => {
+      const container = button.closest('[data-node-id]');
       if (!container || button.hidden) {
         return;
       }
