@@ -718,6 +718,20 @@ body {
   display: none;
 }
 
+.tree-parent-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  width: 100%;
+  flex: 1 0 100%;
+  padding: 0 1rem 0.9rem;
+}
+
+.tree-parent-actions .btn {
+  flex: 1 1 120px;
+  justify-content: center;
+}
+
 .tree-title {
   display: flex;
   justify-content: space-between;
