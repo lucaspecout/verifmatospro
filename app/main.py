@@ -99,7 +99,7 @@ def build_event_detail_payload(event_id: int, db: Session) -> dict[str, Any]:
         "parent_total": len(parent_tiles),
         "event_state_label": state["label"],
         "event_state_class": state["class"],
-        "show_parent_actions": False,
+        "show_parent_actions": True,
     }
 
 
@@ -1309,10 +1309,10 @@ def event_node_load(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id:
         raise HTTPException(status_code=404)
-    if node.node_type != "container" or node.parent_id is not None:
+    if node.node_type != "container":
         raise HTTPException(
             status_code=400,
-            detail="Le chargement est réservé aux sacs parents.",
+            detail="Le chargement est réservé aux contenants.",
         )
     vehicle = vehicle_name.strip()
     if not vehicle:
@@ -1351,10 +1351,10 @@ def event_node_charge(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id:
         raise HTTPException(status_code=404)
-    if node.node_type != "container" or node.parent_id is not None:
+    if node.node_type != "container":
         raise HTTPException(
             status_code=400,
-            detail="Le chargement est réservé aux sacs parents.",
+            detail="Le chargement est réservé aux contenants.",
         )
     if not node.load_vehicle:
         raise HTTPException(
