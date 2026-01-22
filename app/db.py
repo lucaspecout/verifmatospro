@@ -97,7 +97,7 @@ def ensure_event_node_columns() -> None:
         )
     if "loaded_at" not in columns:
         missing.append(
-            ("loaded_at", "DATETIME")
+            ("loaded_at", "TIMESTAMP")
         )
     if not missing:
         return
