@@ -85,6 +85,7 @@
             <div
               class="status-card {{ parent_status }}{% if parent.node.loaded_at %} loaded{% endif %}"
               data-node-id="{{ parent.node.id }}"
+              data-status="{{ parent_status }}"
               data-load-vehicle="{{ parent.node.load_vehicle or '' }}"
               data-loaded="{{ 'true' if parent.node.loaded_at else 'false' }}"
             >
@@ -120,11 +121,19 @@
                 <button
                   class="btn small status-card-load"
                   type="button"
+                  data-action="bulk-ok"
+                  data-node-id="{{ parent.node.id }}"
+                >
+                  OK
+                </button>
+                <button
+                  class="btn small status-card-load"
+                  type="button"
                   data-action="charge-load"
                   data-node-id="{{ parent.node.id }}"
                   data-load-mode="charge"
                   data-role="charge-button"
-                  {% if not parent.node.load_vehicle or parent.node.loaded_at %}disabled{% endif %}
+                  {% if not parent.node.load_vehicle or parent.node.loaded_at or parent_status != 'ok' %}disabled{% endif %}
                 >
                   {% if parent.node.loaded_at %}
                     Chargé
@@ -287,6 +296,7 @@
     const nodeId = tile.dataset.nodeId;
     const loadInfo = loadState.get(nodeId);
     const isLoaded = Boolean(loadInfo?.loaded);
+    const isReady = tile.dataset.status === 'ok';
     const loadInfoEl = tile.querySelector('[data-role="load-info"]');
     const loadButton = tile.querySelector('[data-action="open-load-modal"]');
     const chargeButton = tile.querySelector('[data-role="charge-button"]');
@@ -308,7 +318,7 @@
     }
     if (chargeButton) {
       chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
-      const disableCharge = isLoaded || !loadInfo?.vehicle;
+      const disableCharge = isLoaded || !loadInfo?.vehicle || !isReady;
       chargeButton.toggleAttribute('disabled', disableCharge);
       chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
     }
@@ -348,7 +358,7 @@
       }
       if (chargeButton) {
         chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
-        const disableCharge = loaded || !value;
+        const disableCharge = loaded || !value || treeNode.dataset.status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
       }
@@ -377,6 +387,16 @@
     if (verifierEl && typeof verifierName !== 'undefined') {
       verifierEl.textContent = verifierName ? `Dernière action: ${verifierName}` : 'Dernière action: Non renseigné';
     }
+    if (node.dataset.nodeType === 'container') {
+      const chargeButton = node.querySelector('[data-action="charge-load"]');
+      if (chargeButton) {
+        const vehicle = node.dataset.loadVehicle?.trim();
+        const loaded = node.dataset.loaded === 'true';
+        const disableCharge = loaded || !vehicle || status !== 'ok';
+        chargeButton.toggleAttribute('disabled', disableCharge);
+        chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+      }
+    }
     if (node.dataset.nodeType === 'container' && status === 'ok') {
       node.removeAttribute('open');
     }
@@ -392,6 +412,7 @@
       const status = node.dataset.status || 'pending';
       tile.classList.remove('ok', 'problem', 'pending');
       tile.classList.add(status);
+      tile.dataset.status = status;
       const pill = tile.querySelector('.status-card-pill');
       if (pill) {
         pill.classList.remove('ok', 'problem', 'pending');
@@ -542,6 +563,41 @@
           }
           const data = await response.json();
           updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+        })
+        .catch(() => {});
+    });
+  });
+
+  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const container = button.closest('[data-node-id]');
+      if (!container) {
+        return;
+      }
+      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            return;
+          }
+          const data = await response.json();
+          if (data.progress) {
+            updateProgress(data.progress);
+          }
+          if (Array.isArray(data.updated_nodes)) {
+            data.updated_nodes.forEach((nodeUpdate) => {
+              const node = document.querySelector(`[data-node-id="${nodeUpdate.id}"]`);
+              if (node) {
+                setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || '');
+                recomputeContainerStatus(node.dataset.parentId);
+              }
+            });
+            refreshParentTiles();
+          }
         })
         .catch(() => {});
     });

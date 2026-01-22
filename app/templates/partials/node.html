@@ -42,9 +42,17 @@
         <button
           class="btn small tree-load-btn"
           type="button"
+          data-action="bulk-ok"
+          data-node-id="{{ branch.node.id }}"
+        >
+          OK
+        </button>
+        <button
+          class="btn small tree-load-btn"
+          type="button"
           data-action="charge-load"
           data-node-id="{{ branch.node.id }}"
-          {% if not branch.node.load_vehicle or branch.node.loaded_at %}disabled{% endif %}
+          {% if not branch.node.load_vehicle or branch.node.loaded_at or branch.status != 'ok' %}disabled{% endif %}
         >
           {% if branch.node.loaded_at %}
             Chargé
