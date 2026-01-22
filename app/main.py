@@ -1381,6 +1381,7 @@ def event_node_charge(
 
 @app.post("/events/{event_id}/nodes/{node_id}/bulk-ok")
 def event_node_bulk_ok(
+    request: Request,
     event_id: int,
     node_id: int,
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
@@ -1461,7 +1462,11 @@ def event_node_bulk_ok(
             )
     except RuntimeError:
         pass
-    return JSONResponse(payload)
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(payload)
+    redirect_target = request.headers.get("referer") or f"/events/{event_id}"
+    return RedirectResponse(redirect_target, status_code=303)
 
 
 @app.post("/events/{event_id}/close")

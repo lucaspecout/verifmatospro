@@ -121,14 +121,16 @@
                     Destination
                   {% endif %}
                 </button>
-                <button
-                  class="btn small status-card-load"
-                  type="button"
-                  data-action="bulk-ok"
-                  data-node-id="{{ parent.node.id }}"
-                >
-                  OK
-                </button>
+                <form method="post" action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok" class="inline-form">
+                  <button
+                    class="btn small status-card-load"
+                    type="submit"
+                    data-action="bulk-ok"
+                    data-node-id="{{ parent.node.id }}"
+                  >
+                    OK
+                  </button>
+                </form>
                 <button
                   class="btn small status-card-load"
                   type="button"
