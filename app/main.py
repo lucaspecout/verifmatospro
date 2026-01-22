@@ -1319,10 +1319,55 @@ def event_node_load(
             detail="Le nom du véhicule est obligatoire.",
         )
     node.load_vehicle = vehicle
+    db.add(node)
+    db.commit()
+    payload = {
+        "type": "load",
+        "node_id": node.id,
+        "vehicle": node.load_vehicle,
+        "loaded": node.loaded_at is not None,
+    }
+    try:
+        import anyio
+
+        anyio.from_thread.run(manager.broadcast, event_id, payload)
+    except RuntimeError:
+        pass
+    return JSONResponse(payload)
+
+
+@app.post("/events/{event_id}/nodes/{node_id}/charge")
+def event_node_charge(
+    event_id: int,
+    node_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    node = db.get(EventNode, node_id)
+    if not node or node.event_id != event_id:
+        raise HTTPException(status_code=404)
+    if node.node_type != "container" or node.parent_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Le chargement est réservé aux sacs parents.",
+        )
+    if not node.load_vehicle:
+        raise HTTPException(
+            status_code=400,
+            detail="La destination doit être renseignée avant le chargement.",
+        )
     node.loaded_at = datetime.utcnow()
     db.add(node)
     db.commit()
-    payload = {"type": "load", "node_id": node.id, "vehicle": node.load_vehicle}
+    payload = {
+        "type": "load",
+        "node_id": node.id,
+        "vehicle": node.load_vehicle,
+        "loaded": node.loaded_at is not None,
+    }
     try:
         import anyio
 

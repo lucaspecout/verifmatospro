@@ -229,14 +229,15 @@
       }
     };
 
-    const updateLoadDestination = (nodeId, vehicle) => {
+    const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
       const target = document.querySelector(`.checklist-section[data-node-id="${nodeId}"]`);
       if (!target) {
         return;
       }
       const value = vehicle?.trim();
       target.dataset.loadVehicle = value || '';
-      target.classList.toggle('loaded', Boolean(value));
+      target.dataset.loaded = loaded ? 'true' : 'false';
+      target.classList.toggle('loaded', loaded);
       const destination = target.querySelector('[data-role="load-destination"]');
       if (destination) {
         if (value) {
@@ -306,7 +307,7 @@
         }
       }
       if (data.type === 'load') {
-        updateLoadDestination(String(data.node_id), data.vehicle || '');
+        updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
       }
     };
   </script>
