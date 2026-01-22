@@ -22,7 +22,7 @@
       <div class="tree-meta">
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
         <span class="status-card-pill loaded" data-role="load-status" {% if not branch.node.loaded_at %}hidden{% endif %}>
-          Chargé
+          ✅ Chargé
         </span>
         <div class="count-row" aria-label="Compteurs de statut">
           <span class="count-pill neutral">Total {{ branch.counts.total }}</span>
