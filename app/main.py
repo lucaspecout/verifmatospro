@@ -99,7 +99,7 @@ def build_event_detail_payload(event_id: int, db: Session) -> dict[str, Any]:
         "parent_total": len(parent_tiles),
         "event_state_label": state["label"],
         "event_state_class": state["class"],
-        "show_parent_actions": False,
+        "show_parent_actions": True,
     }
 
 
