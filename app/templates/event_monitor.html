@@ -108,11 +108,27 @@
                   type="button"
                   data-action="open-load-modal"
                   data-node-id="{{ parent.node.id }}"
+                  data-load-mode="destination"
                 >
                   {% if parent.node.load_vehicle %}
                     Modifier
                   {% else %}
                     Destination
+                  {% endif %}
+                </button>
+                <button
+                  class="btn small status-card-load"
+                  type="button"
+                  data-action="open-load-modal"
+                  data-node-id="{{ parent.node.id }}"
+                  data-load-mode="charge"
+                  data-role="charge-button"
+                  {% if parent.node.load_vehicle %}disabled{% endif %}
+                >
+                  {% if parent.node.load_vehicle %}
+                    Chargé
+                  {% else %}
+                    Charger
                   {% endif %}
                 </button>
               </div>
@@ -225,15 +241,19 @@
   const loadCancelButton = loadModal?.querySelector('[data-action="cancel-load"]');
   const loadVehicleInput = loadModal?.querySelector('#load-vehicle-name');
   const loadModalSubtitle = loadModal?.querySelector('#load-modal-subtitle');
+  const loadModalTitle = loadModal?.querySelector('#load-modal-title');
+  const loadSubmitButton = loadModal?.querySelector('button[type="submit"]');
   const loadState = new Map();
   let activeLoadNodeId = null;
 
-  document.querySelectorAll('.status-card[data-node-id]').forEach((tile) => {
-    const vehicle = tile.dataset.loadVehicle?.trim();
-    if (vehicle) {
-      loadState.set(tile.dataset.nodeId, { vehicle });
-    }
-  });
+  document
+    .querySelectorAll('.status-card[data-load-vehicle], .tree-node.is-container[data-load-vehicle]')
+    .forEach((node) => {
+      const vehicle = node.dataset.loadVehicle?.trim();
+      if (vehicle) {
+        loadState.set(node.dataset.nodeId, { vehicle });
+      }
+    });
 
   const closeLoadModal = () => {
     if (!loadModal) {
@@ -244,14 +264,20 @@
     activeLoadNodeId = null;
   };
 
-  const openLoadModal = (tile) => {
-    if (!loadModal || !tile || !loadVehicleInput || !loadModalSubtitle) {
+  const openLoadModal = (nodeId, nodeName, mode = 'destination') => {
+    if (!loadModal || !nodeId || !loadVehicleInput || !loadModalSubtitle) {
       return;
     }
-    activeLoadNodeId = tile.dataset.nodeId;
-    const nodeName = tile.querySelector('.status-card-name')?.textContent?.trim() || 'Sac';
-    const currentInfo = loadState.get(activeLoadNodeId);
-    loadModalSubtitle.textContent = `Où le sac "${nodeName}" a-t-il été chargé ?`;
+    activeLoadNodeId = nodeId;
+    const currentInfo = loadState.get(nodeId);
+    const resolvedName = nodeName?.trim() || 'Sac';
+    if (loadModalTitle) {
+      loadModalTitle.textContent = mode === 'charge' ? 'Charger un sac' : 'Sac chargé';
+    }
+    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" a-t-il été chargé ?`;
+    if (loadSubmitButton) {
+      loadSubmitButton.textContent = mode === 'charge' ? 'Charger' : 'Confirmer';
+    }
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
     loadModal.setAttribute('aria-hidden', 'false');
@@ -266,6 +292,7 @@
     const loadInfo = loadState.get(nodeId);
     const loadInfoEl = tile.querySelector('[data-role="load-info"]');
     const loadButton = tile.querySelector('[data-action="open-load-modal"]');
+    const chargeButton = tile.querySelector('[data-role="charge-button"]');
     const statusPill = tile.querySelector('.status-card-pill');
     if (loadInfoEl) {
       if (loadInfo) {
@@ -282,6 +309,12 @@
     }
     if (loadButton) {
       loadButton.textContent = loadInfo ? 'Modifier' : 'Destination';
+    }
+    if (chargeButton) {
+      const isLoaded = Boolean(loadInfo);
+      chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
+      chargeButton.toggleAttribute('disabled', isLoaded);
+      chargeButton.setAttribute('aria-disabled', isLoaded ? 'true' : 'false');
     }
   };
 
@@ -302,6 +335,8 @@
       treeNode.dataset.loadVehicle = value || '';
       treeNode.classList.toggle('loaded', Boolean(value));
       const destination = treeNode.querySelector('[data-role="load-destination"]');
+      const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
+      const chargeButton = treeNode.querySelector('[data-role="charge-button"]');
       if (destination) {
         if (value) {
           destination.textContent = `Destination: ${value}`;
@@ -309,6 +344,15 @@
         } else {
           destination.hidden = true;
         }
+      }
+      if (loadButton) {
+        loadButton.textContent = value ? 'Modifier' : 'Destination';
+      }
+      if (chargeButton) {
+        const isLoaded = Boolean(value);
+        chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
+        chargeButton.toggleAttribute('disabled', isLoaded);
+        chargeButton.setAttribute('aria-disabled', isLoaded ? 'true' : 'false');
       }
     }
   };
@@ -465,12 +509,22 @@
   });
 
   document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const tile = button.closest('.status-card');
-      if (!tile || button.hidden) {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (button.hasAttribute('disabled')) {
         return;
       }
-      openLoadModal(tile);
+      const container = button.closest('.status-card, .tree-node.is-container');
+      if (!container || button.hidden) {
+        return;
+      }
+      const nodeName =
+        container.querySelector('.status-card-name')?.textContent?.trim() ||
+        container.querySelector('.tree-name')?.textContent?.trim() ||
+        'Sac';
+      const mode = button.dataset.loadMode || 'destination';
+      openLoadModal(container.dataset.nodeId, nodeName, mode);
     });
   });
 

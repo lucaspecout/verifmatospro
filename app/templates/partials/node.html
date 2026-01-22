@@ -26,6 +26,34 @@
           <span class="count-pill problem">Problèmes {{ branch.counts.problem }}</span>
           <span class="count-pill pending">En attente {{ branch.counts.pending }}</span>
         </div>
+        <button
+          class="btn small secondary tree-load-btn"
+          type="button"
+          data-action="open-load-modal"
+          data-node-id="{{ branch.node.id }}"
+          data-load-mode="destination"
+        >
+          {% if branch.node.load_vehicle %}
+            Modifier
+          {% else %}
+            Destination
+          {% endif %}
+        </button>
+        <button
+          class="btn small tree-load-btn"
+          type="button"
+          data-action="open-load-modal"
+          data-node-id="{{ branch.node.id }}"
+          data-load-mode="charge"
+          data-role="charge-button"
+          {% if branch.node.load_vehicle %}disabled{% endif %}
+        >
+          {% if branch.node.load_vehicle %}
+            Chargé
+          {% else %}
+            Charger
+          {% endif %}
+        </button>
       </div>
       <span class="fold-icon" aria-hidden="true">⌄</span>
     </summary>
