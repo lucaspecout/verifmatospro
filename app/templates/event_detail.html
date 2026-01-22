@@ -74,6 +74,28 @@
   </section>
 </section>
 
+<div class="modal" id="load-modal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="load-modal-title">
+    <h2 id="load-modal-title" class="modal-title">Destination</h2>
+    <p class="muted" id="load-modal-subtitle"></p>
+    <form class="modal-form">
+      <label>Nom du véhicule
+        <input
+          type="text"
+          id="load-vehicle-name"
+          name="vehicle_name"
+          placeholder="Ex: Véhicule 1"
+          required
+        />
+      </label>
+      <div class="modal-actions">
+        <button class="btn secondary" type="button" data-action="cancel-load">Annuler</button>
+        <button class="btn" type="submit">Confirmer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script>
   const copyButton = document.querySelector('[data-action="copy-public"]');
   const linkEl = document.querySelector('#public-link');
@@ -184,6 +206,170 @@
     node.removeAttribute('open');
   });
 
+  const loadModal = document.querySelector('#load-modal');
+  const loadForm = loadModal?.querySelector('.modal-form');
+  const loadCancelButton = loadModal?.querySelector('[data-action="cancel-load"]');
+  const loadVehicleInput = loadModal?.querySelector('#load-vehicle-name');
+  const loadModalSubtitle = loadModal?.querySelector('#load-modal-subtitle');
+  const loadState = new Map();
+  let activeLoadNodeId = null;
+
+  const syncLoadStateFromDom = () => {
+    loadState.clear();
+    document
+      .querySelectorAll('.tree-node.is-container[data-load-vehicle]')
+      .forEach((node) => {
+        const vehicle = node.dataset.loadVehicle?.trim();
+        const loaded = node.dataset.loaded === 'true';
+        if (vehicle || loaded) {
+          loadState.set(node.dataset.nodeId, { vehicle, loaded });
+        }
+      });
+  };
+
+  syncLoadStateFromDom();
+
+  const closeLoadModal = () => {
+    if (!loadModal) {
+      return;
+    }
+    loadModal.classList.remove('is-open');
+    loadModal.setAttribute('aria-hidden', 'true');
+    activeLoadNodeId = null;
+  };
+
+  const openLoadModal = (nodeId, nodeName) => {
+    if (!loadModal || !nodeId || !loadVehicleInput || !loadModalSubtitle) {
+      return;
+    }
+    activeLoadNodeId = nodeId;
+    const currentInfo = loadState.get(nodeId);
+    const resolvedName = nodeName?.trim() || 'Sac';
+    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
+    loadVehicleInput.value = currentInfo?.vehicle || '';
+    loadModal.classList.add('is-open');
+    loadModal.setAttribute('aria-hidden', 'false');
+    loadVehicleInput.focus();
+  };
+
+  const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
+    const value = vehicle?.trim();
+    if (value || loaded) {
+      loadState.set(nodeId, { vehicle: value, loaded });
+    } else {
+      loadState.delete(nodeId);
+    }
+    const treeNode = document.querySelector(`.tree-node.is-container[data-node-id="${nodeId}"]`);
+    if (!treeNode) {
+      return;
+    }
+    treeNode.dataset.loadVehicle = value || '';
+    treeNode.dataset.loaded = loaded ? 'true' : 'false';
+    treeNode.classList.toggle('loaded', loaded);
+    const destination = treeNode.querySelector('[data-role="load-destination"]');
+    const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
+    const chargeButton = treeNode.querySelector('[data-action="charge-load"]');
+    if (destination) {
+      if (value) {
+        destination.textContent = `Destination: ${value}`;
+        destination.hidden = false;
+      } else {
+        destination.hidden = true;
+      }
+    }
+    if (loadButton) {
+      loadButton.textContent = value ? 'Modifier' : 'Destination';
+    }
+    if (chargeButton) {
+      chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
+      const disableCharge = loaded || !value;
+      chargeButton.toggleAttribute('disabled', disableCharge);
+      chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+    }
+  };
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="open-load-modal"]');
+    if (!button) {
+      return;
+    }
+    const container = button.closest('[data-node-id]');
+    if (!container || button.hidden) {
+      return;
+    }
+    const nodeName =
+      container.querySelector('.tree-name')?.textContent?.trim() ||
+      'Sac';
+    openLoadModal(container.dataset.nodeId, nodeName);
+  });
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="charge-load"]');
+    if (!button) {
+      return;
+    }
+    const container = button.closest('[data-node-id]');
+    if (!container || button.hidden) {
+      return;
+    }
+    const vehicle = container.dataset.loadVehicle?.trim();
+    if (!vehicle) {
+      return;
+    }
+    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+      })
+      .catch(() => {});
+  });
+
+  loadCancelButton?.addEventListener('click', closeLoadModal);
+
+  loadModal?.addEventListener('click', (event) => {
+    if (event.target === loadModal) {
+      closeLoadModal();
+    }
+  });
+
+  loadForm?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    if (!activeLoadNodeId || !loadVehicleInput) {
+      return;
+    }
+    const vehicle = loadVehicleInput.value.trim();
+    if (!vehicle) {
+      loadVehicleInput.focus();
+      return;
+    }
+    const payload = new FormData();
+    payload.append('vehicle_name', vehicle);
+    fetch(`/events/{{ event.id }}/nodes/${activeLoadNodeId}/load`, {
+      method: 'POST',
+      body: payload,
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+        closeLoadModal();
+      })
+      .catch(() => {});
+  });
+
   const getOpenNodeIds = () =>
     Array.from(document.querySelectorAll('.tree-node.is-container[open]')).map((node) => node.dataset.nodeId);
 
@@ -214,6 +400,7 @@
     }
     restoreOpenNodes(openNodeIds);
     refreshParentTiles();
+    syncLoadStateFromDom();
   };
 
   const fetchLiveChecklist = async () => {
@@ -246,6 +433,9 @@
         recomputeContainerStatus(node.dataset.parentId);
       }
       refreshParentTiles();
+    }
+    if (data.type === 'load') {
+      updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
     }
   };
 </script>
