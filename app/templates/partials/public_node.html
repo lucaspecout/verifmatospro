@@ -52,9 +52,10 @@
         <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
       </div>
       <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="checklist-form compact">
+        <input type="hidden" name="status" value="ok" />
         <input type="hidden" name="comment" value="{{ branch.node.comment or '' }}" />
         <div class="checklist-actions">
-          <button class="toggle-btn ok" type="button" data-status="ok">OK</button>
+          <button class="toggle-btn ok" type="submit" data-status="ok">OK</button>
           <button class="toggle-btn problem" type="button" data-status="problem">Non</button>
         </div>
       </form>
