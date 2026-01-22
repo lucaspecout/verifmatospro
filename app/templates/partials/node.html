@@ -28,7 +28,7 @@
           <span class="count-pill pending">En attente {{ branch.counts.pending }}</span>
         </div>
       </div>
-      {% if show_parent_actions and branch.node.parent_id is none %}
+      {% if show_parent_actions %}
         <div class="tree-parent-actions">
           <button
             class="btn small secondary"
