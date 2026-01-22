@@ -138,7 +138,7 @@
                   data-node-id="{{ parent.node.id }}"
                   data-load-mode="charge"
                   data-role="charge-button"
-                  {% if not parent.node.load_vehicle or parent.node.loaded_at or parent_status != 'ok' %}disabled{% endif %}
+                  {% if parent.node.loaded_at or parent_status != 'ok' %}disabled{% endif %}
                 >
                   {% if parent.node.loaded_at %}
                     Chargé
@@ -328,7 +328,7 @@
     }
     if (chargeButton) {
       chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
-      const disableCharge = isLoaded || !loadInfo?.vehicle || !isReady;
+      const disableCharge = isLoaded || !isReady;
       chargeButton.toggleAttribute('disabled', disableCharge);
       chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
     }
@@ -372,7 +372,7 @@
       }
       if (chargeButton) {
         chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
-        const disableCharge = loaded || !value || treeNode.dataset.status !== 'ok';
+        const disableCharge = loaded || treeNode.dataset.status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
       }
@@ -406,7 +406,7 @@
       if (chargeButton) {
         const vehicle = node.dataset.loadVehicle?.trim();
         const loaded = node.dataset.loaded === 'true';
-        const disableCharge = loaded || !vehicle || status !== 'ok';
+        const disableCharge = loaded || status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
       }

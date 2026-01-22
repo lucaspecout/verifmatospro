@@ -1356,10 +1356,12 @@ def event_node_charge(
             status_code=400,
             detail="Le chargement est réservé aux contenants.",
         )
-    if not node.load_vehicle:
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    status_lookup = build_status_lookup(build_tree(nodes))
+    if status_lookup.get(node.id) != "ok":
         raise HTTPException(
             status_code=400,
-            detail="La destination doit être renseignée avant le chargement.",
+            detail="Le sac doit être validé OK avant le chargement.",
         )
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     status_lookup = build_status_lookup(build_tree(nodes))
