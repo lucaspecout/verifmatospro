@@ -220,9 +220,8 @@
       .querySelectorAll('.tree-node.is-container[data-load-vehicle]')
       .forEach((node) => {
         const vehicle = node.dataset.loadVehicle?.trim();
-        const loaded = node.dataset.loaded === 'true';
-        if (vehicle || loaded) {
-          loadState.set(node.dataset.nodeId, { vehicle, loaded });
+        if (vehicle) {
+          loadState.set(node.dataset.nodeId, { vehicle });
         }
       });
   };
@@ -245,17 +244,17 @@
     activeLoadNodeId = nodeId;
     const currentInfo = loadState.get(nodeId);
     const resolvedName = nodeName?.trim() || 'Sac';
-    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
+    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" a-t-il été chargé ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
     loadModal.setAttribute('aria-hidden', 'false');
     loadVehicleInput.focus();
   };
 
-  const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
+  const updateLoadDestination = (nodeId, vehicle) => {
     const value = vehicle?.trim();
-    if (value || loaded) {
-      loadState.set(nodeId, { vehicle: value, loaded });
+    if (value) {
+      loadState.set(nodeId, { vehicle: value });
     } else {
       loadState.delete(nodeId);
     }
@@ -264,11 +263,9 @@
       return;
     }
     treeNode.dataset.loadVehicle = value || '';
-    treeNode.dataset.loaded = loaded ? 'true' : 'false';
-    treeNode.classList.toggle('loaded', loaded);
+    treeNode.classList.toggle('loaded', Boolean(value));
     const destination = treeNode.querySelector('[data-role="load-destination"]');
     const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
-    const chargeButton = treeNode.querySelector('[data-action="charge-load"]');
     if (destination) {
       if (value) {
         destination.textContent = `Destination: ${value}`;
@@ -279,12 +276,6 @@
     }
     if (loadButton) {
       loadButton.textContent = value ? 'Modifier' : 'Destination';
-    }
-    if (chargeButton) {
-      chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
-      const disableCharge = loaded || !value;
-      chargeButton.toggleAttribute('disabled', disableCharge);
-      chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
     }
   };
 
@@ -301,35 +292,6 @@
       container.querySelector('.tree-name')?.textContent?.trim() ||
       'Sac';
     openLoadModal(container.dataset.nodeId, nodeName);
-  });
-
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action="charge-load"]');
-    if (!button) {
-      return;
-    }
-    const container = button.closest('[data-node-id]');
-    if (!container || button.hidden) {
-      return;
-    }
-    const vehicle = container.dataset.loadVehicle?.trim();
-    if (!vehicle) {
-      return;
-    }
-    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-      },
-    })
-      .then(async (response) => {
-        if (!response.ok) {
-          return;
-        }
-        const data = await response.json();
-        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
-      })
-      .catch(() => {});
   });
 
   loadCancelButton?.addEventListener('click', closeLoadModal);
@@ -364,7 +326,7 @@
           return;
         }
         const data = await response.json();
-        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle);
         closeLoadModal();
       })
       .catch(() => {});
@@ -435,7 +397,7 @@
       refreshParentTiles();
     }
     if (data.type === 'load') {
-      updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
+      updateLoadDestination(String(data.node_id), data.vehicle || '');
     }
   };
 </script>
