@@ -281,8 +281,9 @@
       .querySelectorAll('.tree-node.is-container[data-load-vehicle]')
       .forEach((node) => {
         const vehicle = node.dataset.loadVehicle?.trim();
-        if (vehicle) {
-          loadState.set(node.dataset.nodeId, { vehicle });
+        const loaded = node.dataset.loaded === 'true';
+        if (vehicle || loaded) {
+          loadState.set(node.dataset.nodeId, { vehicle, loaded });
         }
       });
   };
@@ -312,10 +313,10 @@
     loadVehicleInput.focus();
   };
 
-  const updateLoadDestination = (nodeId, vehicle) => {
+  const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
     const value = vehicle?.trim();
-    if (value) {
-      loadState.set(nodeId, { vehicle: value });
+    if (value || loaded) {
+      loadState.set(nodeId, { vehicle: value, loaded });
     } else {
       loadState.delete(nodeId);
     }
@@ -324,12 +325,18 @@
       return;
     }
     treeNode.dataset.loadVehicle = value || '';
-    treeNode.classList.toggle('loaded', Boolean(value));
+    treeNode.dataset.loaded = loaded ? 'true' : 'false';
+    treeNode.classList.toggle('loaded', loaded);
     const destination = treeNode.querySelector('[data-role="load-destination"]');
     const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
+    const chargeButton = treeNode.querySelector('[data-action="charge-load"]');
+    const loadStatus = treeNode.querySelector('[data-role="load-status"]');
     if (destination) {
       if (value) {
         destination.textContent = `Destination: ${value}`;
+        destination.hidden = false;
+      } else if (loaded) {
+        destination.textContent = 'Chargé dans véhicule non renseigné';
         destination.hidden = false;
       } else {
         destination.hidden = true;
@@ -337,6 +344,15 @@
     }
     if (loadButton) {
       loadButton.textContent = value ? 'Modifier' : 'Destination';
+    }
+    if (loadStatus) {
+      loadStatus.hidden = !loaded;
+    }
+    if (chargeButton) {
+      chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
+      const disableCharge = loaded || treeNode.dataset.status !== 'ok';
+      chargeButton.toggleAttribute('disabled', disableCharge);
+      chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
     }
   };
 
@@ -398,6 +414,53 @@
     });
   });
 
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="charge-load"]');
+    if (!button) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const container = button.closest('[data-node-id]');
+    if (!container || button.hidden) {
+      return;
+    }
+    const vehicle = container.dataset.loadVehicle?.trim() || '';
+    const previousLabel = button.textContent;
+    button.textContent = 'Chargement...';
+    button.disabled = true;
+    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        if (!response.ok) {
+          let message = 'Impossible de charger ce sac pour le moment.';
+          try {
+            const errorPayload = await response.json();
+            if (errorPayload?.detail) {
+              message = errorPayload.detail;
+            }
+          } catch (err) {
+            // Ignore parse errors
+          }
+          alert(message);
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+      })
+      .catch(() => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        alert('Erreur réseau pendant le chargement.');
+      });
+  });
+
   loadCancelButton?.addEventListener('click', closeLoadModal);
 
   loadModal?.addEventListener('click', (event) => {
@@ -430,7 +493,7 @@
           return;
         }
         const data = await response.json();
-        updateLoadDestination(String(data.node_id), data.vehicle || vehicle);
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
         closeLoadModal();
       })
       .catch(() => {});
@@ -501,7 +564,7 @@
       refreshParentTiles();
     }
     if (data.type === 'load') {
-      updateLoadDestination(String(data.node_id), data.vehicle || '');
+      updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
     }
   };
 </script>
