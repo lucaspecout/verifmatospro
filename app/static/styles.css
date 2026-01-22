@@ -543,7 +543,7 @@ body {
 }
 
 .status-grid--parents {
-  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 0.55rem;
   padding-top: 0.45rem;
 }
