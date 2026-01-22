@@ -101,11 +101,13 @@
                   {% endif %}
                 </span>
                 <span class="status-card-pill loaded" data-role="load-status" {% if not parent.node.loaded_at %}hidden{% endif %}>
-                  Chargé
+                  ✅ Chargé
                 </span>
-                <span class="status-card-location" data-role="load-info" {% if not parent.node.load_vehicle %}hidden{% endif %}>
+                <span class="status-card-location" data-role="load-info" {% if not parent.node.load_vehicle and not parent.node.loaded_at %}hidden{% endif %}>
                   {% if parent.node.load_vehicle %}
                     Destination: {{ parent.node.load_vehicle }}
+                  {% elif parent.node.loaded_at %}
+                    Chargé dans véhicule non renseigné
                   {% endif %}
                 </span>
                 <button
@@ -138,7 +140,7 @@
                   data-node-id="{{ parent.node.id }}"
                   data-load-mode="charge"
                   data-role="charge-button"
-                  {% if not parent.node.load_vehicle or parent.node.loaded_at or parent_status != 'ok' %}disabled{% endif %}
+                  {% if parent.node.loaded_at or parent_status != 'ok' %}disabled{% endif %}
                 >
                   {% if parent.node.loaded_at %}
                     Chargé
@@ -312,6 +314,9 @@
       if (loadInfo?.vehicle) {
         loadInfoEl.textContent = `Destination: ${loadInfo.vehicle}`;
         loadInfoEl.hidden = false;
+      } else if (isLoaded) {
+        loadInfoEl.textContent = 'Chargé dans véhicule non renseigné';
+        loadInfoEl.hidden = false;
       } else {
         loadInfoEl.hidden = true;
       }
@@ -328,7 +333,7 @@
     }
     if (chargeButton) {
       chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
-      const disableCharge = isLoaded || !loadInfo?.vehicle || !isReady;
+      const disableCharge = isLoaded || !isReady;
       chargeButton.toggleAttribute('disabled', disableCharge);
       chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
     }
@@ -360,6 +365,9 @@
         if (value) {
           destination.textContent = `Destination: ${value}`;
           destination.hidden = false;
+        } else if (loaded) {
+          destination.textContent = 'Chargé dans véhicule non renseigné';
+          destination.hidden = false;
         } else {
           destination.hidden = true;
         }
@@ -372,7 +380,7 @@
       }
       if (chargeButton) {
         chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
-        const disableCharge = loaded || !value || treeNode.dataset.status !== 'ok';
+        const disableCharge = loaded || treeNode.dataset.status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
       }
@@ -406,7 +414,7 @@
       if (chargeButton) {
         const vehicle = node.dataset.loadVehicle?.trim();
         const loaded = node.dataset.loaded === 'true';
-        const disableCharge = loaded || !vehicle || status !== 'ok';
+        const disableCharge = loaded || status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
       }
@@ -620,10 +628,10 @@
       if (!container || button.hidden) {
         return;
       }
-      const vehicle = container.dataset.loadVehicle?.trim();
-      if (!vehicle) {
-        return;
-      }
+      const vehicle = container.dataset.loadVehicle?.trim() || '';
+      const previousLabel = button.textContent;
+      button.textContent = 'Chargement...';
+      button.disabled = true;
       fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
         method: 'POST',
         headers: {
@@ -631,13 +639,29 @@
         },
       })
         .then(async (response) => {
+          button.textContent = previousLabel;
+          button.disabled = false;
           if (!response.ok) {
+            let message = 'Impossible de charger ce sac pour le moment.';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload?.detail) {
+                message = errorPayload.detail;
+              }
+            } catch (err) {
+              // Ignore parse errors
+            }
+            alert(message);
             return;
           }
           const data = await response.json();
           updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
         })
-        .catch(() => {});
+        .catch(() => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          alert('Erreur réseau pendant le chargement.');
+        });
     });
   });
 
