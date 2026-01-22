@@ -86,6 +86,8 @@ class EventNode(Base):
     status: Mapped[str | None] = mapped_column(String(20), nullable=True)
     comment: Mapped[str | None] = mapped_column(Text, nullable=True)
     last_verifier_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    load_vehicle: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    loaded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     event = relationship("Event", backref="nodes")

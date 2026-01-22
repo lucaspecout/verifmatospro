@@ -1293,6 +1293,45 @@ def event_monitor(
     )
 
 
+@app.post("/events/{event_id}/nodes/{node_id}/load")
+def event_node_load(
+    event_id: int,
+    node_id: int,
+    vehicle_name: str = Form(...),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    node = db.get(EventNode, node_id)
+    if not node or node.event_id != event_id:
+        raise HTTPException(status_code=404)
+    if node.node_type != "container" or node.parent_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Le chargement est réservé aux sacs parents.",
+        )
+    vehicle = vehicle_name.strip()
+    if not vehicle:
+        raise HTTPException(
+            status_code=400,
+            detail="Le nom du véhicule est obligatoire.",
+        )
+    node.load_vehicle = vehicle
+    node.loaded_at = datetime.utcnow()
+    db.add(node)
+    db.commit()
+    payload = {"type": "load", "node_id": node.id, "vehicle": node.load_vehicle}
+    try:
+        import anyio
+
+        anyio.from_thread.run(manager.broadcast, event_id, payload)
+    except RuntimeError:
+        pass
+    return JSONResponse(payload)
+
+
 @app.post("/events/{event_id}/close")
 def event_close(
     event_id: int,

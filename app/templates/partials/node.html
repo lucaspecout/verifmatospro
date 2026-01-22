@@ -1,16 +1,22 @@
 {% set status_label = 'OK' if branch.status == 'ok' else 'Problème' if branch.status == 'problem' else 'En attente' %}
 {% if branch.node.node_type == 'container' %}
   <details
-    class="tree-node is-container {{ branch.status or '' }}"
+    class="tree-node is-container {{ branch.status or '' }}{% if branch.node.load_vehicle %} loaded{% endif %}"
     data-node-id="{{ branch.node.id }}"
     data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
     data-node-type="{{ branch.node.node_type }}"
     data-status="{{ branch.status or 'pending' }}"
+    data-load-vehicle="{{ branch.node.load_vehicle or '' }}"
   >
     <summary class="tree-title">
       <div class="tree-title-main">
         <span class="tree-name">{{ branch.node.name }}</span>
         <span class="tree-subtitle">Contenant · {{ branch.counts.total }} élément{{ '' if branch.counts.total == 1 else 's' }}</span>
+        <span class="tree-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>
+          {% if branch.node.load_vehicle %}
+            Destination: {{ branch.node.load_vehicle }}
+          {% endif %}
+        </span>
       </div>
       <div class="tree-meta">
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
