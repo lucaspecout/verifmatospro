@@ -250,6 +250,19 @@
     refreshParentTiles();
   };
 
+  const applyOkFallback = (targetNode, verifierName = '') => {
+    if (!targetNode) {
+      return;
+    }
+    if (targetNode.dataset.nodeType === 'item') {
+      setNodeStatus(targetNode, 'ok', '', verifierName);
+      recomputeContainerStatus(targetNode.dataset.parentId);
+      refreshParentTiles();
+      return;
+    }
+    applyBulkOkToContainer(targetNode, verifierName);
+  };
+
   document.querySelectorAll('.tree-node.is-container').forEach((node) => {
     node.removeAttribute('open');
   });
@@ -342,50 +355,50 @@
     openLoadModal(container.dataset.nodeId, nodeName);
   });
 
-  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const container = button.closest('[data-node-id]');
-      if (!container) {
-        return;
-      }
-      const containerNode = document.querySelector(
-        `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
-      );
-      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="bulk-ok"]');
+    if (!button) {
+      return;
+    }
+    event.preventDefault();
+    const container = button.closest('[data-node-id]');
+    if (!container) {
+      return;
+    }
+    const containerNode = document.querySelector(
+      `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
+    );
+    const targetNode = containerNode || container;
+    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        if (data.progress) {
+          updateProgress(data.progress);
+        }
+        if (Array.isArray(data.updated_nodes) && data.updated_nodes.length > 0) {
+          data.updated_nodes.forEach((nodeUpdate) => {
+            const node = document.querySelector(`.tree-node[data-node-id="${nodeUpdate.id}"]`);
+            if (node) {
+              setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || '');
+              recomputeContainerStatus(node.dataset.parentId);
+            }
+          });
+          refreshParentTiles();
+        } else if (targetNode) {
+          applyOkFallback(targetNode, data.verifier_name || '');
+        }
       })
-        .then(async (response) => {
-          if (!response.ok) {
-            return;
-          }
-          const data = await response.json();
-          if (data.progress) {
-            updateProgress(data.progress);
-          }
-          if (Array.isArray(data.updated_nodes) && data.updated_nodes.length > 0) {
-            data.updated_nodes.forEach((nodeUpdate) => {
-              const node = document.querySelector(`.tree-node[data-node-id="${nodeUpdate.id}"]`);
-              if (node) {
-                setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || '');
-                recomputeContainerStatus(node.dataset.parentId);
-              }
-            });
-            refreshParentTiles();
-          } else if (containerNode) {
-            applyBulkOkToContainer(containerNode, data.verifier_name || '');
-          } else {
-            refreshParentTiles();
-          }
-        })
-        .catch(() => {
-          if (containerNode) {
-            applyBulkOkToContainer(containerNode, '');
-          }
-        });
-    });
+      .catch(() => {
+        applyOkFallback(targetNode, '');
+      });
   });
 
   loadCancelButton?.addEventListener('click', closeLoadModal);

@@ -46,14 +46,16 @@
               Destination
             {% endif %}
           </button>
-          <button
-            class="btn small"
-            type="button"
-            data-action="bulk-ok"
-            data-node-id="{{ branch.node.id }}"
-          >
-            OK
-          </button>
+          <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok" class="inline-form">
+            <button
+              class="btn small"
+              type="submit"
+              data-action="bulk-ok"
+              data-node-id="{{ branch.node.id }}"
+            >
+              OK
+            </button>
+          </form>
           <button
             class="btn small"
             type="button"
@@ -97,7 +99,19 @@
         <span class="tree-name">{{ branch.node.name }}</span>
         <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
       </div>
-      <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+      <div class="tree-item-actions">
+        <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+        <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok" class="inline-form">
+          <button
+            class="btn small"
+            type="submit"
+            data-action="bulk-ok"
+            data-node-id="{{ branch.node.id }}"
+          >
+            OK
+          </button>
+        </form>
+      </div>
     </div>
     <div class="tree-note" data-role="comment">
       {% if branch.node.comment %}

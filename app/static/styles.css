@@ -763,6 +763,18 @@ body {
   gap: 0.35rem;
 }
 
+.tree-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.inline-form {
+  margin: 0;
+  display: inline-flex;
+}
+
 .tree-name {
   font-weight: 700;
 }

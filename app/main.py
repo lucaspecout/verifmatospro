@@ -1381,6 +1381,7 @@ def event_node_charge(
 
 @app.post("/events/{event_id}/nodes/{node_id}/bulk-ok")
 def event_node_bulk_ok(
+    request: Request,
     event_id: int,
     node_id: int,
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
@@ -1392,8 +1393,8 @@ def event_node_bulk_ok(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id:
         raise HTTPException(status_code=404)
-    if node.node_type != "container":
-        raise HTTPException(status_code=400, detail="Seuls les parents peuvent être validés.")
+    if node.node_type not in {"container", "item"}:
+        raise HTTPException(status_code=400, detail="Type de noeud non supporté.")
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     nodes_by_parent: dict[int | None, list[EventNode]] = defaultdict(list)
     for entry in nodes:
@@ -1401,14 +1402,17 @@ def event_node_bulk_ok(
 
     items: list[EventNode] = []
 
-    def collect_items(parent_id: int) -> None:
-        for child in nodes_by_parent.get(parent_id, []):
-            if child.node_type == "item":
-                items.append(child)
-            else:
-                collect_items(child.id)
+    if node.node_type == "item":
+        items = [node]
+    else:
+        def collect_items(parent_id: int) -> None:
+            for child in nodes_by_parent.get(parent_id, []):
+                if child.node_type == "item":
+                    items.append(child)
+                else:
+                    collect_items(child.id)
 
-    collect_items(node.id)
+        collect_items(node.id)
     verifier_name = user.username if user else ""
     now = datetime.utcnow()
     for item in items:
@@ -1458,7 +1462,11 @@ def event_node_bulk_ok(
             )
     except RuntimeError:
         pass
-    return JSONResponse(payload)
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(payload)
+    redirect_target = request.headers.get("referer") or f"/events/{event_id}"
+    return RedirectResponse(redirect_target, status_code=303)
 
 
 @app.post("/events/{event_id}/close")
