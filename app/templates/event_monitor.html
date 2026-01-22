@@ -622,51 +622,44 @@
     });
   });
 
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action="charge-load"]');
-    if (!button) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    const container = button.closest('[data-node-id]');
-    if (!container || button.hidden) {
-      return;
-    }
-    const vehicle = container.dataset.loadVehicle?.trim() || '';
-    const previousLabel = button.textContent;
-    button.textContent = 'Chargement...';
-    button.disabled = true;
-    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-      },
-    })
-      .then(async (response) => {
-        button.textContent = previousLabel;
-        button.disabled = false;
-        if (!response.ok) {
-          let message = 'Impossible de charger ce sac pour le moment.';
-          try {
-            const errorPayload = await response.json();
-            if (errorPayload?.detail) {
-              message = errorPayload.detail;
-            }
-          } catch (err) {
-            // Ignore parse errors
-          }
-          alert(message);
-          return;
-        }
-        const data = await response.json();
-        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+  document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const container = button.closest('[data-node-id]');
+      if (!container || button.hidden) {
+        return;
+      }
+      const vehicle = container.dataset.loadVehicle?.trim() || '';
+      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
       })
-      .catch(() => {
-        button.textContent = previousLabel;
-        button.disabled = false;
-        alert('Erreur réseau pendant le chargement.');
-      });
+        .then(async (response) => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          if (!response.ok) {
+            let message = 'Impossible de charger ce sac pour le moment.';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload?.detail) {
+                message = errorPayload.detail;
+              }
+            } catch (err) {
+              // Ignore parse errors
+            }
+            alert(message);
+            return;
+          }
+          const data = await response.json();
+          updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+        })
+        .catch(() => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          alert('Erreur réseau pendant le chargement.');
+        });
+    });
   });
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
