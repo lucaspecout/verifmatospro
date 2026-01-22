@@ -229,6 +229,25 @@
       }
     };
 
+    const updateLoadDestination = (nodeId, vehicle) => {
+      const target = document.querySelector(`.checklist-section[data-node-id="${nodeId}"]`);
+      if (!target) {
+        return;
+      }
+      const value = vehicle?.trim();
+      target.dataset.loadVehicle = value || '';
+      target.classList.toggle('loaded', Boolean(value));
+      const destination = target.querySelector('[data-role="load-destination"]');
+      if (destination) {
+        if (value) {
+          destination.textContent = `Destination: ${value}`;
+          destination.hidden = false;
+        } else {
+          destination.hidden = true;
+        }
+      }
+    };
+
     document.querySelectorAll('.checklist-form').forEach((form) => {
       form.addEventListener('click', (event) => {
         const button = event.target.closest('button[data-status]');
@@ -285,6 +304,9 @@
           const time = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
           syncTime.textContent = `Mis à jour à ${time}`;
         }
+      }
+      if (data.type === 'load') {
+        updateLoadDestination(String(data.node_id), data.vehicle || '');
       }
     };
   </script>

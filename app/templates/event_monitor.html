@@ -82,7 +82,11 @@
         <div class="status-grid status-grid--parents monitor-tiles" aria-label="Statut rapide du matériel">
           {% for parent in parent_tiles %}
             {% set parent_status = parent.status or 'pending' %}
-            <div class="status-card {{ parent_status }}" data-node-id="{{ parent.node.id }}">
+            <div
+              class="status-card {{ parent_status }}{% if parent.node.load_vehicle %} loaded{% endif %}"
+              data-node-id="{{ parent.node.id }}"
+              data-load-vehicle="{{ parent.node.load_vehicle or '' }}"
+            >
               <div class="status-card-name">{{ parent.node.name }}</div>
               <div class="status-card-meta">
                 <span class="status-card-pill {{ parent_status }}">
@@ -94,15 +98,22 @@
                     En attente
                   {% endif %}
                 </span>
-                <span class="status-card-location" data-role="load-info" hidden></span>
+                <span class="status-card-location" data-role="load-info" {% if not parent.node.load_vehicle %}hidden{% endif %}>
+                  {% if parent.node.load_vehicle %}
+                    Destination: {{ parent.node.load_vehicle }}
+                  {% endif %}
+                </span>
                 <button
                   class="btn small secondary status-card-load"
                   type="button"
                   data-action="open-load-modal"
                   data-node-id="{{ parent.node.id }}"
-                  hidden
                 >
-                  Chargé
+                  {% if parent.node.load_vehicle %}
+                    Modifier
+                  {% else %}
+                    Destination
+                  {% endif %}
                 </button>
               </div>
             </div>
@@ -214,13 +225,15 @@
   const loadCancelButton = loadModal?.querySelector('[data-action="cancel-load"]');
   const loadVehicleInput = loadModal?.querySelector('#load-vehicle-name');
   const loadModalSubtitle = loadModal?.querySelector('#load-modal-subtitle');
-  const loadStorageKey = `event-{{ event.id }}-load-info`;
-  const loadState = new Map(Object.entries(JSON.parse(localStorage.getItem(loadStorageKey) || '{}')));
+  const loadState = new Map();
   let activeLoadNodeId = null;
 
-  const persistLoadState = () => {
-    localStorage.setItem(loadStorageKey, JSON.stringify(Object.fromEntries(loadState)));
-  };
+  document.querySelectorAll('.status-card[data-node-id]').forEach((tile) => {
+    const vehicle = tile.dataset.loadVehicle?.trim();
+    if (vehicle) {
+      loadState.set(tile.dataset.nodeId, { vehicle });
+    }
+  });
 
   const closeLoadModal = () => {
     if (!loadModal) {
@@ -245,34 +258,58 @@
     loadVehicleInput.focus();
   };
 
-  const applyLoadState = (tile, status) => {
+  const applyLoadState = (tile) => {
     if (!tile) {
       return;
     }
     const nodeId = tile.dataset.nodeId;
     const loadInfo = loadState.get(nodeId);
-    const isOk = status === 'ok';
     const loadInfoEl = tile.querySelector('[data-role="load-info"]');
     const loadButton = tile.querySelector('[data-action="open-load-modal"]');
     const statusPill = tile.querySelector('.status-card-pill');
-    if (loadButton) {
-      loadButton.hidden = !isOk;
-    }
     if (loadInfoEl) {
-      if (loadInfo && isOk) {
-        loadInfoEl.textContent = `Chargé dans ${loadInfo.vehicle}`;
+      if (loadInfo) {
+        loadInfoEl.textContent = `Destination: ${loadInfo.vehicle}`;
         loadInfoEl.hidden = false;
       } else {
         loadInfoEl.hidden = true;
       }
     }
-    const isLoaded = Boolean(loadInfo && isOk);
+    const isLoaded = Boolean(loadInfo);
     tile.classList.toggle('loaded', isLoaded);
     if (statusPill) {
       statusPill.classList.toggle('loaded', isLoaded);
     }
     if (loadButton) {
-      loadButton.textContent = loadInfo ? 'Modifier' : 'Chargé';
+      loadButton.textContent = loadInfo ? 'Modifier' : 'Destination';
+    }
+  };
+
+  const updateLoadDestination = (nodeId, vehicle) => {
+    const value = vehicle?.trim();
+    if (value) {
+      loadState.set(nodeId, { vehicle: value });
+    } else {
+      loadState.delete(nodeId);
+    }
+    const tile = document.querySelector(`.status-card[data-node-id="${nodeId}"]`);
+    if (tile) {
+      tile.dataset.loadVehicle = value || '';
+      applyLoadState(tile);
+    }
+    const treeNode = document.querySelector(`.tree-node.is-container[data-node-id="${nodeId}"]`);
+    if (treeNode) {
+      treeNode.dataset.loadVehicle = value || '';
+      treeNode.classList.toggle('loaded', Boolean(value));
+      const destination = treeNode.querySelector('[data-role="load-destination"]');
+      if (destination) {
+        if (value) {
+          destination.textContent = `Destination: ${value}`;
+          destination.hidden = false;
+        } else {
+          destination.hidden = true;
+        }
+      }
     }
   };
 
@@ -325,7 +362,7 @@
           pill.textContent = 'En attente';
         }
       }
-      applyLoadState(tile, status);
+      applyLoadState(tile);
     });
   };
 
@@ -393,6 +430,9 @@
         refreshParentTiles();
       }
     }
+    if (data.type === 'load') {
+      updateLoadDestination(String(data.node_id), data.vehicle || '');
+    }
   };
 
   document.querySelectorAll('.tree-node.is-container[data-status="ok"]').forEach((node) => {
@@ -452,14 +492,24 @@
       loadVehicleInput.focus();
       return;
     }
-    loadState.set(activeLoadNodeId, { vehicle });
-    persistLoadState();
-    const tile = document.querySelector(`.status-card[data-node-id="${activeLoadNodeId}"]`);
-    if (tile) {
-      const status = tile.classList.contains('ok') ? 'ok' : tile.classList.contains('problem') ? 'problem' : 'pending';
-      applyLoadState(tile, status);
-    }
-    closeLoadModal();
+    const payload = new FormData();
+    payload.append('vehicle_name', vehicle);
+    fetch(`/events/{{ event.id }}/nodes/${activeLoadNodeId}/load`, {
+      method: 'POST',
+      body: payload,
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle);
+        closeLoadModal();
+      })
+      .catch(() => {});
   });
 
   refreshParentTiles();

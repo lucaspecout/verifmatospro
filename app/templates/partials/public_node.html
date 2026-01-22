@@ -1,15 +1,21 @@
 {% if branch.node.node_type == 'container' %}
   <details
-    class="checklist-section {{ branch.status or '' }}"
+    class="checklist-section {{ branch.status or '' }}{% if branch.node.load_vehicle %} loaded{% endif %}"
     data-node-id="{{ branch.node.id }}"
     data-parent-id="{{ branch.node.parent_id if branch.node.parent_id is not none else 'root' }}"
     data-node-type="{{ branch.node.node_type }}"
     data-status="{{ branch.status or 'pending' }}"
+    data-load-vehicle="{{ branch.node.load_vehicle or '' }}"
   >
     <summary class="checklist-section-header">
       <div>
         <h2>{{ branch.node.name }}</h2>
         <p class="section-subtitle">Contrôlez le contenu avant le départ.</p>
+        <span class="section-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>
+          {% if branch.node.load_vehicle %}
+            Destination: {{ branch.node.load_vehicle }}
+          {% endif %}
+        </span>
       </div>
       {% if branch.status %}
         <span class="section-status {{ branch.status }}" data-role="status">{{ branch.status }}</span>

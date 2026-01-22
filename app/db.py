@@ -91,6 +91,14 @@ def ensure_event_node_columns() -> None:
         missing.append(
             ("last_verifier_name", "VARCHAR(80)")
         )
+    if "load_vehicle" not in columns:
+        missing.append(
+            ("load_vehicle", "VARCHAR(120)")
+        )
+    if "loaded_at" not in columns:
+        missing.append(
+            ("loaded_at", "DATETIME")
+        )
     if not missing:
         return
     with engine.begin() as connection:
