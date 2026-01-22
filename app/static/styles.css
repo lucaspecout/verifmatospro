@@ -569,13 +569,8 @@ body {
 
 .monitor-tiles .status-card {
   aspect-ratio: auto;
-  min-height: 220px;
+  min-height: 160px;
   justify-content: flex-start;
-}
-
-.monitor-tiles .status-card-meta .btn {
-  display: flex;
-  width: 100%;
 }
 
 .status-card-name {
