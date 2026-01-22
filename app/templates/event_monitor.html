@@ -100,6 +100,9 @@
                     En attente
                   {% endif %}
                 </span>
+                <span class="status-card-pill loaded" data-role="load-status" {% if not parent.node.loaded_at %}hidden{% endif %}>
+                  Chargé
+                </span>
                 <span class="status-card-location" data-role="load-info" {% if not parent.node.load_vehicle %}hidden{% endif %}>
                   {% if parent.node.load_vehicle %}
                     Destination: {{ parent.node.load_vehicle }}
@@ -302,6 +305,7 @@
     const loadButton = tile.querySelector('[data-action="open-load-modal"]');
     const chargeButton = tile.querySelector('[data-role="charge-button"]');
     const statusPill = tile.querySelector('.status-card-pill');
+    const loadStatus = tile.querySelector('[data-role="load-status"]');
     if (loadInfoEl) {
       if (loadInfo?.vehicle) {
         loadInfoEl.textContent = `Destination: ${loadInfo.vehicle}`;
@@ -313,6 +317,9 @@
     tile.classList.toggle('loaded', isLoaded);
     if (statusPill) {
       statusPill.classList.toggle('loaded', isLoaded);
+    }
+    if (loadStatus) {
+      loadStatus.hidden = !isLoaded;
     }
     if (loadButton) {
       loadButton.textContent = loadInfo?.vehicle ? 'Modifier' : 'Destination';
@@ -346,6 +353,7 @@
       const destination = treeNode.querySelector('[data-role="load-destination"]');
       const loadButton = treeNode.querySelector('[data-action="open-load-modal"]');
       const chargeButton = treeNode.querySelector('[data-action="charge-load"]');
+      const loadStatus = treeNode.querySelector('[data-role="load-status"]');
       if (destination) {
         if (value) {
           destination.textContent = `Destination: ${value}`;
@@ -353,6 +361,9 @@
         } else {
           destination.hidden = true;
         }
+      }
+      if (loadStatus) {
+        loadStatus.hidden = !loaded;
       }
       if (loadButton) {
         loadButton.textContent = value ? 'Modifier' : 'Destination';
@@ -448,6 +459,17 @@
     }
     setNodeStatus(container, nextStatus);
     recomputeContainerStatus(container.dataset.parentId);
+  };
+
+  const applyBulkOkToContainer = (containerNode, verifierName = '') => {
+    if (!containerNode) {
+      return;
+    }
+    containerNode.querySelectorAll('.tree-node.is-item').forEach((node) => {
+      setNodeStatus(node, 'ok', '', verifierName);
+    });
+    recomputeContainerStatus(containerNode.dataset.nodeId);
+    refreshParentTiles();
   };
 
   ws.onmessage = (event) => {
@@ -575,6 +597,9 @@
       if (!container) {
         return;
       }
+      const containerNode = document.querySelector(
+        `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
+      );
       fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
         method: 'POST',
         headers: {
@@ -589,7 +614,7 @@
           if (data.progress) {
             updateProgress(data.progress);
           }
-          if (Array.isArray(data.updated_nodes)) {
+          if (Array.isArray(data.updated_nodes) && data.updated_nodes.length > 0) {
             data.updated_nodes.forEach((nodeUpdate) => {
               const node = document.querySelector(`.tree-node[data-node-id="${nodeUpdate.id}"]`);
               if (node) {
@@ -598,9 +623,17 @@
               }
             });
             refreshParentTiles();
+          } else if (containerNode) {
+            applyBulkOkToContainer(containerNode, data.verifier_name || '');
+          } else {
+            refreshParentTiles();
           }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (containerNode) {
+            applyBulkOkToContainer(containerNode, '');
+          }
+        });
     });
   });
 
