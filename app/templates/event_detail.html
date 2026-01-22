@@ -182,6 +182,42 @@
     });
   };
 
+  const updateContainerCounts = (containerNode) => {
+    if (!containerNode) {
+      return;
+    }
+    const children = containerNode.querySelectorAll(
+      ':scope .tree-node.is-item, :scope .tree-node.is-container',
+    );
+    if (!children.length) {
+      return;
+    }
+    const totals = { total: 0, ok: 0, problem: 0, pending: 0 };
+    children.forEach((child) => {
+      if (child.dataset.nodeType === 'item') {
+        totals.total += 1;
+        const status = child.dataset.status || 'pending';
+        totals[status] += 1;
+      }
+    });
+    const totalPill = containerNode.querySelector('.count-pill.neutral');
+    if (totalPill) {
+      totalPill.textContent = `Total ${totals.total}`;
+    }
+    const okPill = containerNode.querySelector('.count-pill.ok');
+    if (okPill) {
+      okPill.textContent = `OK ${totals.ok}`;
+    }
+    const problemPill = containerNode.querySelector('.count-pill.problem');
+    if (problemPill) {
+      problemPill.textContent = `Problèmes ${totals.problem}`;
+    }
+    const pendingPill = containerNode.querySelector('.count-pill.pending');
+    if (pendingPill) {
+      pendingPill.textContent = `En attente ${totals.pending}`;
+    }
+  };
+
   const recomputeContainerStatus = (containerId) => {
     if (!containerId || containerId === 'root') {
       return;
@@ -199,7 +235,19 @@
       nextStatus = 'problem';
     }
     setNodeStatus(container, nextStatus);
+    updateContainerCounts(container);
     recomputeContainerStatus(container.dataset.parentId);
+  };
+
+  const applyBulkOkToContainer = (containerNode, verifierName = '') => {
+    if (!containerNode) {
+      return;
+    }
+    containerNode.querySelectorAll('.tree-node.is-item').forEach((node) => {
+      setNodeStatus(node, 'ok', '', verifierName);
+    });
+    recomputeContainerStatus(containerNode.dataset.nodeId);
+    refreshParentTiles();
   };
 
   document.querySelectorAll('.tree-node.is-container').forEach((node) => {
@@ -292,6 +340,52 @@
       container.querySelector('.tree-name')?.textContent?.trim() ||
       'Sac';
     openLoadModal(container.dataset.nodeId, nodeName);
+  });
+
+  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const container = button.closest('[data-node-id]');
+      if (!container) {
+        return;
+      }
+      const containerNode = document.querySelector(
+        `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
+      );
+      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            return;
+          }
+          const data = await response.json();
+          if (data.progress) {
+            updateProgress(data.progress);
+          }
+          if (Array.isArray(data.updated_nodes) && data.updated_nodes.length > 0) {
+            data.updated_nodes.forEach((nodeUpdate) => {
+              const node = document.querySelector(`.tree-node[data-node-id="${nodeUpdate.id}"]`);
+              if (node) {
+                setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || '');
+                recomputeContainerStatus(node.dataset.parentId);
+              }
+            });
+            refreshParentTiles();
+          } else if (containerNode) {
+            applyBulkOkToContainer(containerNode, data.verifier_name || '');
+          } else {
+            refreshParentTiles();
+          }
+        })
+        .catch(() => {
+          if (containerNode) {
+            applyBulkOkToContainer(containerNode, '');
+          }
+        });
+    });
   });
 
   loadCancelButton?.addEventListener('click', closeLoadModal);
