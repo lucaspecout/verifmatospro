@@ -13,16 +13,18 @@
       <div class="tree-title-main">
         <span class="tree-name">{{ branch.node.name }}</span>
         <span class="tree-subtitle">Contenant · {{ branch.counts.total }} élément{{ '' if branch.counts.total == 1 else 's' }}</span>
-        <span class="tree-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>
+        <span class="tree-destination" data-role="load-destination" {% if not branch.node.load_vehicle and not branch.node.loaded_at %}hidden{% endif %}>
           {% if branch.node.load_vehicle %}
             Destination: {{ branch.node.load_vehicle }}
+          {% elif branch.node.loaded_at %}
+            Chargé dans véhicule non renseigné
           {% endif %}
         </span>
       </div>
       <div class="tree-meta">
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
         <span class="status-card-pill loaded" data-role="load-status" {% if not branch.node.loaded_at %}hidden{% endif %}>
-          Chargé
+          ✅ Chargé
         </span>
         <div class="count-row" aria-label="Compteurs de statut">
           <span class="count-pill neutral">Total {{ branch.counts.total }}</span>
@@ -63,7 +65,7 @@
             data-node-id="{{ branch.node.id }}"
             data-load-mode="charge"
             data-role="charge-button"
-            {% if not branch.node.load_vehicle or branch.node.loaded_at or branch.status != 'ok' %}disabled{% endif %}
+            {% if branch.node.loaded_at or branch.status != 'ok' %}disabled{% endif %}
           >
             {% if branch.node.loaded_at %}
               Chargé
