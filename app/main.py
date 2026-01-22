@@ -1356,10 +1356,12 @@ def event_node_charge(
             status_code=400,
             detail="Le chargement est réservé aux contenants.",
         )
-    if not node.load_vehicle:
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    status_lookup = build_status_lookup(build_tree(nodes))
+    if status_lookup.get(node.id) != "ok":
         raise HTTPException(
             status_code=400,
-            detail="La destination doit être renseignée avant le chargement.",
+            detail="Le sac doit être validé OK avant le chargement.",
         )
     node.loaded_at = datetime.utcnow()
     db.add(node)
@@ -1762,6 +1764,22 @@ def compute_node_status(node: EventNode, children: list[dict[str, Any]]) -> str:
     if any(status == "problem" for status in child_statuses):
         return "problem"
     return "pending"
+
+
+def build_status_lookup(tree: list[dict[str, Any]]) -> dict[int, str]:
+    statuses: dict[int, str] = {}
+
+    def walk(branches: list[dict[str, Any]]) -> None:
+        for branch in branches:
+            node = branch.get("node")
+            if node:
+                statuses[node.id] = branch.get("status", "pending")
+            children = branch.get("children")
+            if children:
+                walk(children)
+
+    walk(tree)
+    return statuses
 
 
 def compute_node_counts(
