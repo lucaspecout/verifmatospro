@@ -628,10 +628,7 @@
       if (!container || button.hidden) {
         return;
       }
-      const vehicle = container.dataset.loadVehicle?.trim();
-      if (!vehicle) {
-        return;
-      }
+      const vehicle = container.dataset.loadVehicle?.trim() || '';
       fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
         method: 'POST',
         headers: {
