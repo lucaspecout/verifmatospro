@@ -250,6 +250,19 @@
     refreshParentTiles();
   };
 
+  const applyOkFallback = (targetNode, verifierName = '') => {
+    if (!targetNode) {
+      return;
+    }
+    if (targetNode.dataset.nodeType === 'item') {
+      setNodeStatus(targetNode, 'ok', '', verifierName);
+      recomputeContainerStatus(targetNode.dataset.parentId);
+      refreshParentTiles();
+      return;
+    }
+    applyBulkOkToContainer(targetNode, verifierName);
+  };
+
   document.querySelectorAll('.tree-node.is-container').forEach((node) => {
     node.removeAttribute('open');
   });
@@ -351,6 +364,7 @@
       const containerNode = document.querySelector(
         `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
       );
+      const targetNode = containerNode || container;
       fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
         method: 'POST',
         headers: {
@@ -374,16 +388,12 @@
               }
             });
             refreshParentTiles();
-          } else if (containerNode) {
-            applyBulkOkToContainer(containerNode, data.verifier_name || '');
-          } else {
-            refreshParentTiles();
+          } else if (targetNode) {
+            applyOkFallback(targetNode, data.verifier_name || '');
           }
         })
         .catch(() => {
-          if (containerNode) {
-            applyBulkOkToContainer(containerNode, '');
-          }
+          applyOkFallback(targetNode, '');
         });
     });
   });

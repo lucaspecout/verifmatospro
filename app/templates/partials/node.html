@@ -97,7 +97,17 @@
         <span class="tree-name">{{ branch.node.name }}</span>
         <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
       </div>
-      <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+      <div class="tree-item-actions">
+        <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
+        <button
+          class="btn small"
+          type="button"
+          data-action="bulk-ok"
+          data-node-id="{{ branch.node.id }}"
+        >
+          OK
+        </button>
+      </div>
     </div>
     <div class="tree-note" data-role="comment">
       {% if branch.node.comment %}

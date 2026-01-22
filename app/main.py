@@ -1392,8 +1392,8 @@ def event_node_bulk_ok(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id:
         raise HTTPException(status_code=404)
-    if node.node_type != "container":
-        raise HTTPException(status_code=400, detail="Seuls les parents peuvent être validés.")
+    if node.node_type not in {"container", "item"}:
+        raise HTTPException(status_code=400, detail="Type de noeud non supporté.")
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     nodes_by_parent: dict[int | None, list[EventNode]] = defaultdict(list)
     for entry in nodes:
@@ -1401,14 +1401,17 @@ def event_node_bulk_ok(
 
     items: list[EventNode] = []
 
-    def collect_items(parent_id: int) -> None:
-        for child in nodes_by_parent.get(parent_id, []):
-            if child.node_type == "item":
-                items.append(child)
-            else:
-                collect_items(child.id)
+    if node.node_type == "item":
+        items = [node]
+    else:
+        def collect_items(parent_id: int) -> None:
+            for child in nodes_by_parent.get(parent_id, []):
+                if child.node_type == "item":
+                    items.append(child)
+                else:
+                    collect_items(child.id)
 
-    collect_items(node.id)
+        collect_items(node.id)
     verifier_name = user.username if user else ""
     now = datetime.utcnow()
     for item in items:
