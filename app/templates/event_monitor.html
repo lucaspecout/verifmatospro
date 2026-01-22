@@ -453,7 +453,7 @@
     const data = JSON.parse(event.data);
     if (data.type === 'progress') {
       updateProgress(data.progress);
-      const node = document.querySelector(`[data-node-id="${data.node_id}"]`);
+      const node = document.querySelector(`.tree-node[data-node-id="${data.node_id}"]`);
       if (node) {
         setNodeStatus(node, data.status, data.comment, data.verifier_name);
         recomputeContainerStatus(node.dataset.parentId);
@@ -590,7 +590,7 @@
           }
           if (Array.isArray(data.updated_nodes)) {
             data.updated_nodes.forEach((nodeUpdate) => {
-              const node = document.querySelector(`[data-node-id="${nodeUpdate.id}"]`);
+              const node = document.querySelector(`.tree-node[data-node-id="${nodeUpdate.id}"]`);
               if (node) {
                 setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || '');
                 recomputeContainerStatus(node.dataset.parentId);
