@@ -567,6 +567,12 @@ body {
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
+.monitor-tiles .status-card {
+  aspect-ratio: auto;
+  min-height: 160px;
+  justify-content: flex-start;
+}
+
 .status-card-name {
   font-weight: 600;
   font-size: 0.78rem;
