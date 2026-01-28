@@ -225,7 +225,6 @@
       tile.classList.remove('ok', 'problem', 'pending');
       tile.classList.add(status);
       tile.dataset.status = status;
-      tile.classList.toggle('loaded', isLoaded);
       const label = tile.querySelector('.status-square-status');
       if (label) {
         if (status === 'ok') {
@@ -491,18 +490,15 @@
     triggerBulkOk(container);
   });
 
-  document.addEventListener('click', (event) => {
-    const button = event.target.closest('[data-action="bulk-ok"]');
-    if (!button) {
-      return;
-    }
-    event.preventDefault();
-    event.stopPropagation();
-    const container = button.closest('[data-node-id]');
-    if (!container) {
-      return;
-    }
-    triggerBulkOk(container);
+  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      const container = button.closest('[data-node-id]');
+      if (!container) {
+        return;
+      }
+      triggerBulkOk(container);
+    });
   });
 
   document.addEventListener('click', (event) => {
