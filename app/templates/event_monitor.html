@@ -115,6 +115,7 @@
                   type="button"
                   data-action="open-load-modal"
                   data-node-id="{{ parent.node.id }}"
+                  data-node-name="{{ parent.node.name }}"
                   data-load-mode="destination"
                 >
                   {% if parent.node.load_vehicle %}
@@ -632,10 +633,11 @@
         return;
       }
       const nodeName =
-        container.querySelector('.status-card-name')?.textContent?.trim() ||
-        container.querySelector('.tree-name')?.textContent?.trim() ||
+        button.dataset.nodeName?.trim() ||
+        container?.querySelector('.status-card-name')?.textContent?.trim() ||
+        container?.querySelector('.tree-name')?.textContent?.trim() ||
         'Sac';
-      openLoadModal(container.dataset.nodeId, nodeName);
+      openLoadModal(nodeId, nodeName);
     });
   });
 
