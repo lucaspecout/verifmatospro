@@ -117,7 +117,7 @@
                   data-node-id="{{ parent.node.id }}"
                   data-node-name="{{ parent.node.name }}"
                   data-load-mode="destination"
-                  onclick="window.handleLoadModalClick && window.handleLoadModalClick(this); return false;"
+                  onclick="window.openLoadModal && window.openLoadModal(this.dataset.nodeId, this.dataset.nodeName); return false;"
                 >
                   {% if parent.node.load_vehicle %}
                     Modifier
@@ -267,13 +267,21 @@
 
   const updateProgress = (progress) => {
     const bar = document.querySelector('#progress-bar .progress-bar');
-    bar.style.width = `${progress.percent}%`;
-    document.querySelector('#progress-percent').textContent = `${progress.percent}%`;
-    document.querySelector('#progress-stats').innerHTML = `
-      <span class="stat-pill ok">OK: ${progress.ok}</span>
-      <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
-      <span class="stat-pill pending">En attente: ${progress.pending}</span>
-    `;
+    if (bar) {
+      bar.style.width = `${progress.percent}%`;
+    }
+    const percent = document.querySelector('#progress-percent');
+    if (percent) {
+      percent.textContent = `${progress.percent}%`;
+    }
+    const stats = document.querySelector('#progress-stats');
+    if (stats) {
+      stats.innerHTML = `
+        <span class="stat-pill ok">OK: ${progress.ok}</span>
+        <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
+        <span class="stat-pill pending">En attente: ${progress.pending}</span>
+      `;
+    }
   };
 
   const loadModal = document.querySelector('#load-modal');
@@ -301,6 +309,7 @@
       return;
     }
     loadModal.classList.remove('is-open');
+    loadModal.removeAttribute('open');
     loadModal.setAttribute('aria-hidden', 'true');
     activeLoadNodeId = null;
   };
@@ -310,14 +319,40 @@
       return;
     }
     activeLoadNodeId = nodeId;
+    loadModal.dataset.activeNodeId = nodeId;
     const currentInfo = loadState.get(nodeId);
     const resolvedName = nodeName?.trim() || 'Sac';
     loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
+    loadModal.setAttribute('open', '');
     loadModal.setAttribute('aria-hidden', 'false');
     loadVehicleInput.focus();
   };
+
+  window.openLoadModal = openLoadModal;
+
+  const handleLoadModalClick = (button) => {
+    if (!button) {
+      return;
+    }
+    const container = resolveNodeContainer(button);
+    if (!container || button.hidden) {
+      return;
+    }
+    const nodeId = container.dataset.nodeId;
+    if (!nodeId) {
+      return;
+    }
+    const nodeName =
+      button.dataset.nodeName?.trim() ||
+      container?.querySelector('.status-card-name')?.textContent?.trim() ||
+      container?.querySelector('.tree-name')?.textContent?.trim() ||
+      'Sac';
+    openLoadModal(nodeId, nodeName);
+  };
+
+  window.handleLoadModalClick = handleLoadModalClick;
 
   const applyLoadState = (tile) => {
     if (!tile) {
@@ -608,43 +643,40 @@
   const linkPanel = document.querySelector('.public-link');
   const toggleButton = document.querySelector('[data-action="toggle-link"]');
   const copyButton = document.querySelector('[data-action="copy-link"]');
-  const linkValue = linkPanel.textContent.trim();
+  const linkValue = linkPanel?.textContent.trim() || '';
 
-  toggleButton.addEventListener('click', () => {
-    linkPanel.classList.toggle('visible');
-    toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
-  });
-
-  copyButton.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(linkValue);
-      copyButton.textContent = 'Copié';
-      setTimeout(() => {
-        copyButton.textContent = 'Copier';
-      }, 2000);
-    } catch (err) {
-      copyButton.textContent = 'Erreur';
-      setTimeout(() => {
-        copyButton.textContent = 'Copier';
-      }, 2000);
-    }
-  });
-
-  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const container = resolveNodeContainer(button);
-      if (!container || button.hidden) {
-        return;
-      }
-      const nodeName =
-        button.dataset.nodeName?.trim() ||
-        container?.querySelector('.status-card-name')?.textContent?.trim() ||
-        container?.querySelector('.tree-name')?.textContent?.trim() ||
-        'Sac';
-      openLoadModal(nodeId, nodeName);
+  if (linkPanel && toggleButton) {
+    toggleButton.addEventListener('click', () => {
+      linkPanel.classList.toggle('visible');
+      toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
     });
+  }
+
+  if (copyButton && linkValue) {
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(linkValue);
+        copyButton.textContent = 'Copié';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier';
+        }, 2000);
+      } catch (err) {
+        copyButton.textContent = 'Erreur';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier';
+        }, 2000);
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="open-load-modal"]');
+    if (!button || event.defaultPrevented) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    handleLoadModalClick(button);
   });
 
   document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
@@ -766,7 +798,8 @@
 
   loadForm?.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!activeLoadNodeId || !loadVehicleInput) {
+    const resolvedNodeId = activeLoadNodeId || loadModal?.dataset.activeNodeId;
+    if (!resolvedNodeId || !loadVehicleInput) {
       return;
     }
     const vehicle = loadVehicleInput.value.trim();
@@ -776,7 +809,7 @@
     }
     const payload = new FormData();
     payload.append('vehicle_name', vehicle);
-    fetch(`/events/{{ event.id }}/nodes/${activeLoadNodeId}/load`, {
+    fetch(`/events/{{ event.id }}/nodes/${resolvedNodeId}/load`, {
       method: 'POST',
       body: payload,
       headers: {
