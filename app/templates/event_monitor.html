@@ -117,7 +117,7 @@
                   data-node-id="{{ parent.node.id }}"
                   data-node-name="{{ parent.node.name }}"
                   data-load-mode="destination"
-                  onclick="window.handleLoadModalClick && window.handleLoadModalClick(this); return false;"
+                  onclick="window.openLoadModal && window.openLoadModal(this.dataset.nodeId, this.dataset.nodeName); return false;"
                 >
                   {% if parent.node.load_vehicle %}
                     Modifier

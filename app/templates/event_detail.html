@@ -313,6 +313,8 @@
     loadVehicleInput.focus();
   };
 
+  window.openLoadModal = openLoadModal;
+
   const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
     const value = vehicle?.trim();
     if (value || loaded) {
