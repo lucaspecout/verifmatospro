@@ -251,24 +251,17 @@
   const verifierSet = new Set(Array.isArray(verifierSeed) ? verifierSeed : []);
 
   const resolveNodeContainer = (element) => {
-    if (!element) {
+    if (!element || !element.closest) {
       return null;
     }
-    const nodeId = element.dataset?.nodeId;
-    if (nodeId) {
-      const tile = document.querySelector(`.status-card[data-node-id="${nodeId}"]`);
-      if (tile) {
-        return tile;
-      }
-      const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
-      if (treeNode) {
-        return treeNode;
-      }
-    }
-    if (!element.closest) {
+    const raw = element.closest('[data-node-id]');
+    if (!raw) {
       return null;
     }
-    return element.closest('[data-node-id]');
+    if (raw.matches('button')) {
+      return raw.closest('[data-node-id]:not(button)') || raw;
+    }
+    return raw;
   };
 
   const updateProgress = (progress) => {
@@ -641,8 +634,7 @@
       event.preventDefault();
       event.stopPropagation();
       const container = resolveNodeContainer(button);
-      const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
-      if (!nodeId || button.hidden) {
+      if (!container || button.hidden) {
         return;
       }
       const nodeName =
@@ -659,15 +651,14 @@
       event.preventDefault();
       event.stopPropagation();
       const container = resolveNodeContainer(button);
-      const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
-      if (!nodeId || button.hidden) {
+      if (!container || button.hidden) {
         return;
       }
       const previousLabel = button.textContent;
       button.textContent = 'Chargement...';
       button.disabled = true;
-      const vehicle = container?.dataset.loadVehicle?.trim() || '';
-      fetch(`/events/{{ event.id }}/nodes/${nodeId}/charge`, {
+      const vehicle = container.dataset.loadVehicle?.trim() || '';
+      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
@@ -759,6 +750,7 @@
       if (!container) {
         return;
       }
+      event.preventDefault();
       triggerBulkOk(container);
     });
   });
