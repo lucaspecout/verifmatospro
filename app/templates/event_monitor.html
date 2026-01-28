@@ -124,7 +124,12 @@
                     Destination
                   {% endif %}
                 </button>
-                <form method="post" action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok" class="inline-form">
+                <form
+                  method="post"
+                  action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok"
+                  class="inline-form"
+                  data-node-id="{{ parent.node.id }}"
+                >
                   <button
                     class="btn small status-card-load"
                     type="submit"
@@ -729,7 +734,10 @@
   document.querySelectorAll('form.inline-form[action*="/bulk-ok"]').forEach((form) => {
     form.addEventListener('submit', (event) => {
       event.preventDefault();
-      const container = form.closest('[data-node-id]');
+      event.stopPropagation();
+      const container =
+        resolveNodeContainer(form) ||
+        resolveNodeContainer(form.querySelector('[data-action="bulk-ok"]'));
       triggerBulkOk(container);
     });
   });
