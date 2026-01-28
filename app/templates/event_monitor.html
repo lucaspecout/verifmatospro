@@ -319,6 +319,28 @@
     loadVehicleInput.focus();
   };
 
+  const handleLoadModalClick = (button) => {
+    if (!button) {
+      return;
+    }
+    const container = resolveNodeContainer(button);
+    if (!container || button.hidden) {
+      return;
+    }
+    const nodeId = container.dataset.nodeId;
+    if (!nodeId) {
+      return;
+    }
+    const nodeName =
+      button.dataset.nodeName?.trim() ||
+      container?.querySelector('.status-card-name')?.textContent?.trim() ||
+      container?.querySelector('.tree-name')?.textContent?.trim() ||
+      'Sac';
+    openLoadModal(nodeId, nodeName);
+  };
+
+  window.handleLoadModalClick = handleLoadModalClick;
+
   const applyLoadState = (tile) => {
     if (!tile) {
       return;
@@ -634,16 +656,7 @@
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const container = resolveNodeContainer(button);
-      if (!container || button.hidden) {
-        return;
-      }
-      const nodeName =
-        button.dataset.nodeName?.trim() ||
-        container?.querySelector('.status-card-name')?.textContent?.trim() ||
-        container?.querySelector('.tree-name')?.textContent?.trim() ||
-        'Sac';
-      openLoadModal(nodeId, nodeName);
+      handleLoadModalClick(button);
     });
   });
 
