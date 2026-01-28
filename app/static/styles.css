@@ -1754,24 +1754,6 @@ body {
   margin-top: 0;
 }
 
-.event-quick-overview {
-  margin-top: 1.25rem;
-  display: grid;
-  gap: 0.75rem;
-}
-
-.event-quick-overview .overview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.event-quick-grid {
-  margin-top: 0;
-}
-
 .summary-card {
   background: #f8fafc;
   border-radius: 16px;
