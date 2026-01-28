@@ -42,7 +42,7 @@
             data-node-id="{{ branch.node.id }}"
             data-node-name="{{ branch.node.name }}"
             data-load-mode="destination"
-            onclick="window.handleLoadModalClick && window.handleLoadModalClick(this); return false;"
+            onclick="const modal=document.getElementById('load-modal');if(!modal){return false;}const nodeId=this.dataset.nodeId||'';modal.dataset.activeNodeId=nodeId;const name=this.dataset.nodeName||'Sac';const subtitle=modal.querySelector('#load-modal-subtitle');if(subtitle){subtitle.textContent='Où le sac \"'+name+'\" va-t-il être chargé ?';}modal.classList.add('is-open');modal.setAttribute('open','');modal.setAttribute('aria-hidden','false');const input=modal.querySelector('#load-vehicle-name');if(input){input.focus();}return false;"
           >
             {% if branch.node.load_vehicle %}
               Modifier
