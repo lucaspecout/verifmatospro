@@ -304,6 +304,7 @@
       return;
     }
     activeLoadNodeId = nodeId;
+    loadModal.dataset.activeNodeId = nodeId;
     const currentInfo = loadState.get(nodeId);
     const resolvedName = nodeName?.trim() || 'Sac';
     loadModalSubtitle.textContent = `Où le sac "${resolvedName}" a-t-il été chargé ?`;
@@ -487,7 +488,8 @@
 
   loadForm?.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!activeLoadNodeId || !loadVehicleInput) {
+    const resolvedNodeId = activeLoadNodeId || loadModal?.dataset.activeNodeId;
+    if (!resolvedNodeId || !loadVehicleInput) {
       return;
     }
     const vehicle = loadVehicleInput.value.trim();
@@ -497,7 +499,7 @@
     }
     const payload = new FormData();
     payload.append('vehicle_name', vehicle);
-    fetch(`/events/{{ event.id }}/nodes/${activeLoadNodeId}/load`, {
+    fetch(`/events/{{ event.id }}/nodes/${resolvedNodeId}/load`, {
       method: 'POST',
       body: payload,
       headers: {

@@ -267,13 +267,21 @@
 
   const updateProgress = (progress) => {
     const bar = document.querySelector('#progress-bar .progress-bar');
-    bar.style.width = `${progress.percent}%`;
-    document.querySelector('#progress-percent').textContent = `${progress.percent}%`;
-    document.querySelector('#progress-stats').innerHTML = `
-      <span class="stat-pill ok">OK: ${progress.ok}</span>
-      <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
-      <span class="stat-pill pending">En attente: ${progress.pending}</span>
-    `;
+    if (bar) {
+      bar.style.width = `${progress.percent}%`;
+    }
+    const percent = document.querySelector('#progress-percent');
+    if (percent) {
+      percent.textContent = `${progress.percent}%`;
+    }
+    const stats = document.querySelector('#progress-stats');
+    if (stats) {
+      stats.innerHTML = `
+        <span class="stat-pill ok">OK: ${progress.ok}</span>
+        <span class="stat-pill problem">Problèmes: ${progress.problem}</span>
+        <span class="stat-pill pending">En attente: ${progress.pending}</span>
+      `;
+    }
   };
 
   const loadModal = document.querySelector('#load-modal');
@@ -311,6 +319,7 @@
       return;
     }
     activeLoadNodeId = nodeId;
+    loadModal.dataset.activeNodeId = nodeId;
     const currentInfo = loadState.get(nodeId);
     const resolvedName = nodeName?.trim() || 'Sac';
     loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
@@ -786,7 +795,8 @@
 
   loadForm?.addEventListener('submit', (event) => {
     event.preventDefault();
-    if (!activeLoadNodeId || !loadVehicleInput) {
+    const resolvedNodeId = activeLoadNodeId || loadModal?.dataset.activeNodeId;
+    if (!resolvedNodeId || !loadVehicleInput) {
       return;
     }
     const vehicle = loadVehicleInput.value.trim();
@@ -796,7 +806,7 @@
     }
     const payload = new FormData();
     payload.append('vehicle_name', vehicle);
-    fetch(`/events/{{ event.id }}/nodes/${activeLoadNodeId}/load`, {
+    fetch(`/events/{{ event.id }}/nodes/${resolvedNodeId}/load`, {
       method: 'POST',
       body: payload,
       headers: {
