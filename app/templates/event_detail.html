@@ -199,6 +199,15 @@
     if (verifierEl && typeof verifierName !== 'undefined') {
       verifierEl.textContent = verifierName ? `Dernière action: ${verifierName}` : 'Dernière action: Non renseigné';
     }
+    if (node.dataset.nodeType === 'container') {
+      const chargeButton = node.querySelector('[data-action="charge-load"]');
+      if (chargeButton) {
+        const loaded = node.dataset.loaded === 'true';
+        const isReady = status === 'ok' && !loaded;
+        chargeButton.classList.toggle('is-ready', isReady);
+        chargeButton.classList.toggle('is-loaded', loaded);
+      }
+    }
   };
 
   const refreshParentTiles = () => {
@@ -399,10 +408,12 @@
       loadStatus.hidden = !loaded;
     }
     if (chargeButton) {
-      chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
+      chargeButton.textContent = loaded ? '✅ Chargé' : '🚚 Charger';
       const disableCharge = loaded || treeNode.dataset.status !== 'ok';
       chargeButton.toggleAttribute('disabled', disableCharge);
       chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+      chargeButton.classList.toggle('is-loaded', loaded);
+      chargeButton.classList.toggle('is-ready', !disableCharge && !loaded);
     }
   };
 
@@ -461,12 +472,15 @@
       });
   };
 
-  document.querySelectorAll('form.inline-form[action*="/bulk-ok"]').forEach((form) => {
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const container = form.closest('[data-node-id]');
-      triggerBulkOk(container);
-    });
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest('form.inline-form[action*="/bulk-ok"]');
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const container = form.closest('[data-node-id]');
+    triggerBulkOk(container);
   });
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
@@ -480,47 +494,51 @@
     });
   });
 
-  document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const container = button.closest('[data-node-id]');
-      if (!container || button.hidden) {
-        return;
-      }
-      const vehicle = container.dataset.loadVehicle?.trim() || '';
-      const previousLabel = button.textContent;
-      button.textContent = 'Chargement...';
-      button.disabled = true;
-      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-      })
-        .then(async (response) => {
-          button.textContent = previousLabel;
-          button.disabled = false;
-          if (!response.ok) {
-            let message = 'Impossible de charger ce sac pour le moment.';
-            try {
-              const errorPayload = await response.json();
-              if (errorPayload?.detail) {
-                message = errorPayload.detail;
-              }
-            } catch (err) {
-              // Ignore parse errors
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="charge-load"]');
+    if (!button) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const container = button.closest('[data-node-id]');
+    if (!container || button.hidden) {
+      return;
+    }
+    const vehicle = container.dataset.loadVehicle?.trim() || '';
+    const previousLabel = button.textContent;
+    button.textContent = 'Chargement...';
+    button.disabled = true;
+    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        if (!response.ok) {
+          let message = 'Impossible de charger ce sac pour le moment.';
+          try {
+            const errorPayload = await response.json();
+            if (errorPayload?.detail) {
+              message = errorPayload.detail;
             }
-            alert(message);
-            return;
+          } catch (err) {
+            // Ignore parse errors
           }
-          const data = await response.json();
-          updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
-        })
-        .catch(() => {
-          button.textContent = previousLabel;
-          button.disabled = false;
-          alert('Erreur réseau pendant le chargement.');
-        });
-    });
+          alert(message);
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+      })
+      .catch(() => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        alert('Erreur réseau pendant le chargement.');
+      });
   });
 
   loadCancelButton?.addEventListener('click', closeLoadModal);

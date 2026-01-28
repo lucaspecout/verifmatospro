@@ -420,10 +420,12 @@
       loadButton.textContent = loadInfo?.vehicle ? 'Modifier' : 'Destination';
     }
     if (chargeButton) {
-      chargeButton.textContent = isLoaded ? 'Chargé' : 'Charger';
+      chargeButton.textContent = isLoaded ? '✅ Chargé' : '🚚 Charger';
       const disableCharge = isLoaded || !isReady;
       chargeButton.toggleAttribute('disabled', disableCharge);
       chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+      chargeButton.classList.toggle('is-loaded', isLoaded);
+      chargeButton.classList.toggle('is-ready', !disableCharge && !isLoaded);
     }
   };
 
@@ -467,10 +469,12 @@
         loadButton.textContent = value ? 'Modifier' : 'Destination';
       }
       if (chargeButton) {
-        chargeButton.textContent = loaded ? 'Chargé' : 'Charger';
+        chargeButton.textContent = loaded ? '✅ Chargé' : '🚚 Charger';
         const disableCharge = loaded || treeNode.dataset.status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+        chargeButton.classList.toggle('is-loaded', loaded);
+        chargeButton.classList.toggle('is-ready', !disableCharge && !loaded);
       }
     }
   };
@@ -505,6 +509,8 @@
         const disableCharge = loaded || status !== 'ok';
         chargeButton.toggleAttribute('disabled', disableCharge);
         chargeButton.setAttribute('aria-disabled', disableCharge ? 'true' : 'false');
+        chargeButton.classList.toggle('is-loaded', loaded);
+        chargeButton.classList.toggle('is-ready', !disableCharge && !loaded);
       }
     }
     if (node.dataset.nodeType === 'container' && status === 'ok') {
