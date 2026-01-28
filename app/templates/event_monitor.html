@@ -301,6 +301,7 @@
       return;
     }
     loadModal.classList.remove('is-open');
+    loadModal.removeAttribute('open');
     loadModal.setAttribute('aria-hidden', 'true');
     activeLoadNodeId = null;
   };
@@ -315,6 +316,7 @@
     loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
+    loadModal.setAttribute('open', '');
     loadModal.setAttribute('aria-hidden', 'false');
     loadVehicleInput.focus();
   };
@@ -630,12 +632,7 @@
   const linkPanel = document.querySelector('.public-link');
   const toggleButton = document.querySelector('[data-action="toggle-link"]');
   const copyButton = document.querySelector('[data-action="copy-link"]');
-  const linkValue = linkPanel.textContent.trim();
-
-  toggleButton.addEventListener('click', () => {
-    linkPanel.classList.toggle('visible');
-    toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
-  });
+  const linkValue = linkPanel?.textContent.trim() || '';
 
   copyButton.addEventListener('click', async () => {
     try {
@@ -658,6 +655,16 @@
       event.stopPropagation();
       handleLoadModalClick(button);
     });
+  }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="open-load-modal"]');
+    if (!button || event.defaultPrevented) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    handleLoadModalClick(button);
   });
 
   document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
