@@ -42,6 +42,7 @@
             data-node-id="{{ branch.node.id }}"
             data-node-name="{{ branch.node.name }}"
             data-load-mode="destination"
+            onclick="window.handleLoadModalClick && window.handleLoadModalClick(this); return false;"
           >
             {% if branch.node.load_vehicle %}
               Modifier
