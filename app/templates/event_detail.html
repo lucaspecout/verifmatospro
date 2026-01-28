@@ -372,7 +372,8 @@
   });
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
-    button.addEventListener('click', () => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
       const container = button.closest('[data-node-id]');
       if (!container) {
         return;
