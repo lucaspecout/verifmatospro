@@ -638,6 +638,10 @@
       if (!container || button.hidden) {
         return;
       }
+      const nodeId = container.dataset.nodeId;
+      if (!nodeId) {
+        return;
+      }
       const nodeName =
         button.dataset.nodeName?.trim() ||
         container?.querySelector('.status-card-name')?.textContent?.trim() ||
