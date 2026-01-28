@@ -62,7 +62,7 @@
       <div class="summary-card">
         <div class="summary-header">
           <span>Progression globale</span>
-          <span class="summary-value" id="progress-percent">{{ progress.percent }}%</span>
+          <span class="summary-value progress-value" id="progress-percent">{{ progress.percent }}%</span>
         </div>
         <div class="progress" id="progress-bar">
           <div class="progress-bar" style="width: {{ progress.percent }}%"></div>
@@ -442,6 +442,10 @@
       tile.dataset.loaded = loaded ? 'true' : 'false';
       applyLoadState(tile);
     }
+    const quickTile = document.querySelector(`.status-square[data-node-id="${nodeId}"]`);
+    if (quickTile) {
+      quickTile.classList.toggle('loaded', loaded);
+    }
     const treeNode = document.querySelector(`.tree-node.is-container[data-node-id="${nodeId}"]`);
     if (treeNode) {
       treeNode.dataset.loadVehicle = value || '';
@@ -526,9 +530,11 @@
         return;
       }
       const status = node.dataset.status || 'pending';
+      const isLoaded = node.dataset.loaded === 'true';
       tile.classList.remove('ok', 'problem', 'pending');
       tile.classList.add(status);
       tile.dataset.status = status;
+      tile.classList.toggle('loaded', isLoaded);
       const pill = tile.querySelector('.status-card-pill');
       if (pill) {
         pill.classList.remove('ok', 'problem', 'pending');
