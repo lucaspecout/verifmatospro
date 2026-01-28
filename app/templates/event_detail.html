@@ -466,9 +466,11 @@
         } else if (targetNode) {
           applyOkFallback(targetNode, data.verifier_name || '');
         }
+        window.fetchLiveChecklist?.();
       })
       .catch(() => {
         applyOkFallback(targetNode, '');
+        window.fetchLiveChecklist?.();
       });
   };
 
@@ -629,6 +631,8 @@
       // Ignore refresh failures to avoid noisy logs.
     }
   };
+
+  window.fetchLiveChecklist = fetchLiveChecklist;
 
   fetchLiveChecklist();
   setInterval(fetchLiveChecklist, 10000);
