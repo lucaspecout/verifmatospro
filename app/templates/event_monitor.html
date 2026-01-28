@@ -301,6 +301,7 @@
       return;
     }
     loadModal.classList.remove('is-open');
+    loadModal.removeAttribute('open');
     loadModal.setAttribute('aria-hidden', 'true');
     activeLoadNodeId = null;
   };
@@ -315,9 +316,32 @@
     loadModalSubtitle.textContent = `Où le sac "${resolvedName}" va-t-il être chargé ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
+    loadModal.setAttribute('open', '');
     loadModal.setAttribute('aria-hidden', 'false');
     loadVehicleInput.focus();
   };
+
+  const handleLoadModalClick = (button) => {
+    if (!button) {
+      return;
+    }
+    const container = resolveNodeContainer(button);
+    if (!container || button.hidden) {
+      return;
+    }
+    const nodeId = container.dataset.nodeId;
+    if (!nodeId) {
+      return;
+    }
+    const nodeName =
+      button.dataset.nodeName?.trim() ||
+      container?.querySelector('.status-card-name')?.textContent?.trim() ||
+      container?.querySelector('.tree-name')?.textContent?.trim() ||
+      'Sac';
+    openLoadModal(nodeId, nodeName);
+  };
+
+  window.handleLoadModalClick = handleLoadModalClick;
 
   const applyLoadState = (tile) => {
     if (!tile) {
@@ -608,43 +632,40 @@
   const linkPanel = document.querySelector('.public-link');
   const toggleButton = document.querySelector('[data-action="toggle-link"]');
   const copyButton = document.querySelector('[data-action="copy-link"]');
-  const linkValue = linkPanel.textContent.trim();
+  const linkValue = linkPanel?.textContent.trim() || '';
 
-  toggleButton.addEventListener('click', () => {
-    linkPanel.classList.toggle('visible');
-    toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
-  });
-
-  copyButton.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(linkValue);
-      copyButton.textContent = 'Copié';
-      setTimeout(() => {
-        copyButton.textContent = 'Copier';
-      }, 2000);
-    } catch (err) {
-      copyButton.textContent = 'Erreur';
-      setTimeout(() => {
-        copyButton.textContent = 'Copier';
-      }, 2000);
-    }
-  });
-
-  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const container = resolveNodeContainer(button);
-      if (!container || button.hidden) {
-        return;
-      }
-      const nodeName =
-        button.dataset.nodeName?.trim() ||
-        container?.querySelector('.status-card-name')?.textContent?.trim() ||
-        container?.querySelector('.tree-name')?.textContent?.trim() ||
-        'Sac';
-      openLoadModal(nodeId, nodeName);
+  if (linkPanel && toggleButton) {
+    toggleButton.addEventListener('click', () => {
+      linkPanel.classList.toggle('visible');
+      toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
     });
+  }
+
+  if (copyButton && linkValue) {
+    copyButton.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(linkValue);
+        copyButton.textContent = 'Copié';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier';
+        }, 2000);
+      } catch (err) {
+        copyButton.textContent = 'Erreur';
+        setTimeout(() => {
+          copyButton.textContent = 'Copier';
+        }, 2000);
+      }
+    });
+  }
+
+  document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-action="open-load-modal"]');
+    if (!button || event.defaultPrevented) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    handleLoadModalClick(button);
   });
 
   document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
