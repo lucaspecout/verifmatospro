@@ -126,7 +126,7 @@
                 <form method="post" action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok" class="inline-form">
                   <button
                     class="btn small status-card-load"
-                    type="submit"
+                    type="button"
                     data-action="bulk-ok"
                     data-node-id="{{ parent.node.id }}"
                   >
@@ -712,7 +712,9 @@
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
     button.addEventListener('click', (event) => {
-      if (button.closest('form')) {
+      event.preventDefault();
+      const container = button.closest('[data-node-id]');
+      if (!container) {
         return;
       }
       event.preventDefault();

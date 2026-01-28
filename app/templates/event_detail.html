@@ -421,7 +421,9 @@
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
     button.addEventListener('click', (event) => {
-      if (button.closest('form')) {
+      event.preventDefault();
+      const container = button.closest('[data-node-id]');
+      if (!container) {
         return;
       }
       event.preventDefault();
