@@ -628,6 +628,9 @@
       if (!container || button.hidden) {
         return;
       }
+      const previousLabel = button.textContent;
+      button.textContent = 'Chargement...';
+      button.disabled = true;
       const vehicle = container.dataset.loadVehicle?.trim() || '';
       fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
         method: 'POST',
@@ -718,7 +721,6 @@
         return;
       }
       event.preventDefault();
-      const container = button.closest('[data-node-id]');
       triggerBulkOk(container);
     });
   });
