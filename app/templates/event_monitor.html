@@ -117,7 +117,7 @@
                   data-node-id="{{ parent.node.id }}"
                   data-node-name="{{ parent.node.name }}"
                   data-load-mode="destination"
-                  onclick="const modal=document.getElementById('load-modal');if(!modal){return false;}const nodeId=this.dataset.nodeId||'';modal.dataset.activeNodeId=nodeId;const name=this.dataset.nodeName||'Sac';const subtitle=modal.querySelector('#load-modal-subtitle');if(subtitle){subtitle.textContent='Où le sac \"'+name+'\" va-t-il être chargé ?';}modal.classList.add('is-open');modal.setAttribute('open','');modal.setAttribute('aria-hidden','false');const input=modal.querySelector('#load-vehicle-name');if(input){input.focus();}return false;"
+                  onclick="window.openLoadModal && window.openLoadModal(this.dataset.nodeId, this.dataset.nodeName); return false;"
                 >
                   {% if parent.node.load_vehicle %}
                     Modifier
@@ -329,8 +329,6 @@
     loadModal.setAttribute('aria-hidden', 'false');
     loadVehicleInput.focus();
   };
-
-  window.openLoadModal = openLoadModal;
 
   const handleLoadModalClick = (button) => {
     if (!button) {
@@ -645,27 +643,26 @@
   const copyButton = document.querySelector('[data-action="copy-link"]');
   const linkValue = linkPanel?.textContent.trim() || '';
 
-  if (linkPanel && toggleButton) {
-    toggleButton.addEventListener('click', () => {
-      linkPanel.classList.toggle('visible');
-      toggleButton.textContent = linkPanel.classList.contains('visible') ? 'Masquer' : 'Afficher';
-    });
-  }
+  copyButton.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(linkValue);
+      copyButton.textContent = 'Copié';
+      setTimeout(() => {
+        copyButton.textContent = 'Copier';
+      }, 2000);
+    } catch (err) {
+      copyButton.textContent = 'Erreur';
+      setTimeout(() => {
+        copyButton.textContent = 'Copier';
+      }, 2000);
+    }
+  });
 
-  if (copyButton && linkValue) {
-    copyButton.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(linkValue);
-        copyButton.textContent = 'Copié';
-        setTimeout(() => {
-          copyButton.textContent = 'Copier';
-        }, 2000);
-      } catch (err) {
-        copyButton.textContent = 'Erreur';
-        setTimeout(() => {
-          copyButton.textContent = 'Copier';
-        }, 2000);
-      }
+  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handleLoadModalClick(button);
     });
   }
 
