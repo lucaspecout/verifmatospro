@@ -110,12 +110,7 @@
       </div>
       <div class="tree-item-actions">
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
-        <form
-          method="post"
-          action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok"
-          class="inline-form"
-          data-node-id="{{ branch.node.id }}"
-        >
+        <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok" class="inline-form">
           <button
             class="btn small"
             type="submit"
