@@ -26,6 +26,38 @@
         </form>
       </div>
     </div>
+    {% if parent_tiles %}
+      <div class="monitor-quick-overview">
+        <div class="overview-header">
+          <div>
+            <h2>Vue rapide</h2>
+            <p class="muted">Statut instantané des sacs principaux.</p>
+          </div>
+          <span class="section-chip">Couleurs statut</span>
+        </div>
+        <div class="status-grid status-grid--compact monitor-quick-grid" aria-label="Statut rapide du matériel">
+          {% for parent in parent_tiles %}
+            {% set parent_status = parent.status or 'pending' %}
+            <div
+              class="status-square {{ parent_status }}{% if parent.node.loaded_at %} loaded{% endif %}"
+              data-node-id="{{ parent.node.id }}"
+              data-status="{{ parent_status }}"
+            >
+              <span class="status-square-name">{{ parent.node.name }}</span>
+              <span class="status-square-status">
+                {% if parent_status == 'ok' %}
+                  OK
+                {% elif parent_status == 'problem' %}
+                  Problème
+                {% else %}
+                  En attente
+                {% endif %}
+              </span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
     <div class="monitor-summary-grid">
       <div class="summary-card">
         <div class="summary-header">
@@ -351,6 +383,7 @@
   };
 
   window.handleLoadModalClick = handleLoadModalClick;
+  window.openLoadModal = openLoadModal;
 
   const applyLoadState = (tile) => {
     if (!tile) {
@@ -664,7 +697,7 @@
       event.stopPropagation();
       handleLoadModalClick(button);
     });
-  }
+  });
 
   document.addEventListener('click', (event) => {
     const button = event.target.closest('[data-action="open-load-modal"]');
