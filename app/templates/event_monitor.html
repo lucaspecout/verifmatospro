@@ -115,6 +115,7 @@
                   type="button"
                   data-action="open-load-modal"
                   data-node-id="{{ parent.node.id }}"
+                  data-node-name="{{ parent.node.name }}"
                   data-load-mode="destination"
                 >
                   {% if parent.node.load_vehicle %}
@@ -123,10 +124,15 @@
                     Destination
                   {% endif %}
                 </button>
-                <form method="post" action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok" class="inline-form">
+                <form
+                  method="post"
+                  action="/events/{{ event.id }}/nodes/{{ parent.node.id }}/bulk-ok"
+                  class="inline-form"
+                  data-node-id="{{ parent.node.id }}"
+                >
                   <button
                     class="btn small status-card-load"
-                    type="button"
+                    type="submit"
                     data-action="bulk-ok"
                     data-node-id="{{ parent.node.id }}"
                   >
@@ -241,7 +247,29 @@
     problem: 'Problème',
     pending: 'En attente',
   };
-  const verifierSet = new Set({{ verifier_names | tojson }});
+  const verifierSeed = {{ verifier_names | tojson }};
+  const verifierSet = new Set(Array.isArray(verifierSeed) ? verifierSeed : []);
+
+  const resolveNodeContainer = (element) => {
+    if (!element) {
+      return null;
+    }
+    const nodeId = element.dataset?.nodeId;
+    if (nodeId) {
+      const tile = document.querySelector(`.status-card[data-node-id="${nodeId}"]`);
+      if (tile) {
+        return tile;
+      }
+      const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+      if (treeNode) {
+        return treeNode;
+      }
+    }
+    if (!element.closest) {
+      return null;
+    }
+    return element.closest('[data-node-id]');
+  };
 
   const updateProgress = (progress) => {
     const bar = document.querySelector('#progress-bar .progress-bar');
@@ -608,60 +636,6 @@
     }
   });
 
-  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const container = button.closest('[data-node-id]');
-      if (!container || button.hidden) {
-        return;
-      }
-      const nodeName =
-        container.querySelector('.status-card-name')?.textContent?.trim() ||
-        container.querySelector('.tree-name')?.textContent?.trim() ||
-        'Sac';
-      openLoadModal(container.dataset.nodeId, nodeName);
-    });
-  });
-
-  document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const container = button.closest('[data-node-id]');
-      if (!container || button.hidden) {
-        return;
-      }
-      const vehicle = container.dataset.loadVehicle?.trim() || '';
-      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-      })
-        .then(async (response) => {
-          button.textContent = previousLabel;
-          button.disabled = false;
-          if (!response.ok) {
-            let message = 'Impossible de charger ce sac pour le moment.';
-            try {
-              const errorPayload = await response.json();
-              if (errorPayload?.detail) {
-                message = errorPayload.detail;
-              }
-            } catch (err) {
-              // Ignore parse errors
-            }
-            alert(message);
-            return;
-          }
-          const data = await response.json();
-          updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
-        })
-        .catch(() => {
-          button.textContent = previousLabel;
-          button.disabled = false;
-          alert('Erreur réseau pendant le chargement.');
-        });
-    });
-  });
-
   const triggerBulkOk = (container) => {
     if (!container) {
       return;
@@ -702,26 +676,131 @@
       });
   };
 
-  document.querySelectorAll('form.inline-form[action*="/bulk-ok"]').forEach((form) => {
-    form.addEventListener('submit', (event) => {
-      event.preventDefault();
-      const container = form.closest('[data-node-id]');
-      triggerBulkOk(container);
-    });
-  });
+  const handleOpenLoadModal = (button, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const container = resolveNodeContainer(button);
+    const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
+    if (!nodeId || button.hidden) {
+      return;
+    }
+    const nodeName =
+      button.dataset.nodeName?.trim() ||
+      container?.querySelector('.status-card-name')?.textContent?.trim() ||
+      container?.querySelector('.tree-name')?.textContent?.trim() ||
+      'Sac';
+    openLoadModal(nodeId, nodeName);
+  };
 
-  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      const container = button.closest('[data-node-id]');
-      if (!container) {
+  const handleChargeLoad = (button, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const container = resolveNodeContainer(button);
+    const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
+    if (!nodeId || button.hidden) {
+      return;
+    }
+    const previousLabel = button.textContent;
+    button.textContent = 'Chargement...';
+    button.disabled = true;
+    const vehicle = container?.dataset.loadVehicle?.trim() || '';
+    fetch(`/events/{{ event.id }}/nodes/${nodeId}/charge`, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        if (!response.ok) {
+          let message = 'Impossible de charger ce sac pour le moment.';
+          try {
+            const errorPayload = await response.json();
+            if (errorPayload?.detail) {
+              message = errorPayload.detail;
+            }
+          } catch (err) {
+            // Ignore parse errors
+          }
+          alert(message);
+          return;
+        }
+        const data = await response.json();
+        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+      })
+      .catch(() => {
+        button.textContent = previousLabel;
+        button.disabled = false;
+        alert('Erreur réseau pendant le chargement.');
+      });
+  };
+
+  const handleBulkOkSubmit = (form, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const container =
+      resolveNodeContainer(form) ||
+      resolveNodeContainer(form.querySelector('[data-action="bulk-ok"]'));
+    triggerBulkOk(container);
+  };
+
+  const handleBulkOkClick = (button, event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const container = resolveNodeContainer(button);
+    if (!container) {
+      return;
+    }
+    triggerBulkOk(container);
+  };
+
+  const findActionTarget = (event, selector) => {
+    if (event?.composedPath) {
+      const path = event.composedPath();
+      const match = path.find((node) => node instanceof Element && node.matches(selector));
+      if (match) {
+        return match;
+      }
+    }
+    const target = event.target;
+    if (target instanceof Element) {
+      return target.closest(selector);
+    }
+    return null;
+  };
+
+  document.addEventListener(
+    'submit',
+    (event) => {
+      const form = findActionTarget(event, 'form.inline-form[action*="/bulk-ok"]');
+      if (form) {
+        handleBulkOkSubmit(form, event);
+      }
+    },
+    true,
+  );
+
+  document.addEventListener(
+    'click',
+    (event) => {
+      const openButton = findActionTarget(event, '[data-action="open-load-modal"]');
+      if (openButton) {
+        handleOpenLoadModal(openButton, event);
         return;
       }
-      event.preventDefault();
-      const container = button.closest('[data-node-id]');
-      triggerBulkOk(container);
-    });
-  });
+      const chargeButton = findActionTarget(event, '[data-action="charge-load"]');
+      if (chargeButton) {
+        handleChargeLoad(chargeButton, event);
+        return;
+      }
+      const okButton = findActionTarget(event, '[data-action="bulk-ok"]');
+      if (okButton) {
+        handleBulkOkClick(okButton, event);
+      }
+    },
+    true,
+  );
 
   loadCancelButton?.addEventListener('click', closeLoadModal);
 
