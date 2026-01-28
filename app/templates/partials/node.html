@@ -51,7 +51,7 @@
           <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok" class="inline-form">
             <button
               class="btn small"
-              type="button"
+              type="submit"
               data-action="bulk-ok"
               data-node-id="{{ branch.node.id }}"
             >
@@ -103,14 +103,16 @@
       </div>
       <div class="tree-item-actions">
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
-        <button
-          class="btn small"
-          type="button"
-          data-action="bulk-ok"
-          data-node-id="{{ branch.node.id }}"
-        >
-          OK
-        </button>
+        <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/bulk-ok" class="inline-form">
+          <button
+            class="btn small"
+            type="submit"
+            data-action="bulk-ok"
+            data-node-id="{{ branch.node.id }}"
+          >
+            OK
+          </button>
+        </form>
       </div>
     </div>
     <div class="tree-note" data-role="comment">
