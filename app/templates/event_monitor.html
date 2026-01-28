@@ -251,24 +251,17 @@
   const verifierSet = new Set(Array.isArray(verifierSeed) ? verifierSeed : []);
 
   const resolveNodeContainer = (element) => {
-    if (!element) {
+    if (!element || !element.closest) {
       return null;
     }
-    const nodeId = element.dataset?.nodeId;
-    if (nodeId) {
-      const tile = document.querySelector(`.status-card[data-node-id="${nodeId}"]`);
-      if (tile) {
-        return tile;
-      }
-      const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
-      if (treeNode) {
-        return treeNode;
-      }
-    }
-    if (!element.closest) {
+    const raw = element.closest('[data-node-id]');
+    if (!raw) {
       return null;
     }
-    return element.closest('[data-node-id]');
+    if (raw.matches('button')) {
+      return raw.closest('[data-node-id]:not(button)') || raw;
+    }
+    return raw;
   };
 
   const updateProgress = (progress) => {
@@ -636,6 +629,68 @@
     }
   });
 
+  document.querySelectorAll('[data-action="open-load-modal"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const container = resolveNodeContainer(button);
+      if (!container || button.hidden) {
+        return;
+      }
+      const nodeName =
+        button.dataset.nodeName?.trim() ||
+        container?.querySelector('.status-card-name')?.textContent?.trim() ||
+        container?.querySelector('.tree-name')?.textContent?.trim() ||
+        'Sac';
+      openLoadModal(nodeId, nodeName);
+    });
+  });
+
+  document.querySelectorAll('[data-action="charge-load"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const container = resolveNodeContainer(button);
+      if (!container || button.hidden) {
+        return;
+      }
+      const previousLabel = button.textContent;
+      button.textContent = 'Chargement...';
+      button.disabled = true;
+      const vehicle = container.dataset.loadVehicle?.trim() || '';
+      fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/charge`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+        .then(async (response) => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          if (!response.ok) {
+            let message = 'Impossible de charger ce sac pour le moment.';
+            try {
+              const errorPayload = await response.json();
+              if (errorPayload?.detail) {
+                message = errorPayload.detail;
+              }
+            } catch (err) {
+              // Ignore parse errors
+            }
+            alert(message);
+            return;
+          }
+          const data = await response.json();
+          updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
+        })
+        .catch(() => {
+          button.textContent = previousLabel;
+          button.disabled = false;
+          alert('Erreur réseau pendant le chargement.');
+        });
+    });
+  });
+
   const triggerBulkOk = (container) => {
     if (!container) {
       return;
@@ -676,116 +731,29 @@
       });
   };
 
-  const handleOpenLoadModal = (button, event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const container = resolveNodeContainer(button);
-    const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
-    if (!nodeId || button.hidden) {
-      return;
-    }
-    const nodeName =
-      button.dataset.nodeName?.trim() ||
-      container?.querySelector('.status-card-name')?.textContent?.trim() ||
-      container?.querySelector('.tree-name')?.textContent?.trim() ||
-      'Sac';
-    openLoadModal(nodeId, nodeName);
-  };
+  document.querySelectorAll('form.inline-form[action*="/bulk-ok"]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const container =
+        resolveNodeContainer(form) ||
+        resolveNodeContainer(form.querySelector('[data-action="bulk-ok"]'));
+      triggerBulkOk(container);
+    });
+  });
 
-  const handleChargeLoad = (button, event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const container = resolveNodeContainer(button);
-    const nodeId = button.dataset.nodeId || container?.dataset.nodeId;
-    if (!nodeId || button.hidden) {
-      return;
-    }
-    const previousLabel = button.textContent;
-    button.textContent = 'Chargement...';
-    button.disabled = true;
-    const vehicle = container?.dataset.loadVehicle?.trim() || '';
-    fetch(`/events/{{ event.id }}/nodes/${nodeId}/charge`, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-      },
-    })
-      .then(async (response) => {
-        button.textContent = previousLabel;
-        button.disabled = false;
-        if (!response.ok) {
-          let message = 'Impossible de charger ce sac pour le moment.';
-          try {
-            const errorPayload = await response.json();
-            if (errorPayload?.detail) {
-              message = errorPayload.detail;
-            }
-          } catch (err) {
-            // Ignore parse errors
-          }
-          alert(message);
-          return;
-        }
-        const data = await response.json();
-        updateLoadDestination(String(data.node_id), data.vehicle || vehicle, Boolean(data.loaded));
-      })
-      .catch(() => {
-        button.textContent = previousLabel;
-        button.disabled = false;
-        alert('Erreur réseau pendant le chargement.');
-      });
-  };
-
-  const handleBulkOkSubmit = (form, event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const container =
-      resolveNodeContainer(form) ||
-      resolveNodeContainer(form.querySelector('[data-action="bulk-ok"]'));
-    triggerBulkOk(container);
-  };
-
-  const handleBulkOkClick = (button, event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const container = resolveNodeContainer(button);
-    if (!container) {
-      return;
-    }
-    triggerBulkOk(container);
-  };
-
-  document.addEventListener(
-    'submit',
-    (event) => {
-      const form = event.target?.closest?.('form.inline-form[action*="/bulk-ok"]');
-      if (form) {
-        handleBulkOkSubmit(form, event);
-      }
-    },
-    true,
-  );
-
-  document.addEventListener(
-    'click',
-    (event) => {
-      const openButton = event.target?.closest?.('[data-action="open-load-modal"]');
-      if (openButton) {
-        handleOpenLoadModal(openButton, event);
+  document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const container = resolveNodeContainer(button);
+      if (!container) {
         return;
       }
-      const chargeButton = event.target?.closest?.('[data-action="charge-load"]');
-      if (chargeButton) {
-        handleChargeLoad(chargeButton, event);
-        return;
-      }
-      const okButton = event.target?.closest?.('[data-action="bulk-ok"]');
-      if (okButton) {
-        handleBulkOkClick(okButton, event);
-      }
-    },
-    true,
-  );
+      event.preventDefault();
+      triggerBulkOk(container);
+    });
+  });
 
   loadCancelButton?.addEventListener('click', closeLoadModal);
 
