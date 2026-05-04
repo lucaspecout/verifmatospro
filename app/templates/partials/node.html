@@ -65,6 +65,22 @@
               OK
             </button>
           </form>
+          <form
+            method="post"
+            action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/reset"
+            class="inline-form"
+            data-node-id="{{ branch.node.id }}"
+          >
+            <button
+              class="btn small ghost"
+              type="submit"
+              data-action="reset-parent"
+              data-node-id="{{ branch.node.id }}"
+              onclick="return confirm('Remettre tout ce parent en attente ?');"
+            >
+              Remettre en attente
+            </button>
+          </form>
           <button
             class="btn small"
             type="button"

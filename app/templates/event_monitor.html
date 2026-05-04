@@ -733,6 +733,10 @@
         log.prepend(entry);
       }
     }
+    if (data.type === 'reset') {
+      updateProgress(data.progress);
+      window.location.reload();
+    }
   };
 
   document.querySelectorAll('.tree-node.is-container[data-status="ok"]').forEach((node) => {
@@ -872,6 +876,33 @@
       triggerBulkOk(container);
     });
   };
+
+  document.querySelectorAll('form.inline-form[action*="/reset"]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      fetch(form.action, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+      })
+        .then(async (response) => {
+          if (!response.ok) {
+            form.submit();
+            return;
+          }
+          const data = await response.json();
+          if (data.progress) {
+            updateProgress(data.progress);
+          }
+          window.location.reload();
+        })
+        .catch(() => {
+          form.submit();
+        });
+    });
+  });
 
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
     button.addEventListener('click', (event) => {

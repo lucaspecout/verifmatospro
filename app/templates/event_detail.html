@@ -503,6 +503,35 @@
     triggerBulkOk(container);
   });
 
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest('form.inline-form[action*="/reset"]');
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    fetch(form.action, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+      },
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          form.submit();
+          return;
+        }
+        const data = await response.json();
+        if (data.progress) {
+          updateProgress(data.progress);
+        }
+        window.fetchLiveChecklist?.();
+      })
+      .catch(() => {
+        form.submit();
+      });
+  });
+
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
@@ -674,6 +703,10 @@
       updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
     }
     if (data.type === 'restock') {
+      fetchLiveChecklist();
+    }
+    if (data.type === 'reset') {
+      updateProgress(data.progress);
       fetchLiveChecklist();
     }
   };

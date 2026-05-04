@@ -1514,6 +1514,82 @@ def event_node_bulk_ok(
     return RedirectResponse(redirect_target, status_code=303)
 
 
+@app.post("/events/{event_id}/nodes/{node_id}/reset")
+def event_node_reset(
+    request: Request,
+    event_id: int,
+    node_id: int,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    node = db.get(EventNode, node_id)
+    if not node or node.event_id != event_id:
+        raise HTTPException(status_code=404)
+    if node.node_type not in {"container", "item"}:
+        raise HTTPException(status_code=400, detail="Type de noeud non supporté.")
+
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    nodes_by_parent: dict[int | None, list[EventNode]] = defaultdict(list)
+    for entry in nodes:
+        nodes_by_parent[entry.parent_id].append(entry)
+
+    items: list[EventNode] = []
+    containers: list[EventNode] = []
+    if node.node_type == "item":
+        items = [node]
+    else:
+        containers.append(node)
+
+        def collect_descendants(parent_id: int) -> None:
+            for child in nodes_by_parent.get(parent_id, []):
+                if child.node_type == "item":
+                    items.append(child)
+                else:
+                    containers.append(child)
+                    collect_descendants(child.id)
+
+        collect_descendants(node.id)
+
+    now = datetime.utcnow()
+    for item in items:
+        item.status = None
+        item.comment = None
+        item.last_verifier_name = None
+        item.updated_at = now
+        db.add(item)
+    for container in containers:
+        container.loaded_at = None
+        container.load_vehicle = None
+        db.add(container)
+    event.verification_completed_at = None
+    db.add(event)
+    db.commit()
+
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    progress = compute_progress(nodes)
+    payload = {
+        "type": "reset",
+        "node_id": node.id,
+        "updated_nodes": [{"id": item.id, "status": "pending"} for item in items],
+        "reset_containers": [{"id": container.id} for container in containers],
+        "progress": progress,
+    }
+    try:
+        import anyio
+
+        anyio.from_thread.run(manager.broadcast, event_id, payload)
+    except RuntimeError:
+        pass
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(payload)
+    redirect_target = request.headers.get("referer") or f"/events/{event_id}"
+    return RedirectResponse(redirect_target, status_code=303)
+
+
 @app.post("/events/{event_id}/close")
 def event_close(
     event_id: int,
