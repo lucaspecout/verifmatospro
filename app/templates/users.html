@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="card users-page">
   <div class="page-header">
     <div>
       <h1 class="page-title">Gestion des utilisateurs</h1>
@@ -15,8 +15,8 @@
   </div>
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   {% if success %}<p class="success">{{ success }}</p>{% endif %}
-  <div class="section-grid">
-    <div class="card">
+  <div class="section-grid users-layout">
+    <div class="card user-create-card">
       <h2 class="page-title">Créer un compte</h2>
       <form method="post" class="form">
         <label>Identifiant
@@ -36,7 +36,7 @@
       </form>
     </div>
 
-    <div class="card">
+    <div class="card user-list-card">
       <div class="page-header">
         <div>
           <h2 class="page-title">Liste des comptes</h2>
@@ -51,9 +51,23 @@
       </div>
       <div class="list-card" id="users-list">
         {% for item in users %}
-        <div class="list-card-item" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
-          <div>
-            <h3>{{ item.username }}</h3>
+        <article class="list-card-item user-card" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
+          <div class="user-card-main">
+            <div class="user-card-title-row">
+              <div class="user-avatar">{{ item.username[:1]|upper }}</div>
+              <div>
+                <h3>{{ item.username }}</h3>
+                <span class="muted">
+                  {% if item.role == 'admin' %}
+                    Administrateur
+                  {% elif item.role == 'chief' %}
+                    Chef de poste
+                  {% else %}
+                    Stock
+                  {% endif %}
+                </span>
+              </div>
+            </div>
             <div class="list-card-meta">
               <span class="pill">{{ item.role }}</span>
               {% if item.id == user.id %}
@@ -64,8 +78,8 @@
               {% endif %}
             </div>
           </div>
-          <div class="list-card-actions">
-            <form method="post" action="/users/{{ item.id }}/password" class="inline-form">
+          <div class="list-card-actions user-card-actions">
+            <form method="post" action="/users/{{ item.id }}/password" class="inline-form user-password-form">
               <input
                 type="password"
                 name="new_password"
@@ -84,7 +98,7 @@
               </button>
             </form>
           </div>
-        </div>
+        </article>
         {% else %}
         <div class="empty-state">Aucun utilisateur enregistré.</div>
         {% endfor %}

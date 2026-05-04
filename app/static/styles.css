@@ -2690,6 +2690,52 @@ summary {
   width: 100%;
 }
 
+.users-layout {
+  grid-template-columns: minmax(280px, 0.75fr) minmax(0, 1.25fr);
+  align-items: start;
+}
+
+.user-create-card,
+.user-list-card {
+  margin-bottom: 0;
+}
+
+.user-card {
+  grid-template-columns: minmax(0, 0.85fr) minmax(280px, 1fr);
+}
+
+.user-card-main {
+  min-width: 0;
+}
+
+.user-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.user-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.user-password-form {
+  flex: 1 1 260px;
+  margin-top: 0;
+}
+
+.user-password-form input {
+  min-height: var(--tap-size);
+}
+
 @media (max-width: 1024px) {
   .topbar {
     display: none;
@@ -2824,6 +2870,27 @@ summary {
   .restock-meta {
     justify-items: start;
     text-align: left;
+  }
+
+  .users-layout,
+  .user-card {
+    grid-template-columns: 1fr;
+  }
+
+  .user-list-card .page-header {
+    margin-bottom: 1rem;
+  }
+
+  .user-card-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .user-card-actions form,
+  .user-card-actions input,
+  .user-card-actions .btn {
+    width: 100%;
   }
 
   .search-input {
