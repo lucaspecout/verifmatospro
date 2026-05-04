@@ -1662,7 +1662,10 @@ def public_restock(
     if not cleaned_note:
         raise HTTPException(status_code=400, detail="Indiquez le réassort à prévoir.")
     verifier_value = (request.cookies.get("verifier_name") or "").strip()
-    parent.restock_note = cleaned_note
+    if parent.restock_note:
+        parent.restock_note = f"{parent.restock_note}\n{cleaned_note}"
+    else:
+        parent.restock_note = cleaned_note
     parent.restock_author = verifier_value or event.verifier_name or "Vérificateur"
     parent.restock_updated_at = datetime.utcnow()
     db.add(parent)

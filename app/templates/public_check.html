@@ -38,12 +38,6 @@
       <div class="pill pending" id="completion-banner">Checklist en cours</div>
     </section>
 
-    <section class="card check-body" id="public-tree">
-      {% for branch in tree %}
-        {% include "partials/public_node.html" with context %}
-      {% endfor %}
-    </section>
-
     <section
       class="card restock-panel"
       id="public-restock-panel"
@@ -83,6 +77,12 @@
       <div id="public-restock-list">
         {% include "partials/restock_list.html" %}
       </div>
+    </section>
+
+    <section class="card check-body" id="public-tree">
+      {% for branch in tree %}
+        {% include "partials/public_node.html" with context %}
+      {% endfor %}
     </section>
   </main>
 
@@ -141,7 +141,11 @@
       }
       const restockPanel = document.querySelector('#public-restock-panel');
       if (restockPanel) {
+        const wasHidden = restockPanel.hidden;
         restockPanel.hidden = progress.pending > 0;
+        if (wasHidden && progress.pending === 0) {
+          restockPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
     };
 
