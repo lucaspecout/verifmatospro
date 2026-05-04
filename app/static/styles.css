@@ -2671,6 +2671,25 @@ summary {
   text-align: right;
 }
 
+.public-parent-validate {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0.75rem 0;
+  padding: 0.65rem;
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.55);
+}
+
+.public-parent-validate .muted {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.validate-all-btn {
+  width: 100%;
+}
+
 @media (max-width: 1024px) {
   .topbar {
     display: none;

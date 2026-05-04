@@ -197,6 +197,16 @@
       recomputeContainerStatus(container.dataset.parentId);
     };
 
+    const applyBulkOkToContainer = (containerNode, verifierName = '') => {
+      if (!containerNode) {
+        return;
+      }
+      containerNode.querySelectorAll('.checklist-item').forEach((node) => {
+        setNodeStatus(node, 'ok', '', verifierName);
+      });
+      recomputeContainerStatus(containerNode.dataset.nodeId);
+    };
+
     const modal = document.querySelector('#problem-modal');
     const modalForm = modal?.querySelector('.modal-form');
     const modalTitle = document.querySelector('#problem-title');
@@ -327,6 +337,58 @@
       }
       submitStatus(activeForm, 'problem', modalComment?.value || '');
       closeModal();
+    });
+
+    document.querySelectorAll('.public-parent-validate').forEach((form) => {
+      form.addEventListener('click', (event) => {
+        event.stopPropagation();
+      });
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const button = form.querySelector('[data-action="public-bulk-ok"]');
+        const previousLabel = button?.textContent || 'Valider tout le sac';
+        if (button) {
+          button.textContent = 'Validation...';
+          button.disabled = true;
+        }
+        try {
+          const response = await fetch(form.action, {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
+          if (!response.ok) {
+            form.submit();
+            return;
+          }
+          const data = await response.json();
+          const container = form.closest('.checklist-section');
+          if (Array.isArray(data.updated_nodes)) {
+            data.updated_nodes.forEach((nodeUpdate) => {
+              const node = document.querySelector(`[data-node-id="${nodeUpdate.id}"]`);
+              if (node) {
+                setNodeStatus(node, nodeUpdate.status, '', nodeUpdate.verifier_name || data.verifier_name || '');
+                recomputeContainerStatus(node.dataset.parentId);
+              }
+            });
+          } else {
+            applyBulkOkToContainer(container, data.verifier_name || '');
+          }
+          if (data.progress) {
+            updatePublicProgress(data.progress);
+          }
+          container?.removeAttribute('open');
+        } catch (error) {
+          form.submit();
+        } finally {
+          if (button) {
+            button.textContent = previousLabel;
+            button.disabled = false;
+          }
+        }
+      });
     });
 
     const restockForm = document.querySelector('#public-restock-form');

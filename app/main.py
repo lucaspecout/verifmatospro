@@ -1690,6 +1690,95 @@ def public_restock(
     return RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
 
 
+@app.post("/public/{event_id}/{token}/nodes/{node_id}/bulk-ok")
+def public_node_bulk_ok(
+    request: Request,
+    event_id: int,
+    token: str,
+    node_id: int,
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event or event.public_token != token:
+        raise HTTPException(status_code=404)
+    node = db.get(EventNode, node_id)
+    if not node or node.event_id != event_id or node.node_type != "container":
+        raise HTTPException(status_code=404)
+
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    nodes_by_parent: dict[int | None, list[EventNode]] = defaultdict(list)
+    for entry in nodes:
+        nodes_by_parent[entry.parent_id].append(entry)
+
+    items: list[EventNode] = []
+
+    def collect_items(parent_id: int) -> None:
+        for child in nodes_by_parent.get(parent_id, []):
+            if child.node_type == "item":
+                items.append(child)
+            else:
+                collect_items(child.id)
+
+    collect_items(node.id)
+    verifier_value = (
+        (request.cookies.get("verifier_name") or event.verifier_name or "").strip()
+    )
+    now = datetime.utcnow()
+    for item in items:
+        item.status = "ok"
+        item.comment = None
+        item.last_verifier_name = verifier_value or item.last_verifier_name
+        item.updated_at = now
+        db.add(item)
+    if not event.verification_started_at:
+        event.verification_started_at = now
+    db.add(event)
+    db.commit()
+
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    progress = compute_progress(nodes)
+    if progress["total"] and progress["pending"] == 0:
+        event.verification_completed_at = now
+    else:
+        event.verification_completed_at = None
+    db.add(event)
+    db.commit()
+
+    updated_nodes = [
+        {"id": item.id, "status": item.status, "verifier_name": item.last_verifier_name}
+        for item in items
+    ]
+    payload = {
+        "type": "bulk",
+        "node_id": node.id,
+        "updated_nodes": updated_nodes,
+        "progress": progress,
+        "verifier_name": verifier_value,
+    }
+    try:
+        import anyio
+
+        for item in items:
+            anyio.from_thread.run(
+                manager.broadcast,
+                event_id,
+                {
+                    "type": "progress",
+                    "progress": progress,
+                    "node_id": item.id,
+                    "status": item.status,
+                    "comment": item.comment or "",
+                    "verifier_name": item.last_verifier_name or "",
+                },
+            )
+    except RuntimeError:
+        pass
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(payload)
+    return RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
+
+
 @app.post("/public/{event_id}/{token}/item/{node_id}")
 def update_item(
     request: Request,

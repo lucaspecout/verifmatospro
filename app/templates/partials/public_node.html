@@ -24,6 +24,17 @@
         </span>
       {% endif %}
     </summary>
+    <form
+      method="post"
+      action="/public/{{ event.id }}/{{ token }}/nodes/{{ branch.node.id }}/bulk-ok"
+      class="public-parent-validate"
+      data-node-id="{{ branch.node.id }}"
+    >
+      <button class="btn validate-all-btn" type="submit" data-action="public-bulk-ok">
+        Valider tout le sac
+      </button>
+      <p class="muted">Valide tous les éléments de ce parent. Dépliez le sac pour vérifier un par un.</p>
+    </form>
     {% if branch.children %}
       <div class="checklist-section-body">
         {% for child in branch.children %}
