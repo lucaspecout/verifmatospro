@@ -19,7 +19,9 @@
         </span>
       </div>
       {% if branch.status %}
-        <span class="section-status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
+        <span class="section-status {{ branch.status }}" data-role="status">
+          {% if branch.status == 'ok' %}OK{% elif branch.status == 'problem' %}Problème{% else %}À vérifier{% endif %}
+        </span>
       {% endif %}
     </summary>
     {% if branch.children %}
@@ -46,7 +48,9 @@
         <div class="checklist-item-name">
           <strong>{{ branch.node.name }}</strong>
           {% if branch.status %}
-            <span class="status {{ branch.status }}" data-role="status">{{ branch.status }}</span>
+            <span class="status {{ branch.status }}" data-role="status">
+              {% if branch.status == 'ok' %}OK{% elif branch.status == 'problem' %}Problème{% else %}À vérifier{% endif %}
+            </span>
           {% endif %}
         </div>
         <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
@@ -56,7 +60,7 @@
         <input type="hidden" name="comment" value="{{ branch.node.comment or '' }}" />
         <div class="checklist-actions">
           <button class="toggle-btn ok" type="submit" data-status="ok">OK</button>
-          <button class="toggle-btn problem" type="button" data-status="problem">Non</button>
+          <button class="toggle-btn problem" type="button" data-status="problem">Problème</button>
         </div>
       </form>
     </div>

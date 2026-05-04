@@ -16,7 +16,7 @@
     <aside class="sidebar">
       <div>
         <div class="sidebar-brand">Verif Matos Pro</div>
-        <p class="muted">Supervision matériel &amp; postes de secours</p>
+        <p class="muted">Contrôle matériel &amp; postes de secours</p>
       </div>
       <div class="sidebar-user">
         <div class="avatar">{{ user.username[:1]|upper }}</div>
@@ -26,19 +26,19 @@
         </div>
       </div>
       <nav class="sidebar-nav">
-        <a href="/" class="nav-link" data-path="/">🏠 Accueil</a>
+        <a href="/" class="nav-link" data-path="/"><span class="nav-icon">⌂</span><span>Accueil</span></a>
         {% if user.role == 'admin' %}
-        <a href="/users" class="nav-link" data-path="/users">👥 Utilisateurs</a>
-        <a href="/materials" class="nav-link" data-path="/materials">🧰 Matériel</a>
+        <a href="/users" class="nav-link" data-path="/users"><span class="nav-icon">👥</span><span>Utilisateurs</span></a>
+        <a href="/materials" class="nav-link" data-path="/materials"><span class="nav-icon">▦</span><span>Matériel</span></a>
         {% endif %}
         {% if user.role in ['admin', 'chief'] %}
-        <a href="/events" class="nav-link" data-path="/events">🚑 Postes</a>
+        <a href="/events" class="nav-link" data-path="/events"><span class="nav-icon">✚</span><span>Postes</span></a>
         {% endif %}
         {% if user.role in ['admin', 'stock'] %}
-        <a href="/stock/issues" class="nav-link" data-path="/stock/issues">📦 Stock</a>
+        <a href="/stock/issues" class="nav-link" data-path="/stock/issues"><span class="nav-icon">!</span><span>Stock</span></a>
         {% endif %}
-        <a href="/password" class="nav-link" data-path="/password">🔐 Mot de passe</a>
-        <a href="/logout" class="nav-link">↗ Déconnexion</a>
+        <a href="/password" class="nav-link" data-path="/password"><span class="nav-icon">●</span><span>Mot de passe</span></a>
+        <a href="/logout" class="nav-link"><span class="nav-icon">↗</span><span>Déconnexion</span></a>
       </nav>
     </aside>
     <div class="app-main">

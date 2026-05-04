@@ -8,12 +8,12 @@
 </head>
 <body class="phone">
   <main class="phone-container">
-    <section class="card check-hero">
+    <section class="card check-hero public-sticky-status">
       <div class="check-hero-header">
         <div>
           <p class="check-eyebrow">Vérification avant départ</p>
           <h1>{{ event.name }}</h1>
-          <p class="check-subtitle">Poste de secours — checklist digitale synchronisée.</p>
+          <p class="check-subtitle">Checklist matériel synchronisée.</p>
         </div>
         <div class="check-progress-pill" id="public-progress">{{ progress.percent }}%</div>
       </div>
@@ -25,43 +25,17 @@
         <span class="stat-chip problem">Problèmes: {{ progress.problem }}</span>
         <span class="stat-chip pending">En attente: {{ progress.pending }}</span>
       </div>
-      <div class="sync-pill">
-        <span class="sync-dot"></span>
-        Synchronisation instantanée active
-        <span class="sync-time" id="public-last-sync">En attente</span>
-      </div>
-      <div class="sync-pill">
-        Vérificateur: <strong>{{ verifier_name or 'Non renseigné' }}</strong>
+      <div class="public-meta-row">
+        <div class="sync-pill">
+          <span class="sync-dot"></span>
+          <span class="sync-time" id="public-last-sync">En attente</span>
+        </div>
+        <div class="sync-pill">
+          Vérificateur: <strong>{{ verifier_name or 'Non renseigné' }}</strong>
+        </div>
       </div>
       <div class="divider"></div>
       <div class="pill pending" id="completion-banner">Checklist en cours</div>
-    </section>
-
-    <section class="card check-guide">
-      <h2>Parcours rapide</h2>
-      <div class="guide-steps">
-        <div class="guide-step">
-          <span>1</span>
-          <div>
-            <strong>Contrôle visuel</strong>
-            <p>Vérifiez l'état et la quantité indiquée.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <span>2</span>
-          <div>
-            <strong>Signaler un problème</strong>
-            <p>Ajoutez un commentaire pour le chef de poste.</p>
-          </div>
-        </div>
-        <div class="guide-step">
-          <span>3</span>
-          <div>
-            <strong>Valider l'élément</strong>
-            <p>Le suivi se met à jour instantanément.</p>
-          </div>
-        </div>
-      </div>
     </section>
 
     <section class="card check-body" id="public-tree">
