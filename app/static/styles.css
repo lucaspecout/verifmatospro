@@ -2736,6 +2736,69 @@ summary {
   min-height: var(--tap-size);
 }
 
+.mobile-users-list {
+  display: none;
+}
+
+.mobile-user-card {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.06);
+}
+
+.mobile-user-header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.mobile-user-title {
+  min-width: 0;
+}
+
+.mobile-user-title h3 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mobile-user-title span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.mobile-user-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.mobile-user-form {
+  display: grid;
+  gap: 0.55rem;
+  margin: 0;
+}
+
+.mobile-user-form label {
+  display: grid;
+  gap: 0.45rem;
+  font-weight: 600;
+}
+
+.mobile-user-form input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--tap-size);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem;
+  font: inherit;
+}
+
 @media (max-width: 1024px) {
   .topbar {
     display: none;
@@ -2877,8 +2940,35 @@ summary {
     grid-template-columns: 1fr;
   }
 
+  .users-page {
+    padding: 0;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .users-page > .page-header,
+  .users-page > .error,
+  .users-page > .success {
+    padding: 0 0.25rem;
+  }
+
+  .user-create-card,
+  .user-list-card {
+    padding: 1rem;
+  }
+
   .user-list-card .page-header {
     margin-bottom: 1rem;
+  }
+
+  .users-desktop-list {
+    display: none;
+  }
+
+  .mobile-users-list {
+    display: grid;
+    gap: 0.75rem;
   }
 
   .user-card-actions {

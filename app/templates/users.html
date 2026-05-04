@@ -49,9 +49,9 @@
         <button class="filter-chip" data-role="chief" type="button">Chefs de poste</button>
         <button class="filter-chip" data-role="stock" type="button">Stock</button>
       </div>
-      <div class="list-card" id="users-list">
+      <div class="list-card users-desktop-list" id="users-list">
         {% for item in users %}
-        <article class="list-card-item user-card" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
+        <article class="list-card-item user-card user-filterable" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
           <div class="user-card-main">
             <div class="user-card-title-row">
               <div class="user-avatar">{{ item.username[:1]|upper }}</div>
@@ -103,19 +103,70 @@
         <div class="empty-state">Aucun utilisateur enregistré.</div>
         {% endfor %}
       </div>
+      <div class="mobile-users-list">
+        {% for item in users %}
+        <article class="mobile-user-card user-filterable" data-username="{{ item.username | lower }}" data-role="{{ item.role }}">
+          <div class="mobile-user-header">
+            <div class="user-avatar">{{ item.username[:1]|upper }}</div>
+            <div class="mobile-user-title">
+              <h3>{{ item.username }}</h3>
+              <span>
+                {% if item.role == 'admin' %}
+                  Administrateur
+                {% elif item.role == 'chief' %}
+                  Chef de poste
+                {% else %}
+                  Stock
+                {% endif %}
+              </span>
+            </div>
+          </div>
+          <div class="mobile-user-tags">
+            <span class="pill">{{ item.role }}</span>
+            {% if item.id == user.id %}
+            <span class="pill">Vous</span>
+            {% endif %}
+            {% if item.must_change_password %}
+            <span class="pill pending">Mot de passe à changer</span>
+            {% endif %}
+          </div>
+          <form method="post" action="/users/{{ item.id }}/password" class="mobile-user-form">
+            <label>Nouveau mot de passe
+              <input
+                type="password"
+                name="new_password"
+                placeholder="Nouveau mot de passe"
+                required
+              />
+            </label>
+            <button type="submit" class="btn">Changer le mot de passe</button>
+          </form>
+          <form method="post" action="/users/{{ item.id }}/delete" class="mobile-user-form">
+            <button
+              type="submit"
+              class="btn danger"
+              {% if item.id == user.id %}disabled{% endif %}
+            >
+              Supprimer l'utilisateur
+            </button>
+          </form>
+        </article>
+        {% else %}
+        <div class="empty-state">Aucun utilisateur enregistré.</div>
+        {% endfor %}
+      </div>
     </div>
   </div>
 </section>
 
 <script>
   const searchInput = document.getElementById('user-search');
-  const list = document.getElementById('users-list');
   const roleFilters = document.getElementById('role-filters');
   let activeRole = 'all';
 
   const filterUsers = () => {
     const query = searchInput.value.trim().toLowerCase();
-    list.querySelectorAll('.list-card-item').forEach((item) => {
+    document.querySelectorAll('.user-filterable').forEach((item) => {
       const matchesSearch = item.dataset.username.includes(query);
       const matchesRole = activeRole === 'all' || item.dataset.role === activeRole;
       item.style.display = matchesSearch && matchesRole ? 'grid' : 'none';
