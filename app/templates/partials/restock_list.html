@@ -1,0 +1,20 @@
+{% if restock_entries %}
+  <div class="restock-list">
+    {% for entry in restock_entries %}
+      <article class="restock-entry" data-restock-node-id="{{ entry.node.id }}">
+        <div>
+          <strong>{{ entry.node.name }}</strong>
+          <p>{{ entry.note }}</p>
+        </div>
+        <div class="restock-meta">
+          <span class="pill pending">Réassort</span>
+          <span class="muted">
+            {{ entry.author or 'Vérificateur' }}{% if entry.updated_label %} · {{ entry.updated_label }}{% endif %}
+          </span>
+        </div>
+      </article>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state">Aucun réassort demandé pour ce poste.</div>
+{% endif %}

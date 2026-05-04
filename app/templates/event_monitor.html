@@ -239,6 +239,13 @@
         </div>
       </div>
       <div class="card quick-panel">
+        <div class="panel-title">Réassort demandé</div>
+        <p class="muted">Éléments à remettre en stock après la vérification.</p>
+        <div id="monitor-restock-list">
+          {% include "partials/restock_list.html" %}
+        </div>
+      </div>
+      <div class="card quick-panel">
         <div class="panel-title">Journal des actions</div>
         <p class="muted">Dernières modifications captées en direct.</p>
         <div class="timeline" id="monitor-log">
@@ -280,6 +287,13 @@
     problem: 'Problème',
     pending: 'En attente',
   };
+  const escapeHtml = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   const verifierSeed = {{ verifier_names | tojson }};
   const verifierSet = new Set(Array.isArray(verifierSeed) ? verifierSeed : []);
 
@@ -676,6 +690,48 @@
     }
     if (data.type === 'load') {
       updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
+    }
+    if (data.type === 'restock') {
+      const restockList = document.querySelector('#monitor-restock-list');
+      if (restockList) {
+        const empty = restockList.querySelector('.empty-state');
+        if (empty) {
+          empty.remove();
+        }
+        let list = restockList.querySelector('.restock-list');
+        if (!list) {
+          list = document.createElement('div');
+          list.className = 'restock-list';
+          restockList.appendChild(list);
+        }
+        let entry = list.querySelector(`[data-restock-node-id="${data.node_id}"]`);
+        if (!entry) {
+          entry = document.createElement('article');
+          entry.className = 'restock-entry';
+          entry.dataset.restockNodeId = data.node_id;
+          list.prepend(entry);
+        }
+        entry.innerHTML = `
+          <div>
+            <strong>${escapeHtml(data.node_name)}</strong>
+            <p>${escapeHtml(data.note)}</p>
+          </div>
+          <div class="restock-meta">
+            <span class="pill pending">Réassort</span>
+            <span class="muted">${escapeHtml(data.author || 'Vérificateur')}${data.updated_label ? ` · ${escapeHtml(data.updated_label)}` : ''}</span>
+          </div>
+        `;
+      }
+      const log = document.querySelector('#monitor-log');
+      if (log) {
+        const entry = document.createElement('div');
+        entry.className = 'timeline-item';
+        entry.innerHTML = `
+          <strong>Réassort · ${escapeHtml(data.node_name)}</strong>
+          <span class="muted">${escapeHtml(data.note)}</span>
+        `;
+        log.prepend(entry);
+      }
     }
   };
 

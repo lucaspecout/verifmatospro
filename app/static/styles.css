@@ -2633,6 +2633,44 @@ summary {
   flex: 1 1 auto;
 }
 
+.restock-panel {
+  border-left: 4px solid var(--field-amber);
+}
+
+.restock-form {
+  margin-bottom: 1rem;
+}
+
+.restock-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.restock-entry {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: start;
+  padding: 0.85rem;
+  border: 1px solid rgba(217, 119, 6, 0.28);
+  border-radius: 8px;
+  background: rgba(255, 251, 235, 0.9);
+  color: #0f172a;
+}
+
+.restock-entry p {
+  margin: 0.35rem 0 0;
+  white-space: pre-wrap;
+  line-height: 1.4;
+}
+
+.restock-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
+  text-align: right;
+}
+
 @media (max-width: 1024px) {
   .topbar {
     display: none;
@@ -2758,6 +2796,15 @@ summary {
   .list-card-actions form .btn,
   .modal-actions form .btn {
     width: 100%;
+  }
+
+  .restock-entry {
+    grid-template-columns: 1fr;
+  }
+
+  .restock-meta {
+    justify-items: start;
+    text-align: left;
   }
 
   .search-input {

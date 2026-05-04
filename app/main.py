@@ -90,6 +90,21 @@ def build_event_detail_payload(event_id: int, db: Session) -> dict[str, Any]:
         for branch in tree
         if branch.get("node")
     ]
+    restock_parent_choices = [
+        branch["node"]
+        for branch in tree
+        if branch.get("node") and branch["node"].parent_id is None
+    ]
+    restock_entries = [
+        {
+            "node": node,
+            "note": node.restock_note,
+            "author": node.restock_author,
+            "updated_label": format_date(node.restock_updated_at, ""),
+        }
+        for node in restock_parent_choices
+        if node.restock_note
+    ]
     state = derive_event_state(event, progress)
     return {
         "event": event,
@@ -97,6 +112,8 @@ def build_event_detail_payload(event_id: int, db: Session) -> dict[str, Any]:
         "progress": progress,
         "parent_tiles": parent_tiles,
         "parent_total": len(parent_tiles),
+        "restock_parent_choices": restock_parent_choices,
+        "restock_entries": restock_entries,
         "event_state_label": state["label"],
         "event_state_class": state["class"],
         "show_parent_actions": True,
@@ -1057,10 +1074,12 @@ def event_detail_live(
         "partials/event_detail_parent_summary.html"
     ).render(context)
     tree_html = templates.get_template("partials/event_detail_tree.html").render(context)
+    restock_html = templates.get_template("partials/restock_list.html").render(context)
     return JSONResponse(
         {
             "parent_summary_html": parent_summary_html,
             "tree_html": tree_html,
+            "restock_html": restock_html,
             "progress": context["progress"],
         }
     )
@@ -1268,6 +1287,21 @@ def event_monitor(
         for branch in tree
         if branch.get("node")
     ]
+    restock_parent_choices = [
+        branch["node"]
+        for branch in tree
+        if branch.get("node") and branch["node"].parent_id is None
+    ]
+    restock_entries = [
+        {
+            "node": node,
+            "note": node.restock_note,
+            "author": node.restock_author,
+            "updated_label": format_date(node.restock_updated_at, ""),
+        }
+        for node in restock_parent_choices
+        if node.restock_note
+    ]
     verifier_names = sorted(
         {node.last_verifier_name for node in nodes if node.last_verifier_name}
     )
@@ -1287,6 +1321,8 @@ def event_monitor(
             "tree": tree,
             "progress": progress,
             "parent_tiles": parent_tiles,
+            "restock_entries": restock_entries,
+            "restock_parent_choices": restock_parent_choices,
             "verifier_names": verifier_names,
             "last_verifier_name": last_verifier_name,
             "event_state_label": state["label"],
@@ -1563,6 +1599,21 @@ def public_check(
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
     tree = build_tree(nodes)
     progress = compute_progress(nodes)
+    restock_parent_choices = [
+        branch["node"]
+        for branch in tree
+        if branch.get("node") and branch["node"].parent_id is None
+    ]
+    restock_entries = [
+        {
+            "node": node,
+            "note": node.restock_note,
+            "author": node.restock_author,
+            "updated_label": format_date(node.restock_updated_at, ""),
+        }
+        for node in restock_parent_choices
+        if node.restock_note
+    ]
     return templates.TemplateResponse(
         "public_check.html",
         {
@@ -1572,8 +1623,68 @@ def public_check(
             "progress": progress,
             "token": token,
             "verifier_name": request.cookies.get("verifier_name"),
+            "restock_parent_choices": restock_parent_choices,
+            "restock_entries": restock_entries,
         },
     )
+
+
+@app.post("/public/{event_id}/{token}/restock")
+def public_restock(
+    request: Request,
+    event_id: int,
+    token: str,
+    parent_node_id: int = Form(...),
+    note: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event or event.public_token != token:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    progress = compute_progress(nodes)
+    if progress["total"] and progress["pending"] > 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Le réassort est disponible une fois la checklist terminée.",
+        )
+    parent = db.get(EventNode, parent_node_id)
+    if (
+        not parent
+        or parent.event_id != event_id
+        or parent.parent_id is not None
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Sélectionnez uniquement un parent du poste.",
+        )
+    cleaned_note = note.strip()
+    if not cleaned_note:
+        raise HTTPException(status_code=400, detail="Indiquez le réassort à prévoir.")
+    verifier_value = (request.cookies.get("verifier_name") or "").strip()
+    parent.restock_note = cleaned_note
+    parent.restock_author = verifier_value or event.verifier_name or "Vérificateur"
+    parent.restock_updated_at = datetime.utcnow()
+    db.add(parent)
+    db.commit()
+    payload = {
+        "type": "restock",
+        "node_id": parent.id,
+        "node_name": parent.name,
+        "note": parent.restock_note,
+        "author": parent.restock_author,
+        "updated_label": format_date(parent.restock_updated_at, ""),
+    }
+    try:
+        import anyio
+
+        anyio.from_thread.run(manager.broadcast, event_id, payload)
+    except RuntimeError:
+        pass
+    accepts = request.headers.get("accept", "")
+    if "application/json" in accepts:
+        return JSONResponse(payload)
+    return RedirectResponse(f"/public/{event_id}/{token}/check", status_code=303)
 
 
 @app.post("/public/{event_id}/{token}/item/{node_id}")

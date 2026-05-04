@@ -105,6 +105,19 @@
       {% include "partials/event_detail_tree.html" %}
     </div>
   </section>
+
+  <section class="card restock-panel">
+    <div class="section-header">
+      <div>
+        <h2>Réassort demandé</h2>
+        <p class="muted">Demandes saisies après vérification, regroupées par parent.</p>
+      </div>
+      <span class="section-chip">Chef de poste</span>
+    </div>
+    <div id="event-restock-list">
+      {% include "partials/restock_list.html" %}
+    </div>
+  </section>
 </section>
 
 <div class="modal" id="load-modal" aria-hidden="true">
@@ -615,6 +628,10 @@
     if (payload.progress) {
       updateProgress(payload.progress);
     }
+    const restockList = document.querySelector('#event-restock-list');
+    if (restockList && payload.restock_html) {
+      restockList.innerHTML = payload.restock_html;
+    }
     restoreOpenNodes(openNodeIds);
     refreshParentTiles();
     syncLoadStateFromDom();
@@ -655,6 +672,9 @@
     }
     if (data.type === 'load') {
       updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
+    }
+    if (data.type === 'restock') {
+      fetchLiveChecklist();
     }
   };
 </script>

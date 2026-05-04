@@ -99,6 +99,18 @@ def ensure_event_node_columns() -> None:
         missing.append(
             ("loaded_at", "TIMESTAMP")
         )
+    if "restock_note" not in columns:
+        missing.append(
+            ("restock_note", "TEXT")
+        )
+    if "restock_author" not in columns:
+        missing.append(
+            ("restock_author", "VARCHAR(80)")
+        )
+    if "restock_updated_at" not in columns:
+        missing.append(
+            ("restock_updated_at", "TIMESTAMP")
+        )
     if not missing:
         return
     with engine.begin() as connection:

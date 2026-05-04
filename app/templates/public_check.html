@@ -43,6 +43,47 @@
         {% include "partials/public_node.html" with context %}
       {% endfor %}
     </section>
+
+    <section
+      class="card restock-panel"
+      id="public-restock-panel"
+      {% if progress.pending > 0 %}hidden{% endif %}
+    >
+      <div class="section-header">
+        <div>
+          <h2>Réassort à prévoir</h2>
+          <p class="muted">Sélectionnez un parent et indiquez les éléments à remettre en stock.</p>
+        </div>
+        <span class="section-chip">Après vérification</span>
+      </div>
+      <form
+        method="post"
+        action="/public/{{ event.id }}/{{ token }}/restock"
+        class="form restock-form"
+        id="public-restock-form"
+      >
+        <label>Parent concerné
+          <select name="parent_node_id" required>
+            {% for parent in restock_parent_choices %}
+              <option value="{{ parent.id }}">{{ parent.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>Éléments à réassortir
+          <textarea
+            name="note"
+            rows="4"
+            placeholder="Exemple : remettre 2 bandes, 1 couverture de survie..."
+            required
+          ></textarea>
+        </label>
+        <button class="btn" type="submit">Envoyer au chef de poste</button>
+      </form>
+      <div class="restock-feedback success" id="public-restock-feedback" hidden></div>
+      <div id="public-restock-list">
+        {% include "partials/restock_list.html" %}
+      </div>
+    </section>
   </main>
 
   <div class="modal" id="problem-modal" aria-hidden="true">
@@ -69,6 +110,13 @@
       problem: 'Problème',
       pending: 'En attente',
     };
+    const escapeHtml = (value) =>
+      String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 
     const updatePublicProgress = (progress) => {
       const bar = document.querySelector('#public-progress-bar .progress-bar');
@@ -90,6 +138,10 @@
           banner.classList.remove('ok');
           banner.classList.add('pending');
         }
+      }
+      const restockPanel = document.querySelector('#public-restock-panel');
+      if (restockPanel) {
+        restockPanel.hidden = progress.pending > 0;
       }
     };
 
@@ -273,6 +325,73 @@
       closeModal();
     });
 
+    const restockForm = document.querySelector('#public-restock-form');
+    const restockFeedback = document.querySelector('#public-restock-feedback');
+    const restockList = document.querySelector('#public-restock-list');
+
+    const upsertRestockEntry = (payload) => {
+      if (!restockList || !payload?.node_id) {
+        return;
+      }
+      const empty = restockList.querySelector('.empty-state');
+      if (empty) {
+        empty.remove();
+      }
+      let entry = restockList.querySelector(`[data-restock-node-id="${payload.node_id}"]`);
+      if (!entry) {
+        const list = restockList.querySelector('.restock-list') || document.createElement('div');
+        list.className = 'restock-list';
+        if (!list.parentElement) {
+          restockList.appendChild(list);
+        }
+        entry = document.createElement('article');
+        entry.className = 'restock-entry';
+        entry.dataset.restockNodeId = payload.node_id;
+        list.prepend(entry);
+      }
+      entry.innerHTML = `
+        <div>
+          <strong>${escapeHtml(payload.node_name)}</strong>
+          <p>${escapeHtml(payload.note)}</p>
+        </div>
+        <div class="restock-meta">
+          <span class="pill pending">Réassort</span>
+          <span class="muted">${escapeHtml(payload.author || 'Vérificateur')}${payload.updated_label ? ` · ${escapeHtml(payload.updated_label)}` : ''}</span>
+        </div>
+      `;
+    };
+
+    restockForm?.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const formData = new FormData(restockForm);
+      try {
+        const response = await fetch(restockForm.action, {
+          method: 'POST',
+          body: formData,
+          headers: {
+            'Accept': 'application/json',
+          },
+        });
+        if (!response.ok) {
+          const errorPayload = await response.json().catch(() => null);
+          alert(errorPayload?.detail || 'Impossible d’enregistrer le réassort.');
+          return;
+        }
+        const payload = await response.json();
+        upsertRestockEntry(payload);
+        restockForm.reset();
+        if (restockFeedback) {
+          restockFeedback.textContent = 'Réassort envoyé au chef de poste.';
+          restockFeedback.hidden = false;
+          setTimeout(() => {
+            restockFeedback.hidden = true;
+          }, 2500);
+        }
+      } catch (error) {
+        restockForm.submit();
+      }
+    });
+
     document.querySelectorAll('.checklist-section[data-status="ok"]').forEach((node) => {
       node.removeAttribute('open');
     });
@@ -294,6 +413,9 @@
       }
       if (data.type === 'load') {
         updateLoadDestination(String(data.node_id), data.vehicle || '', Boolean(data.loaded));
+      }
+      if (data.type === 'restock') {
+        upsertRestockEntry(data);
       }
     };
   </script>
