@@ -483,6 +483,38 @@
       if (data.type === 'restock') {
         upsertRestockEntry(data);
       }
+      if (data.type === 'reset') {
+        if (data.progress) {
+          updatePublicProgress(data.progress);
+        }
+        if (Array.isArray(data.updated_nodes)) {
+          data.updated_nodes.forEach((nodeUpdate) => {
+            const node = document.querySelector(`[data-node-id="${nodeUpdate.id}"]`);
+            if (node) {
+              setNodeStatus(node, 'pending', '');
+              recomputeContainerStatus(node.dataset.parentId);
+            }
+          });
+        }
+        if (Array.isArray(data.reset_containers)) {
+          data.reset_containers.forEach((containerUpdate) => {
+            const container = document.querySelector(
+              `.checklist-section[data-node-id="${containerUpdate.id}"]`,
+            );
+            if (container) {
+              container.dataset.loadVehicle = '';
+              container.dataset.loaded = 'false';
+              container.classList.remove('loaded');
+              const destination = container.querySelector('[data-role="load-destination"]');
+              if (destination) {
+                destination.hidden = true;
+                destination.textContent = '';
+              }
+              setNodeStatus(container, 'pending');
+            }
+          });
+        }
+      }
     };
   </script>
 </body>
