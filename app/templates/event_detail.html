@@ -93,19 +93,6 @@
     </div>
   </header>
 
-  <section class="card event-checklist">
-    <div class="section-header">
-      <div>
-        <h2>Checklist matériel</h2>
-        <p class="muted">Mise à jour en direct dès qu'un vérificateur agit.</p>
-      </div>
-      <span class="section-chip">Live</span>
-    </div>
-    <div class="tree" id="event-checklist-tree">
-      {% include "partials/event_detail_tree.html" %}
-    </div>
-  </section>
-
   <section class="card restock-panel">
     <div class="section-header">
       <div>
@@ -116,6 +103,19 @@
     </div>
     <div id="event-restock-list">
       {% include "partials/restock_list.html" %}
+    </div>
+  </section>
+
+  <section class="card event-checklist">
+    <div class="section-header">
+      <div>
+        <h2>Checklist matériel</h2>
+        <p class="muted">Mise à jour en direct dès qu'un vérificateur agit.</p>
+      </div>
+      <span class="section-chip">Live</span>
+    </div>
+    <div class="tree" id="event-checklist-tree">
+      {% include "partials/event_detail_tree.html" %}
     </div>
   </section>
 </section>

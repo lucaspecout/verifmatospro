@@ -202,6 +202,13 @@
 
     <aside class="monitor-aside">
       <div class="card quick-panel">
+        <div class="panel-title">Réassort demandé</div>
+        <p class="muted">Éléments à remettre en stock après la vérification.</p>
+        <div id="monitor-restock-list">
+          {% include "partials/restock_list.html" %}
+        </div>
+      </div>
+      <div class="card quick-panel">
         <div class="panel-title">Lien public</div>
         <p class="muted">Partagez le lien avec le vérificateur terrain.</p>
         <div class="public-link" data-token="{{ event.public_token }}">
@@ -236,13 +243,6 @@
               <p class="muted">Conservez les notes pour le stock.</p>
             </div>
           </div>
-        </div>
-      </div>
-      <div class="card quick-panel">
-        <div class="panel-title">Réassort demandé</div>
-        <p class="muted">Éléments à remettre en stock après la vérification.</p>
-        <div id="monitor-restock-list">
-          {% include "partials/restock_list.html" %}
         </div>
       </div>
       <div class="card quick-panel">
