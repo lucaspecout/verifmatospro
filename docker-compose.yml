@@ -9,7 +9,8 @@ services:
       DATABASE_URL: postgresql+psycopg2://verif:verif@db:5432/verifmatos
       JWT_SECRET: "change-me"
       JWT_ALGORITHM: "HS256"
-      VIGICRUES_SEGMENTS: "AN13:Isère Basse-Tarentaise,AN14:Isère Haute-Combe de Savoie,AN11:Isère moyenne,AN12:Isère grenobloise,AN20:Isère aval,AN31:Romanche aval,AN30:Drac aval"
+      VIGICRUES_GRAND_COURS_SEGMENTS: "AN13:Isère Basse-Tarentaise,AN14:Isère Haute-Combe de Savoie,AN11:Isère moyenne,AN12:Isère grenobloise,AN20:Isère aval"
+      VIGICRUES_REFRESH_SECONDS: "180"
     depends_on:
       - db
 

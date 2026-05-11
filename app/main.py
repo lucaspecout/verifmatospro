@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import threading
 import time
 from typing import Any
 from urllib.error import URLError
@@ -49,14 +50,20 @@ VIGICRUES_DEFAULT_SEGMENTS = (
     "AN14:Isère Haute-Combe de Savoie,"
     "AN11:Isère moyenne,"
     "AN12:Isère grenobloise,"
-    "AN20:Isère aval,"
-    "AN31:Romanche aval,"
-    "AN30:Drac aval"
+    "AN20:Isère aval"
 )
+VIGICRUES_REFRESH_SECONDS = 180
+_vigicrues_cache: dict[str, Any] | None = None
+_vigicrues_cache_lock = threading.Lock()
+_vigicrues_stop_event = threading.Event()
+_vigicrues_thread_started = False
 
 
 def load_vigicrues_segments() -> list[dict[str, str]]:
-    raw_value = os.getenv("VIGICRUES_SEGMENTS", VIGICRUES_DEFAULT_SEGMENTS)
+    raw_value = os.getenv(
+        "VIGICRUES_GRAND_COURS_SEGMENTS",
+        os.getenv("VIGICRUES_SEGMENTS", VIGICRUES_DEFAULT_SEGMENTS),
+    )
     segments = []
     for raw_part in raw_value.split(","):
         part = raw_part.strip()
@@ -71,6 +78,13 @@ def load_vigicrues_segments() -> list[dict[str, str]]:
         if code:
             segments.append({"code": code, "name": name})
     return segments
+
+
+def get_vigicrues_refresh_seconds() -> int:
+    try:
+        return max(60, int(os.getenv("VIGICRUES_REFRESH_SECONDS", VIGICRUES_REFRESH_SECONDS)))
+    except ValueError:
+        return VIGICRUES_REFRESH_SECONDS
 
 
 def normalize_vigicrues_level(value: str | None) -> str:
@@ -211,7 +225,78 @@ def fetch_vigicrues_statuses() -> dict[str, Any]:
         "errors": errors,
         "source_updated_label": max(source_updates).strftime("%d/%m/%Y %H:%M") if source_updates else None,
         "updated_label": datetime.now().strftime("%d/%m/%Y %H:%M"),
+        "service_interval_seconds": get_vigicrues_refresh_seconds(),
+        "service": "grand_cours_isere_rss",
     }
+
+
+def build_vigicrues_initial_payload() -> dict[str, Any]:
+    statuses = [
+        {
+            "code": segment["code"],
+            "name": segment["name"],
+            "level": "unknown",
+            "level_label": "En attente",
+            "link": VIGICRUES_RSS_URL.format(code=segment["code"]),
+            "published_label": None,
+            "source_updated_label": None,
+        }
+        for segment in load_vigicrues_segments()
+    ]
+    return {
+        "statuses": statuses,
+        "active": [],
+        "max_level": "unknown",
+        "max_level_label": "En attente",
+        "errors": [],
+        "source_updated_label": None,
+        "updated_label": "en attente",
+        "service_interval_seconds": get_vigicrues_refresh_seconds(),
+        "service": "grand_cours_isere_rss",
+    }
+
+
+def refresh_vigicrues_cache() -> dict[str, Any]:
+    global _vigicrues_cache
+    payload = fetch_vigicrues_statuses()
+    with _vigicrues_cache_lock:
+        _vigicrues_cache = payload
+    return payload
+
+
+def get_vigicrues_cached_statuses() -> dict[str, Any]:
+    with _vigicrues_cache_lock:
+        if _vigicrues_cache:
+            return _vigicrues_cache
+    return build_vigicrues_initial_payload()
+
+
+def run_vigicrues_grand_cours_service() -> None:
+    global _vigicrues_cache
+    while not _vigicrues_stop_event.is_set():
+        try:
+            refresh_vigicrues_cache()
+        except Exception as exc:  # pragma: no cover - defensive background guard
+            with _vigicrues_cache_lock:
+                fallback = _vigicrues_cache or build_vigicrues_initial_payload()
+                fallback = {**fallback}
+                fallback["errors"] = [*fallback.get("errors", []), f"service: {exc}"]
+                fallback["updated_label"] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                _vigicrues_cache = fallback
+        _vigicrues_stop_event.wait(get_vigicrues_refresh_seconds())
+
+
+def start_vigicrues_grand_cours_service() -> None:
+    global _vigicrues_thread_started
+    if _vigicrues_thread_started:
+        return
+    _vigicrues_thread_started = True
+    thread = threading.Thread(
+        target=run_vigicrues_grand_cours_service,
+        name="vigicrues-grand-cours-service",
+        daemon=True,
+    )
+    thread.start()
 
 
 def format_date(value: date | datetime | None, fallback: str = "Non renseignée") -> str:
@@ -304,6 +389,7 @@ manager = ConnectionManager()
 @app.on_event("startup")
 def startup() -> None:
     init_db()
+    start_vigicrues_grand_cours_service()
     db = SessionLocal()
     try:
         admin = db.scalar(select(User).where(User.username == "admin"))
@@ -423,7 +509,7 @@ def home(
         "issues": len(issues),
         "pending_items": len(pending_items),
     }
-    vigicrues = fetch_vigicrues_statuses()
+    vigicrues = get_vigicrues_cached_statuses()
     return templates.TemplateResponse(
         "home.html",
         {
@@ -438,9 +524,13 @@ def home(
 
 
 @app.get("/api/vigicrues")
-def vigicrues_status(user: User = Depends(get_current_user)):
+def vigicrues_status(request: Request, user: User = Depends(get_current_user)):
+    if request.query_params.get("force") == "1":
+        payload = refresh_vigicrues_cache()
+    else:
+        payload = get_vigicrues_cached_statuses()
     return JSONResponse(
-        fetch_vigicrues_statuses(),
+        payload,
         headers={"Cache-Control": "no-store, max-age=0"},
     )
 

@@ -132,7 +132,7 @@
       {% endfor %}
     </div>
     <p class="muted vigicrues-updated" id="vigicrues-updated">
-      RSS Vigicrues : {{ vigicrues.source_updated_label or 'date inconnue' }} · Lecture app : {{ vigicrues.updated_label }}
+      RSS Vigicrues : {{ vigicrues.source_updated_label or 'date inconnue' }} · Service app : {{ vigicrues.updated_label }} · Toutes les {{ (vigicrues.service_interval_seconds // 60) or 3 }} min
       {% if vigicrues.errors %} · Flux partiellement indisponible{% endif %}
     </p>
   </div>
@@ -193,16 +193,18 @@
       vigicruesBadge.textContent = payload.max_level_label;
     }
     if (vigicruesUpdated) {
-      vigicruesUpdated.textContent = `RSS Vigicrues : ${payload.source_updated_label || 'date inconnue'} · Lecture app : ${payload.updated_label}`;
+      const minutes = Math.max(1, Math.round((payload.service_interval_seconds || 180) / 60));
+      vigicruesUpdated.textContent = `RSS Vigicrues : ${payload.source_updated_label || 'date inconnue'} · Service app : ${payload.updated_label} · Toutes les ${minutes} min`;
     }
   };
 
-  const refreshVigicrues = () => {
+  const refreshVigicrues = (force = false) => {
     if (vigicruesRefreshButton) {
       vigicruesRefreshButton.disabled = true;
       vigicruesRefreshButton.textContent = 'Actualisation...';
     }
-    fetch(`/api/vigicrues?_=${Date.now()}`, {
+    const forceParam = force ? '&force=1' : '';
+    fetch(`/api/vigicrues?_=${Date.now()}${forceParam}`, {
       headers: {
         Accept: 'application/json',
         'Cache-Control': 'no-cache',
@@ -220,8 +222,8 @@
       });
   };
 
-  vigicruesRefreshButton?.addEventListener('click', refreshVigicrues);
+  vigicruesRefreshButton?.addEventListener('click', () => refreshVigicrues(true));
   refreshVigicrues();
-  setInterval(refreshVigicrues, 15 * 60 * 1000);
+  setInterval(refreshVigicrues, 3 * 60 * 1000);
 </script>
 {% endblock %}
