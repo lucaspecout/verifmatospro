@@ -43,7 +43,15 @@ ROLE_CHIEF = "chief"
 ROLE_STOCK = "stock"
 VIGICRUES_RSS_URL = "https://www.vigicrues.gouv.fr/territoire/rss?CdEntVigiCru={code}"
 VIGICRUES_LEVEL_ORDER = {"vert": 0, "jaune": 1, "orange": 2, "rouge": 3}
-VIGICRUES_DEFAULT_SEGMENTS = "AN12:Isère grenobloise"
+VIGICRUES_DEFAULT_SEGMENTS = (
+    "AN13:Isère Basse-Tarentaise,"
+    "AN14:Isère Haute-Combe de Savoie,"
+    "AN11:Isère moyenne,"
+    "AN12:Isère grenobloise,"
+    "AN20:Isère aval,"
+    "AN31:Romanche aval,"
+    "AN30:Drac aval"
+)
 
 
 def load_vigicrues_segments() -> list[dict[str, str]]:
