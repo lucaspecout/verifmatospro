@@ -8,6 +8,7 @@ import json
 import os
 import re
 import secrets
+import time
 from typing import Any
 from urllib.error import URLError
 from urllib.request import Request as UrlRequest, urlopen
@@ -78,13 +79,19 @@ def normalize_vigicrues_level(value: str | None) -> str:
 
 
 def parse_vigicrues_date(value: str | None) -> str | None:
-    if not value:
-        return None
     try:
-        parsed = parsedate_to_datetime(value)
+        parsed = parse_vigicrues_datetime(value)
     except (TypeError, ValueError):
         return value
+    if not parsed:
+        return None
     return parsed.strftime("%d/%m/%Y %H:%M")
+
+
+def parse_vigicrues_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    return parsedate_to_datetime(value).replace(tzinfo=None)
 
 
 def extract_vigicrues_item(item: ElementTree.Element) -> dict[str, Any]:
@@ -119,19 +126,29 @@ def fetch_vigicrues_statuses() -> dict[str, Any]:
     segments = load_vigicrues_segments()
     statuses = []
     errors = []
+    source_updates = []
     for segment in segments:
-        url = VIGICRUES_RSS_URL.format(code=segment["code"])
+        url = f"{VIGICRUES_RSS_URL.format(code=segment['code'])}&_={int(time.time())}"
         try:
             request = UrlRequest(
                 url,
                 headers={
-                    "User-Agent": "VerifMatosPro/1.0 (+https://www.vigicrues.gouv.fr/)"
+                    "User-Agent": "VerifMatosPro/1.0 (+https://www.vigicrues.gouv.fr/)",
+                    "Cache-Control": "no-cache",
+                    "Pragma": "no-cache",
                 },
             )
             with urlopen(request, timeout=10) as response:
                 content = response.read()
             root = ElementTree.fromstring(content)
             channel = root.find("channel")
+            source_update = None
+            if channel is not None:
+                source_update = parse_vigicrues_datetime(
+                    channel.findtext("lastBuildDate") or channel.findtext("pubDate")
+                )
+                if source_update:
+                    source_updates.append(source_update)
             items = channel.findall("item") if channel is not None else []
             item_payloads = [extract_vigicrues_item(item) for item in items]
             matching_item = next(
@@ -160,6 +177,7 @@ def fetch_vigicrues_statuses() -> dict[str, Any]:
                     "level_label": level.capitalize(),
                     "link": link,
                     "published_label": published_label,
+                    "source_updated_label": source_update.strftime("%d/%m/%Y %H:%M") if source_update else None,
                 }
             )
         except (ElementTree.ParseError, OSError, URLError, TimeoutError) as exc:
@@ -172,6 +190,7 @@ def fetch_vigicrues_statuses() -> dict[str, Any]:
                     "level_label": "Indisponible",
                     "link": url,
                     "published_label": None,
+                    "source_updated_label": None,
                 }
             )
     active = [
@@ -190,6 +209,7 @@ def fetch_vigicrues_statuses() -> dict[str, Any]:
         "max_level": max_level,
         "max_level_label": max_level.capitalize() if max_level != "unknown" else "Indisponible",
         "errors": errors,
+        "source_updated_label": max(source_updates).strftime("%d/%m/%Y %H:%M") if source_updates else None,
         "updated_label": datetime.now().strftime("%d/%m/%Y %H:%M"),
     }
 

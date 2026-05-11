@@ -2179,6 +2179,14 @@ body {
   gap: 0.7rem;
 }
 
+.vigicrues-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .vigicrues-item {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;

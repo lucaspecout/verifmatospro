@@ -110,9 +110,14 @@
           Tronçons suivis, actualisés depuis le RSS Vigicrues.
         </p>
       </div>
-      <span class="pill vigicrues-level {{ vigicrues.max_level }}">
-        {{ vigicrues.max_level_label }}
-      </span>
+      <div class="vigicrues-actions">
+        <span class="pill vigicrues-level {{ vigicrues.max_level }}">
+          {{ vigicrues.max_level_label }}
+        </span>
+        <button class="btn secondary small" type="button" id="vigicrues-refresh">
+          Actualiser
+        </button>
+      </div>
     </div>
     <div class="vigicrues-list" id="vigicrues-list">
       {% for segment in vigicrues.statuses %}
@@ -127,7 +132,7 @@
       {% endfor %}
     </div>
     <p class="muted vigicrues-updated" id="vigicrues-updated">
-      Dernière lecture : {{ vigicrues.updated_label }}
+      RSS Vigicrues : {{ vigicrues.source_updated_label or 'date inconnue' }} · Lecture app : {{ vigicrues.updated_label }}
       {% if vigicrues.errors %} · Flux partiellement indisponible{% endif %}
     </p>
   </div>
@@ -160,6 +165,7 @@
   const vigicruesList = document.querySelector('#vigicrues-list');
   const vigicruesUpdated = document.querySelector('#vigicrues-updated');
   const vigicruesBadge = document.querySelector('.vigicrues-card .page-header .vigicrues-level');
+  const vigicruesRefreshButton = document.querySelector('#vigicrues-refresh');
   const escapeVigicruesText = (value) =>
     String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -187,17 +193,35 @@
       vigicruesBadge.textContent = payload.max_level_label;
     }
     if (vigicruesUpdated) {
-      vigicruesUpdated.textContent = `Dernière lecture : ${payload.updated_label}`;
+      vigicruesUpdated.textContent = `RSS Vigicrues : ${payload.source_updated_label || 'date inconnue'} · Lecture app : ${payload.updated_label}`;
     }
   };
 
   const refreshVigicrues = () => {
-    fetch('/api/vigicrues', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+    if (vigicruesRefreshButton) {
+      vigicruesRefreshButton.disabled = true;
+      vigicruesRefreshButton.textContent = 'Actualisation...';
+    }
+    fetch(`/api/vigicrues?_=${Date.now()}`, {
+      headers: {
+        Accept: 'application/json',
+        'Cache-Control': 'no-cache',
+      },
+      cache: 'no-store',
+    })
       .then((response) => response.ok ? response.json() : null)
       .then(renderVigicrues)
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        if (vigicruesRefreshButton) {
+          vigicruesRefreshButton.disabled = false;
+          vigicruesRefreshButton.textContent = 'Actualiser';
+        }
+      });
   };
 
+  vigicruesRefreshButton?.addEventListener('click', refreshVigicrues);
+  refreshVigicrues();
   setInterval(refreshVigicrues, 15 * 60 * 1000);
 </script>
 {% endblock %}
