@@ -9,6 +9,7 @@ services:
       DATABASE_URL: postgresql+psycopg2://verif:verif@db:5432/verifmatos
       JWT_SECRET: "change-me"
       JWT_ALGORITHM: "HS256"
+      VIGICRUES_SEGMENTS: "AN12:Isère grenobloise"
     depends_on:
       - db
 

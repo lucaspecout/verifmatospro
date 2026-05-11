@@ -102,6 +102,36 @@
     {% endif %}
   </div>
 
+  <div class="card vigicrues-card">
+    <div class="page-header">
+      <div>
+        <h2 class="page-title">Vigicrues</h2>
+        <p class="page-subtitle">
+          Tronçons suivis, actualisés depuis le RSS Vigicrues.
+        </p>
+      </div>
+      <span class="pill vigicrues-level {{ vigicrues.max_level }}">
+        {{ vigicrues.max_level_label }}
+      </span>
+    </div>
+    <div class="vigicrues-list" id="vigicrues-list">
+      {% for segment in vigicrues.statuses %}
+        <a class="vigicrues-item {{ segment.level }}" href="{{ segment.link }}" target="_blank" rel="noreferrer">
+          <span class="vigicrues-dot {{ segment.level }}"></span>
+          <span>
+            <strong>{{ segment.name }}</strong>
+            <span class="muted">{{ segment.code }}</span>
+          </span>
+          <span class="pill vigicrues-level {{ segment.level }}">{{ segment.level_label }}</span>
+        </a>
+      {% endfor %}
+    </div>
+    <p class="muted vigicrues-updated" id="vigicrues-updated">
+      Dernière lecture : {{ vigicrues.updated_label }}
+      {% if vigicrues.errors %} · Flux partiellement indisponible{% endif %}
+    </p>
+  </div>
+
   <div class="card">
     <div class="page-header">
       <div>
@@ -125,4 +155,49 @@
     {% endif %}
   </div>
 </section>
+
+<script>
+  const vigicruesList = document.querySelector('#vigicrues-list');
+  const vigicruesUpdated = document.querySelector('#vigicrues-updated');
+  const vigicruesBadge = document.querySelector('.vigicrues-card .page-header .vigicrues-level');
+  const escapeVigicruesText = (value) =>
+    String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+
+  const renderVigicrues = (payload) => {
+    if (!payload || !Array.isArray(payload.statuses) || !vigicruesList) {
+      return;
+    }
+    vigicruesList.innerHTML = payload.statuses.map((segment) => `
+      <a class="vigicrues-item ${escapeVigicruesText(segment.level)}" href="${escapeVigicruesText(segment.link || '#')}" target="_blank" rel="noreferrer">
+        <span class="vigicrues-dot ${escapeVigicruesText(segment.level)}"></span>
+        <span>
+          <strong>${escapeVigicruesText(segment.name)}</strong>
+          <span class="muted">${escapeVigicruesText(segment.code)}</span>
+        </span>
+        <span class="pill vigicrues-level ${escapeVigicruesText(segment.level)}">${escapeVigicruesText(segment.level_label)}</span>
+      </a>
+    `).join('');
+    if (vigicruesBadge) {
+      vigicruesBadge.className = `pill vigicrues-level ${payload.max_level}`;
+      vigicruesBadge.textContent = payload.max_level_label;
+    }
+    if (vigicruesUpdated) {
+      vigicruesUpdated.textContent = `Dernière lecture : ${payload.updated_label}`;
+    }
+  };
+
+  const refreshVigicrues = () => {
+    fetch('/api/vigicrues', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then((response) => response.ok ? response.json() : null)
+      .then(renderVigicrues)
+      .catch(() => {});
+  };
+
+  setInterval(refreshVigicrues, 15 * 60 * 1000);
+</script>
 {% endblock %}

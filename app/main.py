@@ -2,9 +2,16 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date, datetime
+from email.utils import parsedate_to_datetime
+from html import unescape
 import json
+import os
+import re
 import secrets
 from typing import Any
+from urllib.error import URLError
+from urllib.request import Request as UrlRequest, urlopen
+from xml.etree import ElementTree
 
 from fastapi import (
     Depends,
@@ -34,6 +41,149 @@ templates = Jinja2Templates(directory="app/templates")
 ROLE_ADMIN = "admin"
 ROLE_CHIEF = "chief"
 ROLE_STOCK = "stock"
+VIGICRUES_RSS_URL = "https://www.vigicrues.gouv.fr/territoire/rss?CdEntVigiCru={code}"
+VIGICRUES_LEVEL_ORDER = {"vert": 0, "jaune": 1, "orange": 2, "rouge": 3}
+VIGICRUES_DEFAULT_SEGMENTS = "AN12:Isère grenobloise"
+
+
+def load_vigicrues_segments() -> list[dict[str, str]]:
+    raw_value = os.getenv("VIGICRUES_SEGMENTS", VIGICRUES_DEFAULT_SEGMENTS)
+    segments = []
+    for raw_part in raw_value.split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        if ":" in part:
+            code, name = part.split(":", 1)
+        else:
+            code, name = part, part
+        code = code.strip().upper()
+        name = name.strip() or code
+        if code:
+            segments.append({"code": code, "name": name})
+    return segments
+
+
+def normalize_vigicrues_level(value: str | None) -> str:
+    cleaned = (value or "").strip().lower()
+    return cleaned if cleaned in VIGICRUES_LEVEL_ORDER else "vert"
+
+
+def parse_vigicrues_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return value
+    return parsed.strftime("%d/%m/%Y %H:%M")
+
+
+def extract_vigicrues_item(item: ElementTree.Element) -> dict[str, Any]:
+    title = item.findtext("title") or ""
+    description = unescape(item.findtext("description") or "")
+    code_match = re.search(r"\(([A-Z0-9]+)\)", description)
+    name_match = re.search(
+        r"Nom du tron(?:ç|c)on\s*:\s*<b>(.*?)</b>",
+        description,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    level_match = re.search(
+        r"Couleur de vigilance crues du tron(?:ç|c)on\s*:\s*<b>(.*?)</b>",
+        description,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    if not level_match and ":" in title:
+        level_match = re.search(r":\s*(vert|jaune|orange|rouge)\b", title, re.I)
+    name = re.sub(r"\s+", " ", name_match.group(1)).strip() if name_match else title.split(":", 1)[0].strip()
+    level = normalize_vigicrues_level(level_match.group(1) if level_match else None)
+    return {
+        "code": code_match.group(1) if code_match else None,
+        "name": name,
+        "level": level,
+        "title": title,
+        "link": item.findtext("link") or "",
+        "published_label": parse_vigicrues_date(item.findtext("pubDate")),
+    }
+
+
+def fetch_vigicrues_statuses() -> dict[str, Any]:
+    segments = load_vigicrues_segments()
+    statuses = []
+    errors = []
+    for segment in segments:
+        url = VIGICRUES_RSS_URL.format(code=segment["code"])
+        try:
+            request = UrlRequest(
+                url,
+                headers={
+                    "User-Agent": "VerifMatosPro/1.0 (+https://www.vigicrues.gouv.fr/)"
+                },
+            )
+            with urlopen(request, timeout=10) as response:
+                content = response.read()
+            root = ElementTree.fromstring(content)
+            channel = root.find("channel")
+            items = channel.findall("item") if channel is not None else []
+            item_payloads = [extract_vigicrues_item(item) for item in items]
+            matching_item = next(
+                (
+                    item
+                    for item in item_payloads
+                    if (item.get("code") or "").upper() == segment["code"]
+                ),
+                item_payloads[0] if item_payloads else None,
+            )
+            if matching_item:
+                name = matching_item["name"] or segment["name"]
+                level = matching_item["level"]
+                link = matching_item["link"]
+                published_label = matching_item["published_label"]
+            else:
+                name = segment["name"]
+                level = "vert"
+                link = "https://www.vigicrues.gouv.fr/"
+                published_label = None
+            statuses.append(
+                {
+                    "code": segment["code"],
+                    "name": name,
+                    "level": level,
+                    "level_label": level.capitalize(),
+                    "link": link,
+                    "published_label": published_label,
+                }
+            )
+        except (ElementTree.ParseError, OSError, URLError, TimeoutError) as exc:
+            errors.append(f"{segment['code']}: {exc}")
+            statuses.append(
+                {
+                    "code": segment["code"],
+                    "name": segment["name"],
+                    "level": "unknown",
+                    "level_label": "Indisponible",
+                    "link": url,
+                    "published_label": None,
+                }
+            )
+    active = [
+        status
+        for status in statuses
+        if VIGICRUES_LEVEL_ORDER.get(status["level"], -1) >= VIGICRUES_LEVEL_ORDER["jaune"]
+    ]
+    max_level = max(
+        (status["level"] for status in statuses),
+        key=lambda level: VIGICRUES_LEVEL_ORDER.get(level, -1),
+        default="vert",
+    )
+    return {
+        "statuses": statuses,
+        "active": active,
+        "max_level": max_level,
+        "max_level_label": max_level.capitalize() if max_level != "unknown" else "Indisponible",
+        "errors": errors,
+        "updated_label": datetime.now().strftime("%d/%m/%Y %H:%M"),
+    }
 
 
 def format_date(value: date | datetime | None, fallback: str = "Non renseignée") -> str:
@@ -245,6 +395,7 @@ def home(
         "issues": len(issues),
         "pending_items": len(pending_items),
     }
+    vigicrues = fetch_vigicrues_statuses()
     return templates.TemplateResponse(
         "home.html",
         {
@@ -253,7 +404,16 @@ def home(
             "stats": stats,
             "upcoming_events": upcoming_payload,
             "recent_issues": recent_issues,
+            "vigicrues": vigicrues,
         },
+    )
+
+
+@app.get("/api/vigicrues")
+def vigicrues_status(user: User = Depends(get_current_user)):
+    return JSONResponse(
+        fetch_vigicrues_statuses(),
+        headers={"Cache-Control": "no-store, max-age=0"},
     )
 
 
