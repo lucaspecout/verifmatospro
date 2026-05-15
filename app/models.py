@@ -21,6 +21,10 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False)
     must_change_password: Mapped[bool] = mapped_column(default=True)
+    auth_source: Mapped[str] = mapped_column(String(20), default="local", nullable=False)
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    display_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    ldap_dn: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 

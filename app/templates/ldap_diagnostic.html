@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Diagnostic LDAP</h1>
+      <p class="page-subtitle">Vérifiez la connexion LLDAP, les bases DN et l'accès utilisateur.</p>
+    </div>
+    <span class="pill">{{ "Actif" if ldap_config.enabled else "Inactif" }}</span>
+  </div>
+
+  <form method="post" class="form">
+    <div class="form-grid">
+      <label>Identifiant LDAP
+        <input type="text" name="test_username" autocomplete="username" />
+      </label>
+      <label>Mot de passe LDAP
+        <input type="password" name="test_password" autocomplete="current-password" />
+      </label>
+    </div>
+    <button type="submit" class="btn">Tester l'utilisateur</button>
+  </form>
+
+  <div class="list-card">
+    {% for result in results %}
+    <article class="list-card-item">
+      <div>
+        <h3>{{ result.name }}</h3>
+        <p class="muted">{{ result.detail }}</p>
+      </div>
+      <span class="pill {% if not result.ok %}pending{% endif %}">
+        {{ "OK" if result.ok else "Erreur" }}
+      </span>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

@@ -9,10 +9,24 @@ services:
       DATABASE_URL: postgresql+psycopg2://verif:verif@db:5432/verifmatos
       JWT_SECRET: "change-me"
       JWT_ALGORITHM: "HS256"
+      LDAP_ENABLED: "true"
+      LDAP_URL: "ldap://lldap:3890"
+      LDAP_BIND_DN: "uid=admin,ou=people,dc=apc38,dc=local"
+      LDAP_BIND_PASSWORD: "@6jjatvoWwhgdW3Ht&Hyd2z8z8py"
+      LDAP_USER_BASE_DN: "ou=people,dc=apc38,dc=local"
+      LDAP_USER_FILTER: "(|(uid={username})(mail={username}))"
+      LDAP_GROUP_BASE_DN: "ou=groups,dc=apc38,dc=local"
+      LDAP_GROUP_FILTER: "(member={user_dn})"
+      LDAP_GROUP_NAME_ATTR: "cn"
+      LDAP_GROUP_REQUIRED: "verifmatos"
+      LDAP_GROUP_ROLE_MAP: "verifmatos:chefdeposte,alerte:ope"
       VIGICRUES_GRAND_COURS_SEGMENTS: "AN13:Isère Basse-Tarentaise,AN14:Isère Haute-Combe de Savoie,AN11:Isère moyenne,AN12:Isère grenobloise,AN20:Isère aval"
       VIGICRUES_REFRESH_SECONDS: "180"
     depends_on:
       - db
+    networks:
+      - default
+      - lldap_ldap_net
 
   db:
     image: postgres:latest
@@ -25,3 +39,7 @@ services:
 
 volumes:
   pgdata:
+
+networks:
+  lldap_ldap_net:
+    external: true

@@ -29,6 +29,7 @@
         <a href="/" class="nav-link" data-path="/"><span class="nav-icon">⌂</span><span>Accueil</span></a>
         {% if user.role == 'admin' %}
         <a href="/users" class="nav-link" data-path="/users"><span class="nav-icon">👥</span><span>Utilisateurs</span></a>
+        <a href="/admin/ldap" class="nav-link" data-path="/admin/ldap"><span class="nav-icon">LDAP</span><span>LDAP</span></a>
         <a href="/materials" class="nav-link" data-path="/materials"><span class="nav-icon">▦</span><span>Matériel</span></a>
         {% endif %}
         {% if user.role in ['admin', 'chief'] %}
@@ -37,7 +38,9 @@
         {% if user.role in ['admin', 'stock'] %}
         <a href="/stock/issues" class="nav-link" data-path="/stock/issues"><span class="nav-icon">!</span><span>Stock</span></a>
         {% endif %}
+        {% if user.auth_source != 'ldap' %}
         <a href="/password" class="nav-link" data-path="/password"><span class="nav-icon">●</span><span>Mot de passe</span></a>
+        {% endif %}
         <a href="/logout" class="nav-link"><span class="nav-icon">↗</span><span>Déconnexion</span></a>
       </nav>
     </aside>

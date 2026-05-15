@@ -78,7 +78,32 @@ def init_db() -> None:
     from app import models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
+    ensure_user_columns()
     ensure_event_node_columns()
+
+
+def ensure_user_columns() -> None:
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("users")}
+    missing = []
+    if "auth_source" not in columns:
+        missing.append(("auth_source", "VARCHAR(20) NOT NULL DEFAULT 'local'"))
+    if "email" not in columns:
+        missing.append(("email", "VARCHAR(255)"))
+    if "display_name" not in columns:
+        missing.append(("display_name", "VARCHAR(120)"))
+    if "ldap_dn" not in columns:
+        missing.append(("ldap_dn", "VARCHAR(255)"))
+    if not missing:
+        return
+    with engine.begin() as connection:
+        for column_name, column_type in missing:
+            logging.warning("Adding missing column %s to users.", column_name)
+            connection.execute(
+                text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+            )
 
 
 def ensure_event_node_columns() -> None:

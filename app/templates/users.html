@@ -73,12 +73,18 @@
               {% if item.id == user.id %}
               <span class="pill">Vous</span>
               {% endif %}
+              {% if item.auth_source == 'ldap' %}
+              <span class="pill">LDAP</span>
+              {% endif %}
               {% if item.must_change_password %}
               <span class="pill pending">Mot de passe à changer</span>
               {% endif %}
             </div>
           </div>
           <div class="list-card-actions user-card-actions">
+            {% if item.auth_source == 'ldap' %}
+            <span class="muted">Mot de passe géré dans LLDAP.</span>
+            {% else %}
             <form method="post" action="/users/{{ item.id }}/password" class="inline-form user-password-form">
               <input
                 type="password"
@@ -88,6 +94,7 @@
               />
               <button type="submit" class="btn small">Changer</button>
             </form>
+            {% endif %}
             <form method="post" action="/users/{{ item.id }}/delete" class="inline-form">
               <button
                 type="submit"
@@ -126,10 +133,16 @@
             {% if item.id == user.id %}
             <span class="pill">Vous</span>
             {% endif %}
+            {% if item.auth_source == 'ldap' %}
+            <span class="pill">LDAP</span>
+            {% endif %}
             {% if item.must_change_password %}
             <span class="pill pending">Mot de passe à changer</span>
             {% endif %}
           </div>
+          {% if item.auth_source == 'ldap' %}
+          <p class="muted">Mot de passe géré dans LLDAP.</p>
+          {% else %}
           <form method="post" action="/users/{{ item.id }}/password" class="mobile-user-form">
             <label>Nouveau mot de passe
               <input
@@ -141,6 +154,7 @@
             </label>
             <button type="submit" class="btn">Changer le mot de passe</button>
           </form>
+          {% endif %}
           <form method="post" action="/users/{{ item.id }}/delete" class="mobile-user-form">
             <button
               type="submit"

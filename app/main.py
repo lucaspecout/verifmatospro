@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import AuthError, create_access_token, hash_password, verify_password
 from app.db import SessionLocal, init_db
+from app.ldap_auth import LdapAuthError, authenticate_ldap, ldap_config, run_ldap_diagnostic
 from app.models import Event, EventNode, Lot, MaterialTemplate, User
 
 app = FastAPI()
@@ -43,6 +44,8 @@ templates = Jinja2Templates(directory="app/templates")
 ROLE_ADMIN = "admin"
 ROLE_CHIEF = "chief"
 ROLE_STOCK = "stock"
+AUTH_SOURCE_LOCAL = "local"
+AUTH_SOURCE_LDAP = "ldap"
 VIGICRUES_RSS_URL = "https://www.vigicrues.gouv.fr/territoire/rss?CdEntVigiCru={code}"
 VIGICRUES_LEVEL_ORDER = {"vert": 0, "jaune": 1, "orange": 2, "rouge": 3}
 VIGICRUES_DEFAULT_SEGMENTS = (
@@ -443,6 +446,34 @@ def require_roles(*roles: str):
     return _checker
 
 
+def is_ldap_user(user: User) -> bool:
+    return getattr(user, "auth_source", AUTH_SOURCE_LOCAL) == AUTH_SOURCE_LDAP
+
+
+def provision_ldap_user(db: Session, ldap_user) -> User:
+    user = db.scalar(select(User).where(User.username == ldap_user.username))
+    if user and user.auth_source == AUTH_SOURCE_LOCAL:
+        raise LdapAuthError("Un compte local existe déjà pour cet utilisateur.")
+    if not user:
+        user = User(
+            username=ldap_user.username[:50],
+            password_hash="LDAP_MANAGED",
+            role=ldap_user.role,
+            must_change_password=False,
+            auth_source=AUTH_SOURCE_LDAP,
+        )
+    user.role = ldap_user.role
+    user.must_change_password = False
+    user.auth_source = AUTH_SOURCE_LDAP
+    user.email = ldap_user.email
+    user.display_name = ldap_user.display_name
+    user.ldap_dn = ldap_user.dn
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(
     request: Request,
@@ -548,7 +579,34 @@ def login(
     db: Session = Depends(get_db),
 ):
     user = db.scalar(select(User).where(User.username == username))
-    if not user or not verify_password(password, user.password_hash):
+    if user:
+        if is_ldap_user(user):
+            try:
+                ldap_user = authenticate_ldap(username, password)
+                user = provision_ldap_user(db, ldap_user)
+            except LdapAuthError:
+                return templates.TemplateResponse(
+                    "login.html",
+                    {"request": request, "error": "Identifiants invalides"},
+                    status_code=401,
+                )
+        elif not verify_password(password, user.password_hash):
+            return templates.TemplateResponse(
+                "login.html",
+                {"request": request, "error": "Identifiants invalides"},
+                status_code=401,
+            )
+    else:
+        try:
+            ldap_user = authenticate_ldap(username, password)
+            user = provision_ldap_user(db, ldap_user)
+        except LdapAuthError:
+            return templates.TemplateResponse(
+                "login.html",
+                {"request": request, "error": "Identifiants invalides"},
+                status_code=401,
+            )
+    if not user:
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Identifiants invalides"},
@@ -569,6 +627,15 @@ def logout():
 
 @app.get("/password", response_class=HTMLResponse)
 def password_form(request: Request, user: User = Depends(get_current_user)):
+    if is_ldap_user(user):
+        return templates.TemplateResponse(
+            "password.html",
+            {
+                "request": request,
+                "user": user,
+                "ldap_managed": True,
+            },
+        )
     return templates.TemplateResponse(
         "password.html", {"request": request, "user": user}
     )
@@ -580,6 +647,11 @@ def change_password(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    if is_ldap_user(user):
+        raise HTTPException(
+            status_code=403,
+            detail="Le mot de passe LDAP est géré dans l'annuaire.",
+        )
     user.password_hash = hash_password(new_password)
     user.must_change_password = False
     db.add(user)
@@ -641,6 +713,7 @@ def users_create(
         password_hash=hash_password(password),
         role=role,
         must_change_password=True,
+        auth_source=AUTH_SOURCE_LOCAL,
     )
     db.add(new_user)
     db.commit()
@@ -658,6 +731,14 @@ def admin_change_password(
     target = db.get(User, user_id)
     if not target:
         raise HTTPException(status_code=404)
+    if is_ldap_user(target):
+        return render_users_page(
+            request,
+            user,
+            db,
+            error="Le mot de passe LDAP est géré dans LLDAP.",
+            status_code=400,
+        )
     target.password_hash = hash_password(new_password)
     target.must_change_password = target.id != user.id
     db.add(target)
@@ -667,6 +748,43 @@ def admin_change_password(
         user,
         db,
         success=f"Mot de passe mis à jour pour {target.username}.",
+    )
+
+
+@app.get("/admin/ldap", response_class=HTMLResponse)
+def ldap_diagnostic_form(
+    request: Request,
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    return templates.TemplateResponse(
+        "ldap_diagnostic.html",
+        {
+            "request": request,
+            "user": user,
+            "ldap_config": ldap_config(),
+            "results": run_ldap_diagnostic(),
+        },
+    )
+
+
+@app.post("/admin/ldap", response_class=HTMLResponse)
+def ldap_diagnostic_run(
+    request: Request,
+    test_username: str = Form(""),
+    test_password: str = Form(""),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    return templates.TemplateResponse(
+        "ldap_diagnostic.html",
+        {
+            "request": request,
+            "user": user,
+            "ldap_config": ldap_config(),
+            "results": run_ldap_diagnostic(
+                test_username.strip() or None,
+                test_password or None,
+            ),
+        },
     )
 
 
