@@ -20,8 +20,6 @@ services:
       LDAP_GROUP_NAME_ATTR: "cn"
       LDAP_GROUP_REQUIRED: "verifmatos"
       LDAP_GROUP_ROLE_MAP: "verifmatos:chefdeposte,alerte:ope"
-      VIGICRUES_GRAND_COURS_SEGMENTS: "AN13:Isère Basse-Tarentaise,AN14:Isère Haute-Combe de Savoie,AN11:Isère moyenne,AN12:Isère grenobloise,AN20:Isère aval"
-      VIGICRUES_REFRESH_SECONDS: "180"
     depends_on:
       - db
     networks:

@@ -392,7 +392,6 @@ manager = ConnectionManager()
 @app.on_event("startup")
 def startup() -> None:
     init_db()
-    start_vigicrues_grand_cours_service()
     db = SessionLocal()
     try:
         admin = db.scalar(select(User).where(User.username == "admin"))
@@ -474,6 +473,15 @@ def provision_ldap_user(db: Session, ldap_user) -> User:
     return user
 
 
+def verify_local_user_password(user: User, password: str) -> bool:
+    if not user.password_hash or user.password_hash == "LDAP_MANAGED":
+        return False
+    try:
+        return verify_password(password, user.password_hash)
+    except Exception:
+        return False
+
+
 @app.get("/", response_class=HTMLResponse)
 def home(
     request: Request,
@@ -540,7 +548,6 @@ def home(
         "issues": len(issues),
         "pending_items": len(pending_items),
     }
-    vigicrues = get_vigicrues_cached_statuses()
     return templates.TemplateResponse(
         "home.html",
         {
@@ -549,7 +556,6 @@ def home(
             "stats": stats,
             "upcoming_events": upcoming_payload,
             "recent_issues": recent_issues,
-            "vigicrues": vigicrues,
         },
     )
 
@@ -580,7 +586,9 @@ def login(
 ):
     user = db.scalar(select(User).where(User.username == username))
     if user:
-        if is_ldap_user(user):
+        if verify_local_user_password(user, password):
+            pass
+        elif is_ldap_user(user):
             try:
                 ldap_user = authenticate_ldap(username, password)
                 user = provision_ldap_user(db, ldap_user)
@@ -590,7 +598,7 @@ def login(
                     {"request": request, "error": "Identifiants invalides"},
                     status_code=401,
                 )
-        elif not verify_password(password, user.password_hash):
+        else:
             return templates.TemplateResponse(
                 "login.html",
                 {"request": request, "error": "Identifiants invalides"},

@@ -102,41 +102,6 @@
     {% endif %}
   </div>
 
-  <div class="card vigicrues-card">
-    <div class="page-header">
-      <div>
-        <h2 class="page-title">Vigicrues</h2>
-        <p class="page-subtitle">
-          Tronçons suivis, actualisés depuis le RSS Vigicrues.
-        </p>
-      </div>
-      <div class="vigicrues-actions">
-        <span class="pill vigicrues-level {{ vigicrues.max_level }}">
-          {{ vigicrues.max_level_label }}
-        </span>
-        <button class="btn secondary small" type="button" id="vigicrues-refresh">
-          Actualiser
-        </button>
-      </div>
-    </div>
-    <div class="vigicrues-list" id="vigicrues-list">
-      {% for segment in vigicrues.statuses %}
-        <a class="vigicrues-item {{ segment.level }}" href="{{ segment.link }}" target="_blank" rel="noreferrer">
-          <span class="vigicrues-dot {{ segment.level }}"></span>
-          <span>
-            <strong>{{ segment.name }}</strong>
-            <span class="muted">{{ segment.code }}</span>
-          </span>
-          <span class="pill vigicrues-level {{ segment.level }}">{{ segment.level_label }}</span>
-        </a>
-      {% endfor %}
-    </div>
-    <p class="muted vigicrues-updated" id="vigicrues-updated">
-      RSS Vigicrues : {{ vigicrues.source_updated_label or 'date inconnue' }} · Service app : {{ vigicrues.updated_label }} · Toutes les {{ (vigicrues.service_interval_seconds // 60) or 3 }} min
-      {% if vigicrues.errors %} · Flux partiellement indisponible{% endif %}
-    </p>
-  </div>
-
   <div class="card">
     <div class="page-header">
       <div>
@@ -160,70 +125,4 @@
     {% endif %}
   </div>
 </section>
-
-<script>
-  const vigicruesList = document.querySelector('#vigicrues-list');
-  const vigicruesUpdated = document.querySelector('#vigicrues-updated');
-  const vigicruesBadge = document.querySelector('.vigicrues-card .page-header .vigicrues-level');
-  const vigicruesRefreshButton = document.querySelector('#vigicrues-refresh');
-  const escapeVigicruesText = (value) =>
-    String(value ?? '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-
-  const renderVigicrues = (payload) => {
-    if (!payload || !Array.isArray(payload.statuses) || !vigicruesList) {
-      return;
-    }
-    vigicruesList.innerHTML = payload.statuses.map((segment) => `
-      <a class="vigicrues-item ${escapeVigicruesText(segment.level)}" href="${escapeVigicruesText(segment.link || '#')}" target="_blank" rel="noreferrer">
-        <span class="vigicrues-dot ${escapeVigicruesText(segment.level)}"></span>
-        <span>
-          <strong>${escapeVigicruesText(segment.name)}</strong>
-          <span class="muted">${escapeVigicruesText(segment.code)}</span>
-        </span>
-        <span class="pill vigicrues-level ${escapeVigicruesText(segment.level)}">${escapeVigicruesText(segment.level_label)}</span>
-      </a>
-    `).join('');
-    if (vigicruesBadge) {
-      vigicruesBadge.className = `pill vigicrues-level ${payload.max_level}`;
-      vigicruesBadge.textContent = payload.max_level_label;
-    }
-    if (vigicruesUpdated) {
-      const minutes = Math.max(1, Math.round((payload.service_interval_seconds || 180) / 60));
-      vigicruesUpdated.textContent = `RSS Vigicrues : ${payload.source_updated_label || 'date inconnue'} · Service app : ${payload.updated_label} · Toutes les ${minutes} min`;
-    }
-  };
-
-  const refreshVigicrues = (force = false) => {
-    if (vigicruesRefreshButton) {
-      vigicruesRefreshButton.disabled = true;
-      vigicruesRefreshButton.textContent = 'Actualisation...';
-    }
-    const forceParam = force ? '&force=1' : '';
-    fetch(`/api/vigicrues?_=${Date.now()}${forceParam}`, {
-      headers: {
-        Accept: 'application/json',
-        'Cache-Control': 'no-cache',
-      },
-      cache: 'no-store',
-    })
-      .then((response) => response.ok ? response.json() : null)
-      .then(renderVigicrues)
-      .catch(() => {})
-      .finally(() => {
-        if (vigicruesRefreshButton) {
-          vigicruesRefreshButton.disabled = false;
-          vigicruesRefreshButton.textContent = 'Actualiser';
-        }
-      });
-  };
-
-  vigicruesRefreshButton?.addEventListener('click', () => refreshVigicrues(true));
-  refreshVigicrues();
-  setInterval(refreshVigicrues, 3 * 60 * 1000);
-</script>
 {% endblock %}
