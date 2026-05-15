@@ -32,8 +32,14 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import AuthError, create_access_token, hash_password, verify_password
 from app.db import SessionLocal, init_db
-from app.ldap_auth import LdapAuthError, authenticate_ldap, ldap_config, run_ldap_diagnostic
-from app.models import Event, EventNode, Lot, MaterialTemplate, User
+from app.ldap_auth import (
+    LDAP_BIND_PASSWORD_SETTING_KEY,
+    LdapAuthError,
+    authenticate_ldap,
+    ldap_config,
+    run_ldap_diagnostic,
+)
+from app.models import AppSetting, Event, EventNode, Lot, MaterialTemplate, User
 
 app = FastAPI()
 
@@ -416,6 +422,16 @@ def get_db() -> Session:
         db.close()
 
 
+def save_app_setting(db: Session, key: str, value: str) -> None:
+    setting = db.get(AppSetting, key)
+    if setting is None:
+        setting = AppSetting(key=key, value=value)
+    else:
+        setting.value = value
+    db.add(setting)
+    db.commit()
+
+
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
     token = request.cookies.get("access_token")
     if not token:
@@ -764,13 +780,51 @@ def ldap_diagnostic_form(
     request: Request,
     user: User = Depends(require_roles(ROLE_ADMIN)),
 ):
+    config = ldap_config()
     return templates.TemplateResponse(
         "ldap_diagnostic.html",
         {
             "request": request,
             "user": user,
-            "ldap_config": ldap_config(),
+            "ldap_config": config,
+            "bind_password_configured": bool(config.bind_password),
             "results": run_ldap_diagnostic(),
+        },
+    )
+
+
+@app.post("/admin/ldap/settings", response_class=HTMLResponse)
+def ldap_settings_save(
+    request: Request,
+    bind_password: str = Form(""),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    if not bind_password.strip():
+        config = ldap_config()
+        return templates.TemplateResponse(
+            "ldap_diagnostic.html",
+            {
+                "request": request,
+                "user": user,
+                "ldap_config": config,
+                "bind_password_configured": bool(config.bind_password),
+                "results": run_ldap_diagnostic(),
+                "settings_error": "Le mot de passe bind LDAP est obligatoire.",
+            },
+            status_code=400,
+        )
+    save_app_setting(db, LDAP_BIND_PASSWORD_SETTING_KEY, bind_password)
+    config = ldap_config()
+    return templates.TemplateResponse(
+        "ldap_diagnostic.html",
+        {
+            "request": request,
+            "user": user,
+            "ldap_config": config,
+            "bind_password_configured": bool(config.bind_password),
+            "results": run_ldap_diagnostic(),
+            "settings_success": "Mot de passe bind LDAP enregistré.",
         },
     )
 
@@ -782,12 +836,14 @@ def ldap_diagnostic_run(
     test_password: str = Form(""),
     user: User = Depends(require_roles(ROLE_ADMIN)),
 ):
+    config = ldap_config()
     return templates.TemplateResponse(
         "ldap_diagnostic.html",
         {
             "request": request,
             "user": user,
-            "ldap_config": ldap_config(),
+            "ldap_config": config,
+            "bind_password_configured": bool(config.bind_password),
             "results": run_ldap_diagnostic(
                 test_username.strip() or None,
                 test_password or None,

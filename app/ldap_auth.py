@@ -40,6 +40,25 @@ class LdapUnavailableError(LdapAuthError):
     pass
 
 
+LDAP_BIND_PASSWORD_SETTING_KEY = "ldap_bind_password"
+
+
+def load_ldap_bind_password() -> str:
+    from sqlalchemy import select
+
+    from app.db import SessionLocal
+    from app.models import AppSetting
+
+    db = SessionLocal()
+    try:
+        setting = db.scalar(
+            select(AppSetting).where(AppSetting.key == LDAP_BIND_PASSWORD_SETTING_KEY)
+        )
+        return setting.value if setting else ""
+    finally:
+        db.close()
+
+
 def normalize_role(value: str) -> str:
     cleaned = value.strip().lower().replace(" ", "").replace("_", "")
     aliases = {
@@ -79,7 +98,7 @@ def ldap_config() -> LdapConfig:
         enabled=os.getenv("LDAP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"},
         url=os.getenv("LDAP_URL", "ldap://lldap:3890"),
         bind_dn=os.getenv("LDAP_BIND_DN", ""),
-        bind_password=os.getenv("LDAP_BIND_PASSWORD", ""),
+        bind_password=load_ldap_bind_password(),
         user_base_dn=os.getenv("LDAP_USER_BASE_DN", "ou=people,dc=apc38,dc=local"),
         user_filter=os.getenv("LDAP_USER_FILTER", "(|(uid={username})(mail={username}))"),
         group_base_dn=os.getenv("LDAP_GROUP_BASE_DN", "ou=groups,dc=apc38,dc=local"),
