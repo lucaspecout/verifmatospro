@@ -826,15 +826,30 @@
     });
   });
 
-  const triggerBulkOk = (container) => {
-    if (!container) {
+  const resolveBulkOkTarget = (source) => {
+    if (!source) {
+      return null;
+    }
+    const nodeId =
+      source.dataset?.nodeId ||
+      source.querySelector?.('[data-action="bulk-ok"][data-node-id]')?.dataset.nodeId ||
+      source.closest?.('[data-node-id]')?.dataset.nodeId;
+    if (!nodeId) {
+      return null;
+    }
+    const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+    return {
+      nodeId,
+      fallbackNode: treeNode || source.closest?.('.tree-node') || source,
+    };
+  };
+
+  const triggerBulkOk = (source) => {
+    const target = resolveBulkOkTarget(source);
+    if (!target) {
       return;
     }
-    const containerNode = document.querySelector(
-      `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
-    );
-    const targetNode = containerNode || container;
-    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
+    fetch(`/events/{{ event.id }}/nodes/${target.nodeId}/bulk-ok`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -857,12 +872,12 @@
             }
           });
           refreshParentTiles();
-        } else if (targetNode) {
-          applyOkFallback(targetNode, data.verifier_name || '');
+        } else if (target.fallbackNode) {
+          applyOkFallback(target.fallbackNode, data.verifier_name || '');
         }
       })
       .catch(() => {
-        applyOkFallback(targetNode, '');
+        applyOkFallback(target.fallbackNode, '');
       });
   };
 
@@ -870,12 +885,9 @@
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const container =
-        resolveNodeContainer(form) ||
-        resolveNodeContainer(form.querySelector('[data-action="bulk-ok"]'));
-      triggerBulkOk(container);
+      triggerBulkOk(form);
     });
-  };
+  });
 
   document.querySelectorAll('form.inline-form[action*="/reset"]').forEach((form) => {
     form.addEventListener('submit', (event) => {
@@ -908,12 +920,7 @@
     button.addEventListener('click', (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const container = resolveNodeContainer(button);
-      if (!container) {
-        return;
-      }
-      event.preventDefault();
-      triggerBulkOk(container);
+      triggerBulkOk(button);
     });
   });
 
