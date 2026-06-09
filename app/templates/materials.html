@@ -14,10 +14,10 @@
       <p class="page-subtitle">Structurez vos sacs pour les réutiliser sur chaque poste.</p>
     </div>
     <div class="page-actions">
-      <button class="btn" type="button" id="jump-to-builder">Accéder au builder</button>
+      <button class="btn" type="button" id="jump-to-builder">Modifier une structure</button>
       <a class="btn secondary" href="/lots">Lots</a>
-      <button class="btn secondary" type="button" data-action="open-root-modal">Nouveau materiel</button>
-      <button class="btn secondary" type="button" data-action="trigger-import">Importer</button>
+      <button class="btn secondary" type="button" data-action="open-root-modal">Créer un modèle</button>
+      <button class="btn secondary" type="button" data-action="trigger-import">Importer JSON</button>
     </div>
   </div>
   <div class="stat-grid">
@@ -37,31 +37,57 @@
       <span class="pill ok">Utilisables</span>
     </div>
   </div>
+  <div class="material-workflow" aria-label="Parcours de gestion du matériel">
+    <div class="workflow-step">
+      <span class="workflow-index">1</span>
+      <div>
+        <strong>Choisir</strong>
+        <span>Sélectionnez un modèle existant ou créez un parent.</span>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <span class="workflow-index">2</span>
+      <div>
+        <strong>Modifier</strong>
+        <span>Ajoutez des contenants, items et quantités dans le builder.</span>
+      </div>
+    </div>
+    <div class="workflow-step">
+      <span class="workflow-index">3</span>
+      <div>
+        <strong>Enregistrer</strong>
+        <span>Le modèle sera disponible pour les prochains postes.</span>
+      </div>
+    </div>
+  </div>
 </section>
 
 <section class="card sacs-overview">
   <div class="builder-header">
     <div>
-      <h2>Bibliothèque de sacs</h2>
+      <h2>Bibliothèque de modèles</h2>
       <p class="muted">
         Sélectionnez un sac existant pour reprendre sa structure ou lancez une nouvelle création.
       </p>
       <div class="sacs-controls">
         <label class="sac-search">
           <span class="sr-only">Rechercher un matériel</span>
-          <input type="search" id="sac-search" placeholder="Rechercher un matériel" autocomplete="off" />
+          <input type="search" id="sac-search" placeholder="Rechercher un sac, une malle, un item..." autocomplete="off" />
         </label>
       </div>
     </div>
     <div class="builder-header-actions">
-      <button class="btn" type="button" data-action="open-root-modal">Nouveau materiel</button>
-      <button class="btn secondary" type="button" data-action="trigger-import">Importer</button>
+      <button class="btn" type="button" data-action="open-root-modal">Créer un modèle</button>
+      <button class="btn secondary" type="button" data-action="trigger-import">Importer JSON</button>
     </div>
   </div>
   <div class="sacs-grid">
     {% for item in parents %}
       <article class="sac-card" data-parent-id="{{ item.id }}">
-        <div>
+        <div class="sac-card-main">
+          <span class="material-type-badge {{ item.node_type }}">
+            {% if item.node_type == 'item' %}Item racine{% else %}Contenant{% endif %}
+          </span>
           <h3>{{ item.name }}</h3>
           {% if item.node_type == 'item' %}
             <p class="muted">
@@ -71,7 +97,7 @@
         </div>
         <div class="sac-card-actions">
           <button class="btn small secondary sac-open" type="button" data-parent-id="{{ item.id }}">
-            Modifier
+            Ouvrir
           </button>
           <button
             class="btn small secondary"
@@ -83,7 +109,7 @@
             Dupliquer
           </button>
           <a class="btn small secondary" href="/materials/parents/export?ids={{ item.id }}">
-            Exporter
+            Export JSON
           </a>
           <form method="post" action="/materials/{{ item.id }}/delete" class="inline-form sac-action-form">
             <button
@@ -98,7 +124,7 @@
       </article>
     {% else %}
       <div class="sac-empty">
-        <p class="muted">Aucun sac créé pour l'instant. Utilisez “Nouveau sac” pour démarrer.</p>
+        <p class="muted">Aucun modèle créé pour l'instant. Utilisez “Créer un modèle” pour démarrer.</p>
       </div>
     {% endfor %}
   </div>
@@ -119,7 +145,7 @@
           </div>
           <div class="builder-canvas-meta">
             <span class="builder-count-pill" id="builder-count">0 item</span>
-            <span class="builder-pill">Niveaux illimités</span>
+            <span class="builder-pill" id="builder-status">Brouillon</span>
           </div>
         </div>
         <div class="builder-root builder-visual" id="builder-root"></div>
@@ -127,9 +153,24 @@
           Créez un parent ou chargez un modèle existant pour démarrer.
         </p>
       </div>
+      <aside class="builder-panel builder-helper" aria-label="Aide et actions du builder">
+        <div class="builder-section-header-text">
+          <p class="eyebrow">Édition</p>
+          <h3>Actions rapides</h3>
+          <p class="muted">Sélectionnez un bloc dans la structure pour le modifier ou ajouter un sous-élément.</p>
+        </div>
+        <div class="builder-selected-card" id="builder-selected-summary">
+          Aucun élément sélectionné.
+        </div>
+        <div class="builder-helper-actions">
+          <button class="btn secondary" type="button" data-action="open-root-modal">Nouveau modèle</button>
+          <button class="btn secondary" type="button" id="reset-builder">Vider le builder</button>
+          <button class="btn" type="submit">Enregistrer le modèle</button>
+        </div>
+      </aside>
     </div>
     <div class="builder-actions">
-      <button class="btn" type="submit">Enregistrer</button>
+      <button class="btn" type="submit">Enregistrer le modèle</button>
     </div>
   </form>
 </section>
@@ -139,9 +180,9 @@
   <input type="hidden" name="items_payload" id="parents-import-payload" />
 </form>
 
-<dialog class="modal" id="root-modal">
+<dialog class="modal" id="root-modal" aria-labelledby="root-modal-title">
   <div class="modal-card">
-    <h3>Créer un parent</h3>
+    <h3 id="root-modal-title">Créer un parent</h3>
     <p class="muted">Exemples : Ambulance VSAV, Sac intervention, Poste de secours.</p>
     <label>Nom du parent
       <input type="text" id="root-name" placeholder="Nom du parent" />
@@ -162,7 +203,7 @@
   </div>
 </dialog>
 
-<dialog class="modal" id="node-modal">
+<dialog class="modal" id="node-modal" aria-labelledby="node-modal-title">
   <div class="modal-card">
     <h3 id="node-modal-title">Modifier un élément</h3>
     <div id="node-modal-edit">
@@ -200,9 +241,9 @@
   </div>
 </dialog>
 
-<dialog class="modal" id="duplicate-modal">
+<dialog class="modal" id="duplicate-modal" aria-labelledby="duplicate-modal-title">
   <form method="post" action="/materials/parents/duplicate" class="modal-card">
-    <h3>Dupliquer un parent</h3>
+    <h3 id="duplicate-modal-title">Dupliquer un parent</h3>
     <p class="muted">Choisissez le nom du nouveau sac avant de copier la structure.</p>
     <input type="hidden" name="source_id" id="duplicate-source-id" />
     <label>Nom du parent
@@ -231,6 +272,9 @@
   const sacCards = Array.from(document.querySelectorAll(".sac-card"));
   const builderRoot = document.getElementById("builder-root");
   const builderCount = document.getElementById("builder-count");
+  const builderStatus = document.getElementById("builder-status");
+  const builderSelectedSummary = document.getElementById("builder-selected-summary");
+  const resetBuilderButton = document.getElementById("reset-builder");
   const builderEmpty = document.getElementById("builder-empty");
   const builderForm = document.getElementById("builder-form");
   const builderPayload = document.getElementById("builder_payload");
@@ -620,6 +664,31 @@
     return item;
   };
 
+  const updateBuilderAssistant = () => {
+    const selected = findNode(builderState.selectedId);
+    if (builderStatus) {
+      builderStatus.textContent = builderState.rootMaterialId ? "Modification" : "Brouillon";
+    }
+    if (!builderSelectedSummary) {
+      return;
+    }
+    if (!selected) {
+      builderSelectedSummary.innerHTML = `
+        <strong>Aucune sélection</strong>
+        <span>Ouvrez un modèle ou créez un parent pour commencer.</span>
+      `;
+      return;
+    }
+    const children = getChildren(selected.id);
+    const label = selected.type === "container" ? "Contenant" : "Item";
+    const qty = selected.type === "item" ? `Quantité: ${selected.qty ?? "-"}` : `${children.length} sous-élément${children.length > 1 ? "s" : ""}`;
+    builderSelectedSummary.innerHTML = `
+      <strong>${escapeHtml(selected.name)}</strong>
+      <span>${label}</span>
+      <span>${qty}</span>
+    `;
+  };
+
   const renderBuilder = () => {
     builderRoot.innerHTML = "";
     if (!builderState.rootId) {
@@ -627,6 +696,7 @@
       if (builderCount) {
         builderCount.textContent = "0 item";
       }
+      updateBuilderAssistant();
       return;
     }
     builderEmpty.classList.add("hidden");
@@ -642,6 +712,7 @@
       parts.push(`${totalContainers} contenant${totalContainers > 1 ? "s" : ""}`);
       builderCount.textContent = parts.join(" · ");
     }
+    updateBuilderAssistant();
   };
 
   const renderNodeTypeOptions = (select, allowedTypes, current) => {
@@ -823,6 +894,12 @@
     builderRoot.scrollIntoView({ behavior: "smooth", block: "start" });
   });
 
+  resetBuilderButton?.addEventListener("click", () => {
+    if (!builderState.rootId || confirm("Vider le builder en cours ?")) {
+      resetBuilder();
+    }
+  });
+
   document.getElementById("create-root").addEventListener("click", () => {
     const input = document.getElementById("root-name");
     const name = normalizeLabel(input.value);
@@ -893,14 +970,10 @@
   builderForm.addEventListener("submit", (event) => {
     if (!builderState.rootId) {
       event.preventDefault();
+      openDialog(document.getElementById("root-modal"));
       return;
     }
     const root = findNode(builderState.rootId);
-    const rootChildren = getChildren(root.id);
-    if (!rootChildren.length && root.type === "container") {
-      event.preventDefault();
-      return;
-    }
     const serializeNode = (node) => ({
       name: node.name,
       type: node.type,
