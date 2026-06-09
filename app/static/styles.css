@@ -2912,8 +2912,8 @@ summary {
   }
 
   .sidebar {
-    position: sticky;
-    top: 0;
+    position: relative;
+    top: auto;
     z-index: 20;
     display: grid;
     gap: 0.75rem;

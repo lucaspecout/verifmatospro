@@ -450,15 +450,31 @@
     openLoadModal(container.dataset.nodeId, nodeName);
   });
 
-  const triggerBulkOk = (container) => {
-    if (!container) {
+  const resolveBulkOkTarget = (source) => {
+    if (!source) {
+      return null;
+    }
+    const nodeId =
+      source.dataset?.nodeId ||
+      source.querySelector?.('[data-action="bulk-ok"][data-node-id]')?.dataset.nodeId ||
+      source.closest?.('[data-node-id]')?.dataset.nodeId;
+    if (!nodeId) {
+      return null;
+    }
+    const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
+    return {
+      nodeId,
+      treeNode,
+      fallbackNode: treeNode || source.closest?.('.tree-node') || source,
+    };
+  };
+
+  const triggerBulkOk = (source) => {
+    const target = resolveBulkOkTarget(source);
+    if (!target) {
       return;
     }
-    const containerNode = document.querySelector(
-      `.tree-node[data-node-id="${container.dataset.nodeId}"]`,
-    );
-    const targetNode = containerNode || container;
-    fetch(`/events/{{ event.id }}/nodes/${container.dataset.nodeId}/bulk-ok`, {
+    fetch(`/events/{{ event.id }}/nodes/${target.nodeId}/bulk-ok`, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
@@ -481,13 +497,13 @@
             }
           });
           refreshParentTiles();
-        } else if (targetNode) {
-          applyOkFallback(targetNode, data.verifier_name || '');
+        } else if (target.fallbackNode) {
+          applyOkFallback(target.fallbackNode, data.verifier_name || '');
         }
         window.fetchLiveChecklist?.();
       })
       .catch(() => {
-        applyOkFallback(targetNode, '');
+        applyOkFallback(target.fallbackNode, '');
         window.fetchLiveChecklist?.();
       });
   };
@@ -499,8 +515,7 @@
     }
     event.preventDefault();
     event.stopPropagation();
-    const container = form.closest('[data-node-id]');
-    triggerBulkOk(container);
+    triggerBulkOk(form);
   });
 
   document.addEventListener('submit', (event) => {
@@ -535,11 +550,7 @@
   document.querySelectorAll('[data-action="bulk-ok"]').forEach((button) => {
     button.addEventListener('click', (event) => {
       event.preventDefault();
-      const container = button.closest('[data-node-id]');
-      if (!container) {
-        return;
-      }
-      triggerBulkOk(container);
+      triggerBulkOk(button);
     });
   });
 
