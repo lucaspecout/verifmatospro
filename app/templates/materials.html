@@ -310,6 +310,13 @@
 
   const normalizeLabel = (value) => value?.trim();
   const generateId = () => `node-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   const normalizeSearchText = (value) =>
     value
       ?.toString()
@@ -592,7 +599,7 @@
         `${stats.items} item${stats.items > 1 ? "s" : ""}`,
       ];
       titleWrap.innerHTML = `
-        <h2>${node.name}</h2>
+        <h2>${escapeHtml(node.name)}</h2>
         <p class="section-subtitle">${subtitleParts.join(" · ")}</p>
       `;
 
@@ -642,7 +649,7 @@
     info.className = "checklist-item-info";
     info.innerHTML = `
       <div class="checklist-item-name">
-        <strong>${node.name}</strong>
+        <strong>${escapeHtml(node.name)}</strong>
         <span class="qty">× ${node.qty ?? "-"}</span>
       </div>
     `;
