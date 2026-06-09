@@ -2587,8 +2587,8 @@ summary {
 }
 
 .public-sticky-status {
-  position: relative;
-  top: auto;
+  position: static !important;
+  top: auto !important;
   z-index: 12;
 }
 
