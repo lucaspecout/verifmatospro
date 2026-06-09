@@ -1918,6 +1918,8 @@ def event_node_bulk_ok(
                     collect_items(child.id)
 
         collect_items(node.id)
+        if not items:
+            items = [node]
     verifier_name = user.username if user else ""
     now = datetime.utcnow()
     for item in items:
@@ -2021,6 +2023,10 @@ def event_node_reset(
         item.updated_at = now
         db.add(item)
     for container in containers:
+        container.status = None
+        container.comment = None
+        container.last_verifier_name = None
+        container.updated_at = now
         container.loaded_at = None
         container.load_vehicle = None
         db.add(container)
@@ -2256,6 +2262,8 @@ def public_node_bulk_ok(
                 collect_items(child.id)
 
     collect_items(node.id)
+    if not items:
+        items = [node]
     verifier_value = (
         (request.cookies.get("verifier_name") or event.verifier_name or "").strip()
     )
@@ -2495,14 +2503,12 @@ def build_tree(nodes: list[Any]) -> list[dict[str, Any]]:
 
 
 def compute_node_status(node: EventNode, children: list[dict[str, Any]]) -> str:
-    if node.node_type == "item":
+    if node.node_type == "item" or not children:
         node_status = getattr(node, "status", None)
         if node_status == "problem":
             return "problem"
         if node_status == "ok":
             return "ok"
-        return "pending"
-    if not children:
         return "pending"
     child_statuses = [child["status"] for child in children]
     if all(status == "ok" for status in child_statuses):
@@ -2548,10 +2554,16 @@ def compute_node_counts(
 
 
 def compute_progress(nodes: list[EventNode]) -> dict[str, Any]:
-    items = [node for node in nodes if node.node_type == "item"]
-    total = len(items)
-    ok_count = len([node for node in items if node.status == "ok"])
-    problem_count = len([node for node in items if node.status == "problem"])
+    parent_ids = {node.parent_id for node in nodes if node.parent_id is not None}
+    checkable_nodes = [
+        node
+        for node in nodes
+        if node.node_type == "item"
+        or (node.node_type == "container" and node.id not in parent_ids)
+    ]
+    total = len(checkable_nodes)
+    ok_count = len([node for node in checkable_nodes if node.status == "ok"])
+    problem_count = len([node for node in checkable_nodes if node.status == "problem"])
     pending = total - ok_count - problem_count
     return {
         "total": total,
