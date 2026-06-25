@@ -640,6 +640,33 @@ body {
   color: #4c1d95;
 }
 
+.lot-badge {
+  --lot-color: #475569;
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.18rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--lot-color);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--lot-color) 55%, white);
+  background: color-mix(in srgb, var(--lot-color) 14%, white);
+  color: var(--lot-color);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.lot-badge::before {
+  content: "";
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 999px;
+  background: var(--lot-color);
+  flex: 0 0 auto;
+}
+
 .status-card-location {
   font-size: 0.72rem;
   color: #4c1d95;

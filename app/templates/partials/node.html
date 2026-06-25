@@ -12,6 +12,11 @@
     <summary class="tree-title">
       <div class="tree-title-main">
         <span class="tree-name">{{ branch.node.name }}</span>
+        {% if branch.node.parent_id is none and branch.node.source_lot_name %}
+          <span class="lot-badge" style="--lot-color: {{ branch.node.source_lot_color or '#475569' }}">
+            {{ branch.node.source_lot_name }}
+          </span>
+        {% endif %}
         <span class="tree-subtitle">Contenant · {{ branch.counts.total }} élément{{ '' if branch.counts.total == 1 else 's' }}</span>
         <span class="tree-destination" data-role="load-destination" {% if not branch.node.load_vehicle and not branch.node.loaded_at %}hidden{% endif %}>
           {% if branch.node.load_vehicle %}

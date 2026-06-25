@@ -1417,15 +1417,18 @@ def load_event_template_data(db: Session) -> tuple[list[MaterialTemplate], list[
     templates_list = db.scalars(
         select(MaterialTemplate).where(MaterialTemplate.parent_id.is_(None))
     ).all()
+    templates_list.sort(key=lambda item: item.name.lower())
     lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
+    lots.sort(key=lambda item: item.name.lower())
     template_index = {template.id: template.name for template in templates_list}
     lot_payload = [
         {
             "id": lot.id,
             "name": lot.name,
+            "color": get_lot_color(lot),
             "template_ids": [
                 material.id
-                for material in lot.materials
+                for material in sorted(lot.materials, key=lambda item: item.name.lower())
                 if material.parent_id is None
             ],
         }
@@ -1466,22 +1469,30 @@ def event_create(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
-    selected_template_ids = set(template_ids)
+    copied_template_ids: set[int] = set()
+    copy_plan: list[dict[str, Any]] = []
     if lot_ids:
+        lot_order = {lot_id: index for index, lot_id in enumerate(lot_ids)}
         lots = db.scalars(
             select(Lot).where(Lot.id.in_(lot_ids)).options(selectinload(Lot.materials))
         ).all()
+        lots.sort(key=lambda item: lot_order.get(item.id, len(lot_order)))
         if len(lots) != len(set(lot_ids)):
             return render_event_new_page(
                 request, user, db, error="Lot sélectionné introuvable."
             )
         for lot in lots:
-            selected_template_ids.update(
-                material.id
-                for material in lot.materials
-                if material.parent_id is None
-            )
-    if not selected_template_ids:
+            for material in sorted(lot.materials, key=lambda item: item.name.lower()):
+                if material.parent_id is not None or material.id in copied_template_ids:
+                    continue
+                copied_template_ids.add(material.id)
+                copy_plan.append({"template_id": material.id, "lot": lot})
+    for template_id in template_ids:
+        if template_id in copied_template_ids:
+            continue
+        copied_template_ids.add(template_id)
+        copy_plan.append({"template_id": template_id, "lot": None})
+    if not copy_plan:
         return render_event_new_page(
             request,
             user,
@@ -1497,10 +1508,17 @@ def event_create(
     )
     db.add(event)
     db.flush()
-    for template_id in selected_template_ids:
-        root_template = db.get(MaterialTemplate, template_id)
+    for sort_order, plan_item in enumerate(copy_plan):
+        root_template = db.get(MaterialTemplate, plan_item["template_id"])
         if root_template:
-            copy_template_to_event(db, event.id, root_template, None)
+            copy_template_to_event(
+                db,
+                event.id,
+                root_template,
+                None,
+                lot=plan_item["lot"],
+                sort_order=sort_order,
+            )
     db.commit()
     return RedirectResponse("/events", status_code=303)
 
@@ -1558,6 +1576,7 @@ def render_event_materials_page(
     templates_list = db.scalars(
         select(MaterialTemplate).where(MaterialTemplate.parent_id.is_(None))
     ).all()
+    templates_list.sort(key=lambda item: item.name.lower())
     template_choices = [
         {
             "id": template.id,
@@ -1567,6 +1586,17 @@ def render_event_materials_page(
         for template in templates_list
     ]
     template_choices.sort(key=lambda item: item["label"].lower())
+    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
+    lots.sort(key=lambda item: item.name.lower())
+    lot_choices = [
+        {
+            "id": lot.id,
+            "label": lot.name,
+            "color": get_lot_color(lot),
+            "count": len([material for material in lot.materials if material.parent_id is None]),
+        }
+        for lot in lots
+    ]
     parent_cards = [
         {
             "node": branch["node"],
@@ -1585,6 +1615,7 @@ def render_event_materials_page(
             "tree": tree,
             "containers": containers,
             "material_templates": template_choices,
+            "lots": lot_choices,
             "parent_cards": parent_cards,
             "error": error,
         },
@@ -1652,6 +1683,7 @@ def event_materials_add(
         node_type=node_type,
         expected_qty=qty_value if node_type == "item" else None,
         parent_id=selected_parent_id,
+        sort_order=get_next_event_sort_order(db, event_id),
     )
     db.add(new_node)
     db.commit()
@@ -1701,7 +1733,74 @@ def event_materials_add_from_template(
             error="Sélectionnez uniquement un parent (racine) du catalogue.",
         )
 
-    copy_template_to_event(db, event.id, template, None)
+    copy_template_to_event(
+        db,
+        event.id,
+        template,
+        None,
+        sort_order=get_next_event_sort_order(db, event_id),
+    )
+    db.commit()
+    return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
+
+
+@app.post("/events/{event_id}/materials/from-lot")
+def event_materials_add_from_lot(
+    request: Request,
+    event_id: int,
+    lot_id: str = Form(...),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    try:
+        lot_id_value = int(lot_id)
+    except ValueError:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Lot selectionne invalide.",
+        )
+    lot = db.scalar(
+        select(Lot).where(Lot.id == lot_id_value).options(selectinload(Lot.materials))
+    )
+    if not lot:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Lot selectionne introuvable.",
+        )
+    root_templates = [
+        material for material in lot.materials if material.parent_id is None
+    ]
+    if not root_templates:
+        return render_event_materials_page(
+            request,
+            user,
+            event,
+            nodes,
+            db,
+            error="Ce lot ne contient aucun sac parent.",
+        )
+    sort_order = get_next_event_sort_order(db, event_id)
+    for offset, template in enumerate(sorted(root_templates, key=lambda item: item.name.lower())):
+        copy_template_to_event(
+            db,
+            event.id,
+            template,
+            None,
+            lot=lot,
+            sort_order=sort_order + offset,
+        )
     db.commit()
     return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
 
@@ -2462,19 +2561,68 @@ async def websocket_event(websocket: WebSocket, event_id: int):
         manager.disconnect(event_id, websocket)
 
 
+LOT_COLORS = [
+    "#2563eb",
+    "#16a34a",
+    "#dc2626",
+    "#9333ea",
+    "#0891b2",
+    "#ca8a04",
+    "#db2777",
+    "#475569",
+]
+
+
+def get_lot_color(lot: Lot | None) -> str | None:
+    if not lot:
+        return None
+    seed = lot.id or sum(ord(char) for char in lot.name)
+    return LOT_COLORS[seed % len(LOT_COLORS)]
+
+
+def get_next_event_sort_order(db: Session, event_id: int) -> int:
+    existing = db.scalars(
+        select(EventNode).where(
+            EventNode.event_id == event_id,
+            EventNode.parent_id.is_(None),
+        )
+    ).all()
+    orders = [
+        node.sort_order
+        for node in existing
+        if getattr(node, "sort_order", None) is not None
+    ]
+    if orders:
+        return max(orders) + 1
+    node_ids = [node.id for node in existing if node.id is not None]
+    if node_ids:
+        return max(node_ids) + 1
+    return 0
+
+
 def copy_template_to_event(
-    db: Session, event_id: int, template: MaterialTemplate, parent_id: int | None
+    db: Session,
+    event_id: int,
+    template: MaterialTemplate,
+    parent_id: int | None,
+    lot: Lot | None = None,
+    sort_order: int | None = None,
 ) -> None:
+    is_root = parent_id is None
     node = EventNode(
         event_id=event_id,
         name=template.name,
         node_type=template.node_type,
         expected_qty=template.expected_qty,
         parent_id=parent_id,
+        source_lot_id=lot.id if is_root and lot else None,
+        source_lot_name=lot.name if is_root and lot else None,
+        source_lot_color=get_lot_color(lot) if is_root and lot else None,
+        sort_order=sort_order if is_root else None,
     )
     db.add(node)
     db.flush()
-    for child in template.children:
+    for child in sorted(template.children, key=lambda item: item.name.lower()):
         copy_template_to_event(db, event_id, child, node.id)
 
 
@@ -2485,7 +2633,15 @@ def build_tree(nodes: list[Any]) -> list[dict[str, Any]]:
 
     def _build(parent_id: int | None) -> list[dict[str, Any]]:
         items = []
-        for node in nodes_by_parent.get(parent_id, []):
+        sorted_nodes = sorted(
+            nodes_by_parent.get(parent_id, []),
+            key=lambda item: (
+                item.sort_order if getattr(item, "sort_order", None) is not None else item.id,
+                item.name.lower(),
+                item.id,
+            ),
+        )
+        for node in sorted_nodes:
             children = _build(node.id)
             status = compute_node_status(node, children)
             counts = compute_node_counts(node, children, status)

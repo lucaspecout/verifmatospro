@@ -44,6 +44,11 @@
               data-status="{{ parent_status }}"
             >
               <span class="status-square-name">{{ parent.node.name }}</span>
+              {% if parent.node.source_lot_name %}
+                <span class="lot-badge" style="--lot-color: {{ parent.node.source_lot_color or '#475569' }}">
+                  {{ parent.node.source_lot_name }}
+                </span>
+              {% endif %}
               <span class="status-square-status">
                 {% if parent_status == 'ok' %}
                   OK
@@ -122,6 +127,11 @@
               data-loaded="{{ 'true' if parent.node.loaded_at else 'false' }}"
             >
               <div class="status-card-name">{{ parent.node.name }}</div>
+              {% if parent.node.source_lot_name %}
+                <span class="lot-badge" style="--lot-color: {{ parent.node.source_lot_color or '#475569' }}">
+                  {{ parent.node.source_lot_name }}
+                </span>
+              {% endif %}
               <div class="status-card-meta">
                 <span class="status-card-pill {{ parent_status }}">
                   {% if parent_status == 'ok' %}

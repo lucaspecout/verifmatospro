@@ -70,6 +70,30 @@
     </form>
   </section>
 
+  <section class="card">
+    <div class="section-header">
+      <div>
+        <h2>Ajouter un lot</h2>
+        <p class="muted">Les sacs du lot sont ajoutes ensemble, dans l'ordre, avec leur etiquette couleur.</p>
+      </div>
+    </div>
+    {% if error %}
+      <p class="error">{{ error }}</p>
+    {% endif %}
+    <form method="post" action="/events/{{ event.id }}/materials/from-lot" class="form">
+      <label>
+        Lot
+        <select name="lot_id" required>
+          <option value="">Selectionner un lot</option>
+          {% for lot in lots %}
+            <option value="{{ lot.id }}">{{ lot.label }} ({{ lot.count }} sac(s))</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button class="btn" type="submit">Ajouter le lot</button>
+    </form>
+  </section>
+
   <section class="card event-checklist">
     <div class="section-header">
       <div>
@@ -82,6 +106,11 @@
         {% set parent_status = parent.status or 'pending' %}
         <div class="status-card {{ parent_status }}">
           <div class="status-card-name">{{ parent.node.name }}</div>
+          {% if parent.node.source_lot_name %}
+            <span class="lot-badge" style="--lot-color: {{ parent.node.source_lot_color or '#475569' }}">
+              {{ parent.node.source_lot_name }}
+            </span>
+          {% endif %}
           <div class="status-card-meta">
             <span class="status-card-pill {{ parent_status }}">
               {% if parent_status == 'ok' %}

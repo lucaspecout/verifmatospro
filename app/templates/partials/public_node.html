@@ -11,6 +11,11 @@
     <summary class="checklist-section-header">
       <div>
         <h2>{{ branch.node.name }}</h2>
+        {% if branch.node.parent_id is none and branch.node.source_lot_name %}
+          <span class="lot-badge" style="--lot-color: {{ branch.node.source_lot_color or '#475569' }}">
+            {{ branch.node.source_lot_name }}
+          </span>
+        {% endif %}
         <p class="section-subtitle">Contrôlez le contenu avant le départ.</p>
         <span class="section-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>
           {% if branch.node.load_vehicle %}

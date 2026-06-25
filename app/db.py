@@ -136,6 +136,22 @@ def ensure_event_node_columns() -> None:
         missing.append(
             ("restock_updated_at", "TIMESTAMP")
         )
+    if "source_lot_id" not in columns:
+        missing.append(
+            ("source_lot_id", "INTEGER")
+        )
+    if "source_lot_name" not in columns:
+        missing.append(
+            ("source_lot_name", "VARCHAR(120)")
+        )
+    if "source_lot_color" not in columns:
+        missing.append(
+            ("source_lot_color", "VARCHAR(20)")
+        )
+    if "sort_order" not in columns:
+        missing.append(
+            ("sort_order", "INTEGER")
+        )
     if not missing:
         return
     with engine.begin() as connection:

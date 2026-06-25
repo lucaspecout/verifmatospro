@@ -18,6 +18,11 @@
     >
       <div class="parent-summary-item-top">
         <span class="parent-summary-item-name">{{ parent.node.name }}</span>
+        {% if parent.node.source_lot_name %}
+          <span class="lot-badge" style="--lot-color: {{ parent.node.source_lot_color or '#475569' }}">
+            {{ parent.node.source_lot_name }}
+          </span>
+        {% endif %}
         <span class="parent-summary-item-badge {{ parent_status }}" data-role="status">{{ parent_label }}</span>
       </div>
       <div class="parent-summary-item-meta">

@@ -60,6 +60,11 @@
               data-status="{{ parent_status }}"
             >
               <span class="status-square-name">{{ parent.node.name }}</span>
+              {% if parent.node.source_lot_name %}
+                <span class="lot-badge" style="--lot-color: {{ parent.node.source_lot_color or '#475569' }}">
+                  {{ parent.node.source_lot_name }}
+                </span>
+              {% endif %}
               <span class="status-square-status">
                 {% if parent_status == 'ok' %}
                   OK
