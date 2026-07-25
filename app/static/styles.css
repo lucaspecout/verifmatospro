@@ -24,6 +24,10 @@
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 }
 
+.hidden {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -3715,33 +3719,126 @@ summary {
 /* Keep the model editor light even though its tree reuses checklist primitives. */
 #material-editor .builder-canvas {
   overflow: visible;
+  color: #172033 !important;
+  background: #f8fafc !important;
+}
+
+#material-editor .builder-root,
+#material-editor .builder-visual,
+#material-editor .checklist-section-body {
+  color: #172033 !important;
+  background: transparent !important;
 }
 
 #material-editor .builder-section {
   padding: 0;
   margin: 0;
-  background: transparent;
+  color: #172033 !important;
+  background: transparent !important;
 }
 
 #material-editor .builder-section[open] > .builder-section-header {
   margin-bottom: 0;
 }
 
+#material-editor .builder-section > .builder-section-header {
+  color: #172033 !important;
+  background: #fff !important;
+  border-color: #dbe3ee !important;
+}
+
+#material-editor .builder-section.active > .builder-section-header {
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
+}
+
 #material-editor .builder-section .section-subtitle {
   display: block;
+  color: #64748b !important;
 }
 
 #material-editor .builder-item {
   padding: 0;
-  background: #fff;
+  color: #172033 !important;
+  background: #fff !important;
+  border-color: #dbe3ee !important;
 }
 
 #material-editor .builder-item.active {
-  background: #eff6ff;
+  background: #eff6ff !important;
+  border-color: #2563eb !important;
 }
 
 #material-editor .checklist-item-info {
   justify-content: center;
+}
+
+#material-editor .checklist-item-name,
+#material-editor .checklist-item-name strong {
+  color: #172033 !important;
+}
+
+#material-editor .builder-item-qty {
+  color: #1d4ed8 !important;
+  background: #dbeafe !important;
+}
+
+#node-modal {
+  color: #172033;
+}
+
+#node-modal .modal-card {
+  width: min(calc(100vw - 2rem), 520px);
+  max-width: 520px;
+  overflow-x: hidden;
+}
+
+#node-modal h3 {
+  margin: 0 0 0.25rem;
+}
+
+#node-modal-edit,
+#node-modal-add {
+  min-width: 0;
+}
+
+#node-modal-edit:not(.hidden),
+#node-modal-add:not(.hidden) {
+  display: grid;
+  gap: 0.8rem;
+}
+
+#node-modal label {
+  display: grid;
+  min-width: 0;
+  gap: 0.35rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+#node-modal input,
+#node-modal select {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0.7rem 0.75rem;
+  color: #172033;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+}
+
+#node-modal .modal-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+  gap: 0.55rem;
+  padding-top: 0.35rem;
+}
+
+#node-modal .modal-actions .btn {
+  width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 520px) {
@@ -3751,5 +3848,16 @@ summary {
 
   #material-editor .builder-item .checklist-item-row {
     display: flex;
+  }
+
+  #node-modal {
+    padding: 0.75rem;
+    align-items: center;
+  }
+
+  #node-modal .modal-card {
+    width: 100%;
+    max-height: calc(100dvh - 1.5rem);
+    border-radius: 10px;
   }
 }
