@@ -46,6 +46,7 @@ from app.models import (
     Lot,
     LotReservation,
     MaterialTemplate,
+    TemplateReservation,
     User,
 )
 
@@ -1053,6 +1054,23 @@ def find_lot_conflicts(
     ).all()
 
 
+def find_template_reservations(
+    db: Session,
+    template_ids: list[int],
+    starts_at: datetime,
+    ends_at: datetime,
+) -> list[TemplateReservation]:
+    if not template_ids:
+        return []
+    return db.scalars(
+        select(TemplateReservation).where(
+            TemplateReservation.template_id.in_(template_ids),
+            TemplateReservation.starts_at < ends_at,
+            TemplateReservation.ends_at > starts_at,
+        )
+    ).all()
+
+
 @app.get("/api/lots/availability")
 def lots_availability(
     starts_at: str,
@@ -1076,6 +1094,31 @@ def lots_availability(
     conflicts_by_lot: dict[int, list[LotReservation]] = defaultdict(list)
     for conflict in conflicts:
         conflicts_by_lot[conflict.lot_id].append(conflict)
+    root_templates = db.scalars(
+        select(MaterialTemplate)
+        .where(MaterialTemplate.parent_id.is_(None))
+        .order_by(MaterialTemplate.name)
+    ).all()
+    template_reservations = find_template_reservations(
+        db,
+        [template.id for template in root_templates],
+        start_value,
+        end_value,
+    )
+    reserved_by_template: dict[int, int] = defaultdict(int)
+    for reservation in template_reservations:
+        reserved_by_template[reservation.template_id] += reservation.quantity
+    full_reserved_template_ids: set[int] = set()
+    for lot in lots:
+        if any(
+            reservation.reserved_items is None
+            for reservation in conflicts_by_lot.get(lot.id, [])
+        ):
+            full_reserved_template_ids.update(
+                material.id
+                for material in lot.materials
+                if material.parent_id is None
+            )
     return {
         "valid": True,
         "unavailable_lots": [
@@ -1098,6 +1141,31 @@ def lots_availability(
             }
             for lot in lots
             if lot.id in conflicts_by_lot
+        ],
+        "template_availability": [
+            {
+                "id": template.id,
+                "capacity": (
+                    template.expected_qty
+                    if template.node_type == "item" and template.expected_qty
+                    else 1
+                ),
+                "reserved": reserved_by_template[template.id],
+                "remaining": max(
+                    0,
+                    0
+                    if template.id in full_reserved_template_ids
+                    else (
+                        (
+                            template.expected_qty
+                            if template.node_type == "item" and template.expected_qty
+                            else 1
+                        )
+                        - reserved_by_template[template.id]
+                    ),
+                ),
+            }
+            for template in root_templates
         ],
     }
 
@@ -1977,23 +2045,55 @@ def event_create(
             db,
             error="Sélectionnez au moins un sac ou un lot.",
         )
-    selected_item_quantities: dict[int, int] = {}
-    for template in selected_templates:
-        if template.node_type != "item" or not template.expected_qty:
+    requested_template_quantities: dict[int, int] = {}
+    copy_templates: dict[int, MaterialTemplate] = {}
+    for plan_item in copy_plan:
+        template = db.get(MaterialTemplate, plan_item["template_id"])
+        if not template:
             continue
-        raw_qty = raw_quantities.get(str(template.id), template.expected_qty)
+        copy_templates[template.id] = template
+        capacity = (
+            template.expected_qty
+            if template.node_type == "item" and template.expected_qty
+            else 1
+        )
+        raw_qty = raw_quantities.get(str(template.id), capacity)
         try:
             parsed_qty = int(raw_qty)
         except (TypeError, ValueError):
-            parsed_qty = template.expected_qty
-        if parsed_qty < 1 or parsed_qty > template.expected_qty:
+            parsed_qty = capacity
+        if parsed_qty < 1 or parsed_qty > capacity:
             return render_event_new_page(
                 request,
                 user,
                 db,
                 error=f"Quantité invalide pour « {template.name} ».",
             )
-        selected_item_quantities[template.id] = parsed_qty
+        requested_template_quantities[template.id] = parsed_qty
+    existing_template_reservations = find_template_reservations(
+        db,
+        list(requested_template_quantities),
+        start_value,
+        end_value,
+    )
+    already_reserved: dict[int, int] = defaultdict(int)
+    for reservation in existing_template_reservations:
+        already_reserved[reservation.template_id] += reservation.quantity
+    for template_id, requested_qty in requested_template_quantities.items():
+        template = copy_templates[template_id]
+        capacity = (
+            template.expected_qty
+            if template.node_type == "item" and template.expected_qty
+            else 1
+        )
+        remaining = max(0, capacity - already_reserved[template_id])
+        if requested_qty > remaining:
+            return render_event_new_page(
+                request,
+                user,
+                db,
+                error=f"Il ne reste que {remaining} disponible(s) pour « {template.name} » sur ce créneau.",
+            )
     impacted_lots: dict[int, set[str] | None] = {
         lot.id: None for lot in lots
     }
@@ -2009,7 +2109,7 @@ def event_create(
             if any(material.id == template.id for material in lot.materials):
                 reserved_items = impacted_lots.setdefault(lot.id, set())
                 if reserved_items is not None:
-                    quantity = selected_item_quantities.get(template.id)
+                    quantity = requested_template_quantities.get(template.id)
                     reserved_items.add(
                         f"{template.name} × {quantity}"
                         if quantity is not None
@@ -2025,9 +2125,14 @@ def event_create(
         start_value,
         end_value,
     )
-    if impacted_conflicts:
+    blocking_impacted_conflicts = [
+        conflict
+        for conflict in impacted_conflicts
+        if conflict.reserved_items is None
+    ]
+    if blocking_impacted_conflicts:
         conflict_names = ", ".join(
-            sorted({conflict.lot.name for conflict in impacted_conflicts})
+            sorted({conflict.lot.name for conflict in blocking_impacted_conflicts})
         )
         return render_event_new_page(
             request,
@@ -2045,6 +2150,16 @@ def event_create(
     )
     db.add(event)
     db.flush()
+    for template_id, quantity in requested_template_quantities.items():
+        db.add(
+            TemplateReservation(
+                template_id=template_id,
+                event_id=event.id,
+                quantity=quantity,
+                starts_at=start_value,
+                ends_at=end_value,
+            )
+        )
     for lot_id, reserved_items in impacted_lots.items():
         db.add(
             LotReservation(
@@ -2063,21 +2178,11 @@ def event_create(
     for sort_order, plan_item in enumerate(copy_plan):
         root_template = db.get(MaterialTemplate, plan_item["template_id"])
         if root_template:
-            qty_override = None
-            raw_qty = plan_item.get("qty_override")
-            if root_template.node_type == "item" and root_template.expected_qty:
-                try:
-                    parsed_qty = int(raw_qty)
-                except (TypeError, ValueError):
-                    parsed_qty = root_template.expected_qty
-                if parsed_qty < 1 or parsed_qty > root_template.expected_qty:
-                    return render_event_new_page(
-                        request,
-                        user,
-                        db,
-                        error=f"Quantité invalide pour « {root_template.name} ».",
-                    )
-                qty_override = parsed_qty
+            qty_override = (
+                requested_template_quantities.get(root_template.id)
+                if root_template.node_type == "item"
+                else None
+            )
             copy_template_to_event(
                 db,
                 event.id,
@@ -2308,6 +2413,41 @@ def event_materials_add_from_template(
         )
 
     if event.starts_at and event.ends_at:
+        capacity = (
+            template.expected_qty
+            if template.node_type == "item" and template.expected_qty
+            else 1
+        )
+        existing_template_reservation = db.scalar(
+            select(TemplateReservation).where(
+                TemplateReservation.event_id == event.id,
+                TemplateReservation.template_id == template.id,
+            )
+        )
+        if not existing_template_reservation:
+            overlapping = find_template_reservations(
+                db, [template.id], event.starts_at, event.ends_at
+            )
+            reserved_qty = sum(item.quantity for item in overlapping)
+            remaining = max(0, capacity - reserved_qty)
+            if capacity > remaining:
+                return render_event_materials_page(
+                    request,
+                    user,
+                    event,
+                    nodes,
+                    db,
+                    error=f"Il ne reste que {remaining} disponible(s) pour « {template.name} ».",
+                )
+            db.add(
+                TemplateReservation(
+                    template_id=template.id,
+                    event_id=event.id,
+                    quantity=capacity,
+                    starts_at=event.starts_at,
+                    ends_at=event.ends_at,
+                )
+            )
         template_lots = db.scalars(
             select(Lot)
             .join(Lot.materials)
@@ -2439,6 +2579,44 @@ def event_materials_add_from_lot(
             db,
             error="Ce lot ne contient aucun sac parent.",
         )
+    if event.starts_at and event.ends_at:
+        for template in root_templates:
+            capacity = (
+                template.expected_qty
+                if template.node_type == "item" and template.expected_qty
+                else 1
+            )
+            overlapping = find_template_reservations(
+                db, [template.id], event.starts_at, event.ends_at
+            )
+            other_reserved = sum(
+                item.quantity for item in overlapping if item.event_id != event.id
+            )
+            if other_reserved:
+                return render_event_materials_page(
+                    request,
+                    user,
+                    event,
+                    nodes,
+                    db,
+                    error=f"Le contenu « {template.name} » n'est pas entièrement disponible.",
+                )
+            own_reservation = next(
+                (item for item in overlapping if item.event_id == event.id),
+                None,
+            )
+            if own_reservation:
+                own_reservation.quantity = capacity
+            else:
+                db.add(
+                    TemplateReservation(
+                        template_id=template.id,
+                        event_id=event.id,
+                        quantity=capacity,
+                        starts_at=event.starts_at,
+                        ends_at=event.ends_at,
+                    )
+                )
     sort_order = get_next_event_sort_order(db, event_id)
     for offset, template in enumerate(sorted(root_templates, key=lambda item: item.name.lower())):
         copy_template_to_event(
@@ -2831,9 +3009,14 @@ def event_delete(
     reservations = db.scalars(
         select(LotReservation).where(LotReservation.event_id == event_id)
     ).all()
+    template_reservations = db.scalars(
+        select(TemplateReservation).where(TemplateReservation.event_id == event_id)
+    ).all()
     for node in nodes:
         db.delete(node)
     for reservation in reservations:
+        db.delete(reservation)
+    for reservation in template_reservations:
         db.delete(reservation)
     db.delete(event)
     db.commit()

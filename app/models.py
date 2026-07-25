@@ -107,6 +107,23 @@ class LotReservation(Base):
     event = relationship("Event", backref="lot_reservations")
 
 
+class TemplateReservation(Base):
+    __tablename__ = "template_reservations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    template_id: Mapped[int] = mapped_column(
+        ForeignKey("material_templates.id"), nullable=False
+    )
+    event_id: Mapped[int] = mapped_column(ForeignKey("events.id"), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    template = relationship("MaterialTemplate", backref="reservations")
+    event = relationship("Event", backref="template_reservations")
+
+
 class EventNode(Base):
     __tablename__ = "event_nodes"
 

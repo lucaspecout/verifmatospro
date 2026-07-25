@@ -99,6 +99,7 @@
   const quantityPayload = document.getElementById('template-quantities');
   let lotManagedTemplateIds = new Set();
   const selectedQuantities = new Map();
+  const availableQuantities = new Map();
   let availabilityReady = false;
   let availabilityTimer = null;
   let availabilityRequestId = 0;
@@ -132,7 +133,11 @@
       }
     });
     quantityTemplates.forEach(([id, template]) => {
-      const maxQty = Number(template.max_qty);
+      const configuredMax = Number(template.max_qty);
+      const maxQty = Math.min(
+        configuredMax,
+        Number(availableQuantities.get(id) ?? configuredMax)
+      );
       const currentQty = Math.min(
         maxQty,
         Math.max(1, Number(selectedQuantities.get(id) ?? maxQty))
@@ -144,7 +149,7 @@
       const label = document.createElement('strong');
       label.textContent = template.name;
       const available = document.createElement('small');
-      available.textContent = `${maxQty} disponible(s)`;
+      available.textContent = `${maxQty} disponible(s) sur ce créneau`;
       labelWrap.appendChild(label);
       labelWrap.appendChild(available);
       const input = document.createElement('input');
@@ -248,6 +253,7 @@
       option.classList.remove('unavailable-option');
       option.textContent = option.dataset.label || option.textContent;
     });
+    availableQuantities.clear();
   };
 
   const checkAvailability = async () => {
@@ -289,10 +295,8 @@
       const unavailableLotIds = new Set(
         payload.unavailable_lots.map((lot) => String(lot.id))
       );
-      const unavailableTemplateIds = new Set(
-        payload.unavailable_lots.flatMap((lot) =>
-          lot.template_ids.map((templateId) => String(templateId))
-        )
+      const templateAvailability = new Map(
+        payload.template_availability.map((item) => [String(item.id), item])
       );
 
       Array.from(lotSelect.options).forEach((option) => {
@@ -306,13 +310,19 @@
       });
       syncLotTemplates();
       Array.from(select.options).forEach((option) => {
-        if (!unavailableTemplateIds.has(option.value)) {
+        const availability = templateAvailability.get(option.value);
+        if (!availability) {
           return;
         }
-        option.disabled = true;
-        option.selected = false;
-        option.classList.add('unavailable-option');
-        option.textContent = `Indisponible — ${option.dataset.label}`;
+        availableQuantities.set(option.value, availability.remaining);
+        if (availability.remaining <= 0) {
+          option.disabled = true;
+          option.selected = false;
+          option.classList.add('unavailable-option');
+          option.textContent = `Indisponible — ${option.dataset.label}`;
+        } else if (availability.remaining < availability.capacity) {
+          option.textContent = `${option.dataset.label} — ${availability.remaining} restant(s)`;
+        }
       });
       updatePreview();
       lotSelect.disabled = false;
