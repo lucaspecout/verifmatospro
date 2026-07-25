@@ -98,6 +98,7 @@ class LotReservation(Base):
     lot_id: Mapped[int] = mapped_column(ForeignKey("lots.id"), nullable=False)
     event_id: Mapped[int | None] = mapped_column(ForeignKey("events.id"), nullable=True)
     title: Mapped[str] = mapped_column(String(120), nullable=False)
+    reserved_items: Mapped[str | None] = mapped_column(Text, nullable=True)
     starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

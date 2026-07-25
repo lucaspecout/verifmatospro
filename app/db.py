@@ -81,6 +81,7 @@ def init_db() -> None:
     ensure_user_columns()
     ensure_event_columns()
     ensure_event_node_columns()
+    ensure_lot_reservation_columns()
 
 
 def ensure_user_columns() -> None:
@@ -185,3 +186,19 @@ def ensure_event_node_columns() -> None:
                     f"ALTER TABLE event_nodes ADD COLUMN {column_name} {column_type}"
                 )
             )
+
+
+def ensure_lot_reservation_columns() -> None:
+    inspector = inspect(engine)
+    if "lot_reservations" not in inspector.get_table_names():
+        return
+    columns = {
+        column["name"] for column in inspector.get_columns("lot_reservations")
+    }
+    if "reserved_items" in columns:
+        return
+    with engine.begin() as connection:
+        logging.warning("Adding missing column reserved_items to lot_reservations.")
+        connection.execute(
+            text("ALTER TABLE lot_reservations ADD COLUMN reserved_items TEXT")
+        )

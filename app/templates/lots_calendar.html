@@ -87,6 +87,13 @@
               </span>
               <strong>{{ reservation.lot.name }}</strong>
               <span>{{ reservation.title }}</span>
+              <span class="reservation-items">
+                {% if reservation.reserved_items %}
+                  Pris dans le lot : {{ reservation.reserved_items }}
+                {% else %}
+                  Lot complet
+                {% endif %}
+              </span>
               <time>
                 {{ reservation.starts_at.strftime('%d/%m %H:%M') }}
                 → {{ reservation.ends_at.strftime('%d/%m %H:%M') }}

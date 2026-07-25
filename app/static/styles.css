@@ -3913,6 +3913,53 @@ summary {
   font-size: 1rem;
 }
 
+.availability-notice {
+  padding: 0.8rem 0.9rem;
+  color: #475569;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left-width: 4px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.availability-notice.pending,
+.availability-notice.loading {
+  border-left-color: #f59e0b;
+}
+
+.availability-notice.available {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.availability-notice.warning {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.availability-notice.error {
+  color: #991b1b;
+  background: #fef2f2;
+  border-color: #ef4444;
+}
+
+#lot-select:disabled,
+#template-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+#lot-select option.unavailable-option,
+#template-select option.unavailable-option {
+  color: #b91c1c;
+  background: #fef2f2;
+  font-weight: 700;
+}
+
 .inline-link {
   width: fit-content;
   color: #1d4ed8;
@@ -4052,6 +4099,12 @@ summary {
 .calendar-reservation span,
 .calendar-reservation time {
   overflow-wrap: anywhere;
+}
+
+.reservation-items {
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 700;
 }
 
 .calendar-reservation time {

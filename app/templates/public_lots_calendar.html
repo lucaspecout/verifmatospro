@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Disponibilité des lots</title>
-  <link rel="stylesheet" href="/static/styles.css?v=public-lots-6" />
+  <link rel="stylesheet" href="/static/styles.css?v=availability-items-7" />
 </head>
 <body class="public-lot-calendar-page">
   <main class="public-lot-calendar-shell">
@@ -52,6 +52,13 @@
                 <div>
                   <span class="reservation-source">Indisponible</span>
                   <strong>{{ reservation.lot.name }}</strong>
+                  <span class="reservation-items">
+                    {% if reservation.reserved_items %}
+                      Pris dans le lot : {{ reservation.reserved_items }}
+                    {% else %}
+                      Lot complet
+                    {% endif %}
+                  </span>
                   <time>
                     {{ reservation.starts_at.strftime('%d/%m %H:%M') }}
                     → {{ reservation.ends_at.strftime('%d/%m %H:%M') }}

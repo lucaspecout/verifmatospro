@@ -1053,6 +1053,55 @@ def find_lot_conflicts(
     ).all()
 
 
+@app.get("/api/lots/availability")
+def lots_availability(
+    starts_at: str,
+    ends_at: str,
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    start_value = parse_local_datetime(starts_at)
+    end_value = parse_local_datetime(ends_at)
+    if not start_value or not end_value or end_value <= start_value:
+        return JSONResponse(
+            {"valid": False, "unavailable_lots": []},
+            status_code=400,
+        )
+    lots = db.scalars(
+        select(Lot).options(selectinload(Lot.materials)).order_by(Lot.name)
+    ).all()
+    conflicts = find_lot_conflicts(
+        db, [lot.id for lot in lots], start_value, end_value
+    )
+    conflicts_by_lot: dict[int, list[LotReservation]] = defaultdict(list)
+    for conflict in conflicts:
+        conflicts_by_lot[conflict.lot_id].append(conflict)
+    return {
+        "valid": True,
+        "unavailable_lots": [
+            {
+                "id": lot.id,
+                "name": lot.name,
+                "template_ids": [
+                    material.id
+                    for material in lot.materials
+                    if material.parent_id is None
+                ],
+                "reservations": [
+                    {
+                        "starts_at": reservation.starts_at.isoformat(timespec="minutes"),
+                        "ends_at": reservation.ends_at.isoformat(timespec="minutes"),
+                        "reserved_items": reservation.reserved_items,
+                    }
+                    for reservation in conflicts_by_lot[lot.id]
+                ],
+            }
+            for lot in lots
+            if lot.id in conflicts_by_lot
+        ],
+    }
+
+
 @app.get("/lots/calendar", response_class=HTMLResponse)
 def lots_calendar(
     request: Request,
@@ -1788,6 +1837,10 @@ def event_create(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
+    if not name.strip():
+        return render_event_new_page(
+            request, user, db, error="Le nom du poste est obligatoire."
+        )
     start_value = parse_local_datetime(starts_at)
     end_value = parse_local_datetime(ends_at)
     if not start_value or not end_value:
@@ -1800,12 +1853,15 @@ def event_create(
         )
     copied_template_ids: set[int] = set()
     copy_plan: list[dict[str, Any]] = []
+    all_lots = db.scalars(
+        select(Lot).options(selectinload(Lot.materials)).order_by(Lot.name)
+    ).all()
+    lots_by_id = {lot.id: lot for lot in all_lots}
+    explicit_lot_ids = set(lot_ids)
     lots: list[Lot] = []
     if lot_ids:
         lot_order = {lot_id: index for index, lot_id in enumerate(lot_ids)}
-        lots = db.scalars(
-            select(Lot).where(Lot.id.in_(lot_ids)).options(selectinload(Lot.materials))
-        ).all()
+        lots = [lot for lot in all_lots if lot.id in explicit_lot_ids]
         lots.sort(key=lambda item: lot_order.get(item.id, len(lot_order)))
         if len(lots) != len(set(lot_ids)):
             return render_event_new_page(
@@ -1830,17 +1886,81 @@ def event_create(
                     continue
                 copied_template_ids.add(material.id)
                 copy_plan.append({"template_id": material.id, "lot": lot})
+    selected_templates = (
+        db.scalars(
+            select(MaterialTemplate).where(
+                MaterialTemplate.id.in_(template_ids),
+                MaterialTemplate.parent_id.is_(None),
+            )
+        ).all()
+        if template_ids
+        else []
+    )
+    selected_templates_by_id = {
+        template.id: template for template in selected_templates
+    }
+    if len(selected_templates_by_id) != len(set(template_ids)):
+        return render_event_new_page(
+            request,
+            user,
+            db,
+            error="Un sac spécifique sélectionné est introuvable.",
+        )
     for template_id in template_ids:
         if template_id in copied_template_ids:
             continue
         copied_template_ids.add(template_id)
-        copy_plan.append({"template_id": template_id, "lot": None})
+        source_lot = next(
+            (
+                lot
+                for lot in all_lots
+                if any(material.id == template_id for material in lot.materials)
+            ),
+            None,
+        )
+        copy_plan.append({"template_id": template_id, "lot": source_lot})
     if not copy_plan:
         return render_event_new_page(
             request,
             user,
             db,
             error="Sélectionnez au moins un sac ou un lot.",
+        )
+    impacted_lots: dict[int, set[str] | None] = {
+        lot.id: None for lot in lots
+    }
+    for template in selected_templates:
+        if any(
+            any(material.id == template.id for material in lot.materials)
+            for lot in lots
+        ):
+            continue
+        for lot in all_lots:
+            if lot.id in explicit_lot_ids:
+                continue
+            if any(material.id == template.id for material in lot.materials):
+                reserved_items = impacted_lots.setdefault(lot.id, set())
+                if reserved_items is not None:
+                    reserved_items.add(template.name)
+    impacted_conflicts = find_lot_conflicts(
+        db,
+        [
+            lot_id
+            for lot_id in impacted_lots
+            if lot_id not in explicit_lot_ids
+        ],
+        start_value,
+        end_value,
+    )
+    if impacted_conflicts:
+        conflict_names = ", ".join(
+            sorted({conflict.lot.name for conflict in impacted_conflicts})
+        )
+        return render_event_new_page(
+            request,
+            user,
+            db,
+            error=f"Créneau indisponible pour : {conflict_names}.",
         )
     event = Event(
         name=name.strip(),
@@ -1852,12 +1972,17 @@ def event_create(
     )
     db.add(event)
     db.flush()
-    for lot in lots:
+    for lot_id, reserved_items in impacted_lots.items():
         db.add(
             LotReservation(
-                lot_id=lot.id,
+                lot_id=lot_id,
                 event_id=event.id,
                 title=event.name,
+                reserved_items=(
+                    ", ".join(sorted(reserved_items))
+                    if reserved_items is not None
+                    else None
+                ),
                 starts_at=start_value,
                 ends_at=end_value,
             )
@@ -2093,6 +2218,50 @@ def event_materials_add_from_template(
             error="Sélectionnez uniquement un parent (racine) du catalogue.",
         )
 
+    if event.starts_at and event.ends_at:
+        template_lots = db.scalars(
+            select(Lot)
+            .join(Lot.materials)
+            .where(MaterialTemplate.id == template.id)
+        ).all()
+        for lot in template_lots:
+            existing_reservation = db.scalar(
+                select(LotReservation).where(
+                    LotReservation.event_id == event.id,
+                    LotReservation.lot_id == lot.id,
+                )
+            )
+            if existing_reservation:
+                if existing_reservation.reserved_items is not None:
+                    item_names = {
+                        item.strip()
+                        for item in existing_reservation.reserved_items.split(",")
+                        if item.strip()
+                    }
+                    item_names.add(template.name)
+                    existing_reservation.reserved_items = ", ".join(sorted(item_names))
+                continue
+            if find_lot_conflicts(
+                db, [lot.id], event.starts_at, event.ends_at
+            ):
+                return render_event_materials_page(
+                    request,
+                    user,
+                    event,
+                    nodes,
+                    db,
+                    error=f"Le lot « {lot.name} » est déjà réservé pendant ce poste.",
+                )
+            db.add(
+                LotReservation(
+                    lot_id=lot.id,
+                    event_id=event.id,
+                    title=event.name,
+                    reserved_items=template.name,
+                    starts_at=event.starts_at,
+                    ends_at=event.ends_at,
+                )
+            )
     copy_template_to_event(
         db,
         event.id,
@@ -2145,6 +2314,8 @@ def event_materials_add_from_lot(
             LotReservation.lot_id == lot.id,
         )
     )
+    if existing_reservation:
+        existing_reservation.reserved_items = None
     if event.starts_at and event.ends_at and not existing_reservation:
         conflicts = find_lot_conflicts(
             db, [lot.id], event.starts_at, event.ends_at

@@ -11,27 +11,30 @@
     </div>
     <span class="pill">Configuration</span>
   </div>
-  <form method="post" action="/events" class="form">
+  <form method="post" action="/events" class="form" id="event-create-form">
     <label>Nom du poste
-      <input type="text" name="name" required />
+      <input type="text" name="name" id="event-name" required />
       <span class="help-text">Exemple : Festival été - J2</span>
     </label>
     <div class="event-schedule-fields">
       <label>Début du poste
-        <input type="datetime-local" name="starts_at" required />
+        <input type="datetime-local" name="starts_at" id="event-starts-at" required />
       </label>
       <label>Fin du poste
-        <input type="datetime-local" name="ends_at" required />
+        <input type="datetime-local" name="ends_at" id="event-ends-at" required />
       </label>
     </div>
     <p class="help-text">Les lots sélectionnés seront automatiquement réservés pendant toute cette durée.</p>
+    <div class="availability-notice pending" id="availability-notice">
+      Renseignez le nom, le début et la fin du poste pour vérifier les disponibilités.
+    </div>
     <label>Informations utiles
       <textarea name="info" rows="3" placeholder="Adresse, consignes, horaires..."></textarea>
     </label>
     <label>Sélectionner des lots
       <select name="lot_ids" multiple id="lot-select">
         {% for lot in lots %}
-        <option value="{{ lot.id }}">{{ lot.name }}</option>
+        <option value="{{ lot.id }}" data-label="{{ lot.name }}">{{ lot.name }}</option>
         {% endfor %}
       </select>
       <span class="help-text">Exemple : lot rouge, lot VPS, lot bleu.</span>
@@ -40,7 +43,7 @@
     <label>Sélectionner des sacs spécifiques
       <select name="template_ids" multiple id="template-select">
         {% for item in templates %}
-        <option value="{{ item.id }}">{{ item.name }}</option>
+        <option value="{{ item.id }}" data-label="{{ item.name }}">{{ item.name }}</option>
         {% endfor %}
       </select>
       <span class="help-text">Choisissez des sacs supplémentaires si besoin.</span>
@@ -68,7 +71,15 @@
   const lotSelect = document.getElementById('lot-select');
   const preview = document.getElementById('template-preview');
   const count = document.getElementById('template-count');
+  const eventForm = document.getElementById('event-create-form');
+  const eventName = document.getElementById('event-name');
+  const eventStartsAt = document.getElementById('event-starts-at');
+  const eventEndsAt = document.getElementById('event-ends-at');
+  const availabilityNotice = document.getElementById('availability-notice');
   let lotManagedTemplateIds = new Set();
+  let availabilityReady = false;
+  let availabilityTimer = null;
+  let availabilityRequestId = 0;
 
   const collectTemplateIds = () => {
     const selectedTemplateIds = new Set(
@@ -135,12 +146,132 @@
   };
 
   const toggleOption = (event, selectElement) => {
-    if (event.target.tagName !== 'OPTION') {
+    if (
+      event.target.tagName !== 'OPTION'
+      || selectElement.disabled
+      || event.target.disabled
+    ) {
       return;
     }
     event.preventDefault();
     event.target.selected = !event.target.selected;
     selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  const setAvailabilityNotice = (message, state) => {
+    availabilityNotice.textContent = message;
+    availabilityNotice.className = `availability-notice ${state}`;
+  };
+
+  const resetAvailabilityOptions = () => {
+    Array.from(lotSelect.options).forEach((option) => {
+      option.disabled = false;
+      option.classList.remove('unavailable-option');
+      option.textContent = option.dataset.label || option.textContent;
+    });
+    Array.from(select.options).forEach((option) => {
+      option.disabled = false;
+      option.classList.remove('unavailable-option');
+      option.textContent = option.dataset.label || option.textContent;
+    });
+  };
+
+  const checkAvailability = async () => {
+    const nameIsReady = eventName.value.trim().length > 0;
+    const startValue = eventStartsAt.value;
+    const endValue = eventEndsAt.value;
+    const datesAreReady = startValue && endValue && new Date(endValue) > new Date(startValue);
+    availabilityRequestId += 1;
+    const requestId = availabilityRequestId;
+    availabilityReady = false;
+    if (!nameIsReady || !datesAreReady) {
+      lotSelect.disabled = true;
+      select.disabled = true;
+      resetAvailabilityOptions();
+      setAvailabilityNotice(
+        'Renseignez le nom, le début et une fin postérieure au début pour choisir le matériel.',
+        'pending'
+      );
+      return;
+    }
+
+    lotSelect.disabled = true;
+    select.disabled = true;
+    setAvailabilityNotice('Vérification des disponibilités…', 'loading');
+    try {
+      const params = new URLSearchParams({
+        starts_at: startValue,
+        ends_at: endValue,
+      });
+      const response = await fetch(`/api/lots/availability?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('availability');
+      }
+      const payload = await response.json();
+      if (requestId !== availabilityRequestId) {
+        return;
+      }
+      resetAvailabilityOptions();
+      const unavailableLotIds = new Set(
+        payload.unavailable_lots.map((lot) => String(lot.id))
+      );
+      const unavailableTemplateIds = new Set(
+        payload.unavailable_lots.flatMap((lot) =>
+          lot.template_ids.map((templateId) => String(templateId))
+        )
+      );
+
+      Array.from(lotSelect.options).forEach((option) => {
+        if (!unavailableLotIds.has(option.value)) {
+          return;
+        }
+        option.disabled = true;
+        option.selected = false;
+        option.classList.add('unavailable-option');
+        option.textContent = `Indisponible — ${option.dataset.label}`;
+      });
+      syncLotTemplates();
+      Array.from(select.options).forEach((option) => {
+        if (!unavailableTemplateIds.has(option.value)) {
+          return;
+        }
+        option.disabled = true;
+        option.selected = false;
+        option.classList.add('unavailable-option');
+        option.textContent = `Indisponible — ${option.dataset.label}`;
+      });
+      updatePreview();
+      lotSelect.disabled = false;
+      select.disabled = false;
+      availabilityReady = true;
+      if (unavailableLotIds.size) {
+        setAvailabilityNotice(
+          `${unavailableLotIds.size} lot(s) indisponible(s) sur ce créneau sont affichés en rouge.`,
+          'warning'
+        );
+      } else {
+        setAvailabilityNotice('Tous les lots sont disponibles sur ce créneau.', 'available');
+      }
+    } catch (error) {
+      if (requestId !== availabilityRequestId) {
+        return;
+      }
+      lotSelect.disabled = true;
+      select.disabled = true;
+      setAvailabilityNotice(
+        'Impossible de vérifier les disponibilités. Réessayez avant de créer le poste.',
+        'error'
+      );
+    }
+  };
+
+  const scheduleAvailabilityCheck = () => {
+    availabilityRequestId += 1;
+    availabilityReady = false;
+    lotSelect.disabled = true;
+    select.disabled = true;
+    window.clearTimeout(availabilityTimer);
+    availabilityTimer = window.setTimeout(checkAvailability, 250);
   };
 
   select.addEventListener('change', updatePreview);
@@ -150,6 +281,19 @@
   });
   select.addEventListener('mousedown', (event) => toggleOption(event, select));
   lotSelect.addEventListener('mousedown', (event) => toggleOption(event, lotSelect));
+  eventName.addEventListener('input', scheduleAvailabilityCheck);
+  eventStartsAt.addEventListener('change', scheduleAvailabilityCheck);
+  eventEndsAt.addEventListener('change', scheduleAvailabilityCheck);
+  eventForm.addEventListener('submit', (event) => {
+    if (!availabilityReady) {
+      event.preventDefault();
+      setAvailabilityNotice(
+        'Attendez la vérification des disponibilités avant de créer le poste.',
+        'error'
+      );
+    }
+  });
+  checkAvailability();
   updatePreview();
 </script>
 {% endblock %}
