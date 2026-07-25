@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Disponibilité des lots</title>
+  <link rel="stylesheet" href="/static/styles.css?v=public-lots-6" />
+</head>
+<body class="public-lot-calendar-page">
+  <main class="public-lot-calendar-shell">
+    <header class="public-calendar-header">
+      <div>
+        <p class="eyebrow">Planning public</p>
+        <h1>Disponibilité des lots</h1>
+        <p>Semaine du {{ week_start.strftime('%d/%m/%Y') }} au {{ week_end_label.strftime('%d/%m/%Y') }}</p>
+      </div>
+      <span class="public-calendar-privacy">Les détails des événements sont masqués</span>
+    </header>
+
+    <nav class="calendar-navigation public-calendar-navigation" aria-label="Changer de semaine">
+      <a class="btn secondary" href="/public/lots/calendar?week={{ previous_week.isoformat() }}">← Semaine précédente</a>
+      <a class="btn secondary" href="/public/lots/calendar">Cette semaine</a>
+      <a class="btn secondary" href="/public/lots/calendar?week={{ next_week.isoformat() }}">Semaine suivante →</a>
+    </nav>
+
+    <section class="calendar-week" aria-label="Disponibilité hebdomadaire des lots">
+      {% for day in days %}
+        <article class="calendar-day {% if day.date == today %}is-today{% endif %}">
+          <header class="calendar-day-header">
+            <span>{{ day.name }}</span>
+            <strong>{{ day.date.strftime('%d/%m') }}</strong>
+          </header>
+          <div class="calendar-lot-status">
+            {% for lot in lots %}
+              {% set availability = namespace(reserved=false) %}
+              {% for reservation in day.reservations %}
+                {% if reservation.lot_id == lot.id %}
+                  {% set availability.reserved = true %}
+                {% endif %}
+              {% endfor %}
+              <span class="lot-availability {% if availability.reserved %}reserved{% else %}available{% endif %}">
+                <i aria-hidden="true"></i>
+                {{ lot.name }}
+              </span>
+            {% else %}
+              <span class="muted">Aucun lot configuré.</span>
+            {% endfor %}
+          </div>
+          <div class="calendar-reservations">
+            {% for reservation in day.reservations %}
+              <div class="calendar-reservation public-reservation">
+                <div>
+                  <span class="reservation-source">Indisponible</span>
+                  <strong>{{ reservation.lot.name }}</strong>
+                  <time>
+                    {{ reservation.starts_at.strftime('%d/%m %H:%M') }}
+                    → {{ reservation.ends_at.strftime('%d/%m %H:%M') }}
+                  </time>
+                </div>
+              </div>
+            {% else %}
+              <p class="calendar-day-empty">Tous les lots sont disponibles.</p>
+            {% endfor %}
+          </div>
+        </article>
+      {% endfor %}
+    </section>
+
+    <footer class="public-calendar-legend">
+      <span class="lot-availability available"><i></i>Disponible</span>
+      <span class="lot-availability reserved"><i></i>Réservé</span>
+      <span>Mise à jour en temps réel lors du rechargement de la page.</span>
+    </footer>
+  </main>
+</body>
+</html>

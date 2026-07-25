@@ -2158,6 +2158,92 @@ body {
   background: #2563eb;
 }
 
+.public-lot-calendar-page {
+  min-height: 100vh;
+  color: #172033;
+  background: #eef2f7;
+}
+
+.public-lot-calendar-shell {
+  width: min(1800px, 100%);
+  margin: 0 auto;
+  padding: 1.25rem;
+}
+
+.public-calendar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.35rem;
+  margin-bottom: 0.8rem;
+  color: #fff;
+  background: linear-gradient(135deg, #0f172a, #1e3a5f 60%, #2563eb);
+  border-radius: 12px;
+}
+
+.public-calendar-header h1,
+.public-calendar-header p {
+  margin: 0;
+}
+
+.public-calendar-header .eyebrow {
+  margin-bottom: 0.4rem;
+  color: #bfdbfe;
+}
+
+.public-calendar-header > div > p:last-child {
+  margin-top: 0.4rem;
+  color: #dbeafe;
+}
+
+.public-calendar-privacy {
+  padding: 0.5rem 0.7rem;
+  color: #dbeafe;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.public-calendar-navigation {
+  margin-bottom: 0.8rem;
+}
+
+.public-reservation {
+  background: #fef2f2;
+  border-left-color: #ef4444;
+}
+
+.public-reservation .reservation-source {
+  color: #b91c1c;
+}
+
+.public-calendar-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  padding: 0.9rem 1rem;
+  margin-top: 0.25rem;
+  color: #64748b;
+  background: #fff;
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  font-size: 0.8rem;
+}
+
+@media (max-width: 640px) {
+  .public-lot-calendar-shell {
+    padding: 0.65rem;
+  }
+
+  .public-calendar-header {
+    display: grid;
+  }
+}
+
 .user-role-form select,
 .mobile-user-form select {
   width: 100%;

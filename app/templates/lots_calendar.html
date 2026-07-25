@@ -12,6 +12,8 @@
       <p class="page-subtitle">Semaine du {{ week_start.strftime('%d/%m/%Y') }} au {{ week_end_label.strftime('%d/%m/%Y') }}</p>
     </div>
     <div class="page-actions">
+      <a class="btn secondary" href="/public/lots/calendar" target="_blank" rel="noopener">Ouvrir la page publique</a>
+      <button class="btn secondary" type="button" id="copy-public-calendar">Copier le lien public</button>
       <a class="btn secondary" href="/lots">Gérer les lots</a>
       <a class="btn" href="/events/new">Créer un poste</a>
     </div>
@@ -106,4 +108,24 @@
     </article>
   {% endfor %}
 </section>
+<script>
+  document.getElementById('copy-public-calendar')?.addEventListener('click', async (event) => {
+    const publicUrl = `${window.location.origin}/public/lots/calendar`;
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+    } catch (error) {
+      const temporaryInput = document.createElement('textarea');
+      temporaryInput.value = publicUrl;
+      document.body.appendChild(temporaryInput);
+      temporaryInput.select();
+      document.execCommand('copy');
+      temporaryInput.remove();
+    }
+    const button = event.currentTarget;
+    button.textContent = 'Lien copié';
+    window.setTimeout(() => {
+      button.textContent = 'Copier le lien public';
+    }, 1800);
+  });
+</script>
 {% endblock %}

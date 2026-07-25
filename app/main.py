@@ -1118,6 +1118,65 @@ def lots_calendar(
     )
 
 
+@app.get("/public/lots/calendar", response_class=HTMLResponse)
+def public_lots_calendar(
+    request: Request,
+    week: str = "",
+    db: Session = Depends(get_db),
+):
+    try:
+        requested_day = date.fromisoformat(week) if week else date.today()
+    except ValueError:
+        requested_day = date.today()
+    week_start = requested_day - timedelta(days=requested_day.weekday())
+    week_end = week_start + timedelta(days=7)
+    range_start = datetime.combine(week_start, datetime_time.min)
+    range_end = datetime.combine(week_end, datetime_time.min)
+    lots = db.scalars(select(Lot).order_by(Lot.name)).all()
+    reservations = db.scalars(
+        select(LotReservation)
+        .where(
+            LotReservation.starts_at < range_end,
+            LotReservation.ends_at > range_start,
+        )
+        .options(selectinload(LotReservation.lot))
+        .order_by(LotReservation.starts_at)
+    ).all()
+    reservations_by_day: dict[date, list[LotReservation]] = defaultdict(list)
+    for reservation in reservations:
+        first_day = max(reservation.starts_at.date(), week_start)
+        inclusive_end = reservation.ends_at - timedelta(microseconds=1)
+        last_day = min(inclusive_end.date(), week_end - timedelta(days=1))
+        cursor = first_day
+        while cursor <= last_day:
+            reservations_by_day[cursor].append(reservation)
+            cursor += timedelta(days=1)
+    day_names = ("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
+    days = [
+        {
+            "date": week_start + timedelta(days=index),
+            "name": day_names[index],
+            "reservations": reservations_by_day.get(
+                week_start + timedelta(days=index), []
+            ),
+        }
+        for index in range(7)
+    ]
+    return templates.TemplateResponse(
+        "public_lots_calendar.html",
+        {
+            "request": request,
+            "lots": lots,
+            "days": days,
+            "week_start": week_start,
+            "week_end_label": week_end - timedelta(days=1),
+            "previous_week": week_start - timedelta(days=7),
+            "next_week": week_start + timedelta(days=7),
+            "today": date.today(),
+        },
+    )
+
+
 @app.post("/lots/calendar/reservations")
 def lot_reservation_create(
     request: Request,
