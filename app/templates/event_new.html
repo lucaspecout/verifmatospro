@@ -41,7 +41,7 @@
       <a class="inline-link" href="/lots/calendar">Voir les disponibilités dans le calendrier</a>
     </label>
     <label>Sélectionner des sacs spécifiques
-      <select name="template_ids" multiple id="template-select">
+      <select name="template_ids" multiple id="template-select" size="12">
         {% for item in templates %}
         <option value="{{ item.id }}" data-label="{{ item.name }}">{{ item.name }}</option>
         {% endfor %}

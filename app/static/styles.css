@@ -3960,6 +3960,22 @@ summary {
   font-weight: 700;
 }
 
+#template-select {
+  min-height: 360px;
+  padding: 0.35rem;
+}
+
+#template-select option {
+  min-height: 30px;
+  padding: 0.4rem 0.55rem;
+}
+
+@media (max-width: 640px) {
+  #template-select {
+    min-height: 280px;
+  }
+}
+
 .inline-link {
   width: fit-content;
   color: #1d4ed8;
