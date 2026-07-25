@@ -68,6 +68,7 @@
   const lotSelect = document.getElementById('lot-select');
   const preview = document.getElementById('template-preview');
   const count = document.getElementById('template-count');
+  let lotManagedTemplateIds = new Set();
 
   const collectTemplateIds = () => {
     const selectedTemplateIds = new Set(
@@ -102,22 +103,35 @@
     });
   };
 
-  const selectLotTemplates = () => {
+  const syncLotTemplates = () => {
     const templateOptions = new Map(
       Array.from(select.options).map((option) => [option.value, option])
     );
+    const requiredTemplateIds = new Set();
     Array.from(lotSelect.selectedOptions).forEach((option) => {
       const lot = lotsById.get(option.value);
       if (!lot) {
         return;
       }
       lot.template_ids.forEach((templateId) => {
-        const templateOption = templateOptions.get(String(templateId));
-        if (templateOption) {
-          templateOption.selected = true;
-        }
+        requiredTemplateIds.add(String(templateId));
       });
     });
+    lotManagedTemplateIds.forEach((templateId) => {
+      if (!requiredTemplateIds.has(templateId)) {
+        const templateOption = templateOptions.get(templateId);
+        if (templateOption) {
+          templateOption.selected = false;
+        }
+      }
+    });
+    requiredTemplateIds.forEach((templateId) => {
+      const templateOption = templateOptions.get(templateId);
+      if (templateOption) {
+        templateOption.selected = true;
+      }
+    });
+    lotManagedTemplateIds = requiredTemplateIds;
   };
 
   const toggleOption = (event, selectElement) => {
@@ -131,7 +145,7 @@
 
   select.addEventListener('change', updatePreview);
   lotSelect.addEventListener('change', () => {
-    selectLotTemplates();
+    syncLotTemplates();
     updatePreview();
   });
   select.addEventListener('mousedown', (event) => toggleOption(event, select));
