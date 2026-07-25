@@ -1611,6 +1611,7 @@ def events_list(
         nodes_by_event[node.event_id].append(node)
 
     event_cards = []
+    archive_cutoff = datetime.now() - timedelta(days=2)
     for event in events:
         event_nodes = nodes_by_event.get(event.id, [])
         progress = compute_progress(event_nodes)
@@ -1619,6 +1620,10 @@ def events_list(
             default=None,
         )
         state = derive_event_state(event, progress)
+        event_reference = event.ends_at
+        if not event_reference and event.date:
+            event_reference = datetime.combine(event.date, datetime_time.max)
+        is_archived = bool(event_reference and event_reference < archive_cutoff)
         event_cards.append(
             {
                 "event": event,
@@ -1628,14 +1633,32 @@ def events_list(
                 "state_label": state["label"],
                 "state_class": state["class"],
                 "state": state["state"],
+                "is_archived": is_archived,
             }
         )
+    event_cards.sort(
+        key=lambda item: (
+            item["event"].starts_at
+            or (
+                datetime.combine(item["event"].date, datetime_time.min)
+                if item["event"].date
+                else item["event"].created_at
+            )
+        ),
+        reverse=True,
+    )
     return templates.TemplateResponse(
         "events.html",
         {
             "request": request,
             "user": user,
             "event_cards": event_cards,
+            "active_count": len(
+                [item for item in event_cards if not item["is_archived"]]
+            ),
+            "archived_count": len(
+                [item for item in event_cards if item["is_archived"]]
+            ),
         },
     )
 

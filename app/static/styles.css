@@ -28,6 +28,10 @@
   display: none !important;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -2102,6 +2106,56 @@ body {
   gap: 0.5rem;
   width: 100%;
   margin-top: 0;
+}
+
+.event-view-tabs {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.35rem;
+  margin-bottom: 1rem;
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  background: #eef2f7;
+  border-radius: 10px;
+}
+
+.event-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.55rem 0.8rem;
+  white-space: nowrap;
+  color: #475569;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.event-view-tab span {
+  display: grid;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  place-items: center;
+  color: #475569;
+  background: #dbe3ee;
+  border-radius: 999px;
+  font-size: 0.72rem;
+}
+
+.event-view-tab.active {
+  color: #1d4ed8;
+  background: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.event-view-tab.active span {
+  color: #fff;
+  background: #2563eb;
 }
 
 .user-role-form select,

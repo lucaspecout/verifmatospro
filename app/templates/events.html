@@ -14,6 +14,14 @@
       <a class="btn" href="/events/new">Nouveau poste</a>
     </div>
   </div>
+  <div class="event-view-tabs" id="event-view-tabs">
+    <button class="event-view-tab active" type="button" data-view="active">
+      Postes en cours <span>{{ active_count }}</span>
+    </button>
+    <button class="event-view-tab" type="button" data-view="archived">
+      Archives <span>{{ archived_count }}</span>
+    </button>
+  </div>
   <div class="filter-chips" id="event-filters">
     <button class="filter-chip active" type="button" data-status="all">Tous</button>
     <button class="filter-chip" type="button" data-status="open">Ouverts</button>
@@ -28,11 +36,15 @@
       class="list-card-item"
       data-name="{{ item.event.name | lower }}"
       data-status="{{ item.state }}"
+      data-archived="{{ 'true' if item.is_archived else 'false' }}"
     >
       <div>
         <h3>{{ item.event.name }}</h3>
         <div class="list-card-meta">
           <span class="pill {{ item.state_class }}">{{ item.state_label }}</span>
+          {% if item.is_archived %}
+          <span class="pill">Archivé automatiquement</span>
+          {% endif %}
           {% if item.event.date %}
           <span>📅 {{ item.date_label }}</span>
           {% endif %}
@@ -64,21 +76,38 @@
     <div class="empty-state">Aucun poste créé. Lancez un nouveau poste pour démarrer.</div>
     {% endfor %}
   </div>
+  <div class="empty-state" id="events-filter-empty" hidden></div>
 </section>
 
 <script>
   const eventSearch = document.getElementById('event-search');
   const eventFilters = document.getElementById('event-filters');
+  const eventViewTabs = document.getElementById('event-view-tabs');
   const eventList = document.getElementById('events-list');
+  const eventFilterEmpty = document.getElementById('events-filter-empty');
   let currentFilter = 'all';
+  let currentView = 'active';
 
   const filterEvents = () => {
     const query = eventSearch.value.trim().toLowerCase();
+    let visibleCount = 0;
     eventList.querySelectorAll('.list-card-item').forEach((card) => {
       const matchesSearch = card.dataset.name.includes(query);
       const matchesFilter = currentFilter === 'all' || card.dataset.status === currentFilter;
-      card.style.display = matchesSearch && matchesFilter ? 'grid' : 'none';
+      const matchesView = currentView === 'archived'
+        ? card.dataset.archived === 'true'
+        : card.dataset.archived === 'false';
+      card.style.display = matchesSearch && matchesFilter && matchesView ? 'grid' : 'none';
+      if (matchesSearch && matchesFilter && matchesView) {
+        visibleCount += 1;
+      }
     });
+    eventFilterEmpty.hidden = visibleCount > 0;
+    eventFilterEmpty.textContent = query
+      ? 'Aucun poste ne correspond à cette recherche.'
+      : currentView === 'archived'
+        ? 'Aucun poste archivé.'
+        : 'Aucun poste en cours. Créez un nouveau poste pour démarrer.';
   };
 
   eventFilters.addEventListener('click', (event) => {
@@ -92,6 +121,18 @@
     filterEvents();
   });
 
+  eventViewTabs.addEventListener('click', (event) => {
+    const button = event.target.closest('.event-view-tab');
+    if (!button) {
+      return;
+    }
+    currentView = button.dataset.view;
+    eventViewTabs.querySelectorAll('.event-view-tab').forEach((tab) => tab.classList.remove('active'));
+    button.classList.add('active');
+    filterEvents();
+  });
+
   eventSearch.addEventListener('input', filterEvents);
+  filterEvents();
 </script>
 {% endblock %}
