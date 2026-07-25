@@ -12,6 +12,7 @@
     <span class="pill">Configuration</span>
   </div>
   <form method="post" action="/events" class="form" id="event-create-form">
+    <input type="hidden" name="template_quantities" id="template-quantities" value="{}" />
     <label>Nom du poste
       <input type="text" name="name" id="event-name" required />
       <span class="help-text">Exemple : Festival été - J2</span>
@@ -45,13 +46,25 @@
         {% for group in template_groups %}
         <optgroup label="{{ group.label }}">
           {% for item in group.templates %}
-          <option value="{{ item.id }}" data-label="{{ item.name }}">{{ item.name }}</option>
+          <option
+            value="{{ item.id }}"
+            data-label="{{ item.name }}{% if item.node_type == 'item' and item.expected_qty and item.expected_qty > 1 %} — jusqu’à {{ item.expected_qty }}{% endif %}"
+          >
+            {{ item.name }}{% if item.node_type == 'item' and item.expected_qty and item.expected_qty > 1 %} — jusqu’à {{ item.expected_qty }}{% endif %}
+          </option>
           {% endfor %}
         </optgroup>
         {% endfor %}
       </select>
       <span class="help-text">Choisissez des sacs supplémentaires si besoin.</span>
     </label>
+    <div class="root-quantity-panel hidden" id="root-quantity-panel">
+      <div>
+        <strong>Quantités des items racine</strong>
+        <span class="help-text">Choisissez la quantité à emporter pour chaque item sélectionné.</span>
+      </div>
+      <div class="root-quantity-list" id="root-quantity-list"></div>
+    </div>
     <div class="stat-grid">
       <div class="stat-card">
         <span class="stat-label">Sélection actuelle</span>
@@ -69,6 +82,7 @@
 
 <script>
   const templateIndex = {{ template_index | tojson }};
+  const templateData = {{ template_payload | tojson }};
   const lotsData = {{ lot_payload | tojson }};
   const lotsById = new Map(lotsData.map((lot) => [String(lot.id), lot]));
   const select = document.getElementById('template-select');
@@ -80,7 +94,11 @@
   const eventStartsAt = document.getElementById('event-starts-at');
   const eventEndsAt = document.getElementById('event-ends-at');
   const availabilityNotice = document.getElementById('availability-notice');
+  const quantityPanel = document.getElementById('root-quantity-panel');
+  const quantityList = document.getElementById('root-quantity-list');
+  const quantityPayload = document.getElementById('template-quantities');
   let lotManagedTemplateIds = new Set();
+  const selectedQuantities = new Map();
   let availabilityReady = false;
   let availabilityTimer = null;
   let availabilityRequestId = 0;
@@ -99,8 +117,60 @@
     return Array.from(selectedTemplateIds);
   };
 
+  const updateQuantityControls = (templateIds) => {
+    const quantityTemplates = templateIds
+      .map((id) => [id, templateData[id]])
+      .filter(([, template]) =>
+        template?.type === 'item' && Number(template.max_qty) > 1
+      );
+    quantityPanel.classList.toggle('hidden', quantityTemplates.length === 0);
+    quantityList.innerHTML = '';
+    const activeIds = new Set(quantityTemplates.map(([id]) => id));
+    Array.from(selectedQuantities.keys()).forEach((id) => {
+      if (!activeIds.has(id)) {
+        selectedQuantities.delete(id);
+      }
+    });
+    quantityTemplates.forEach(([id, template]) => {
+      const maxQty = Number(template.max_qty);
+      const currentQty = Math.min(
+        maxQty,
+        Math.max(1, Number(selectedQuantities.get(id) ?? maxQty))
+      );
+      selectedQuantities.set(id, currentQty);
+      const row = document.createElement('label');
+      row.className = 'root-quantity-row';
+      const labelWrap = document.createElement('span');
+      const label = document.createElement('strong');
+      label.textContent = template.name;
+      const available = document.createElement('small');
+      available.textContent = `${maxQty} disponible(s)`;
+      labelWrap.appendChild(label);
+      labelWrap.appendChild(available);
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '1';
+      input.max = String(maxQty);
+      input.value = String(currentQty);
+      input.setAttribute('aria-label', `Quantité de ${template.name}`);
+      input.addEventListener('input', () => {
+        const value = Math.min(
+          maxQty,
+          Math.max(1, Number(input.value) || 1)
+        );
+        selectedQuantities.set(id, value);
+        quantityPayload.value = JSON.stringify(Object.fromEntries(selectedQuantities));
+      });
+      row.appendChild(labelWrap);
+      row.appendChild(input);
+      quantityList.appendChild(row);
+    });
+    quantityPayload.value = JSON.stringify(Object.fromEntries(selectedQuantities));
+  };
+
   const updatePreview = () => {
     const templateIds = collectTemplateIds();
+    updateQuantityControls(templateIds);
     count.textContent = templateIds.length;
     preview.innerHTML = '';
     if (!templateIds.length) {

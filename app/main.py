@@ -1833,6 +1833,14 @@ def render_event_new_page(
         template_groups.append(
             {"label": "Hors lot", "templates": ungrouped_templates}
         )
+    template_payload = {
+        str(template.id): {
+            "name": template.name,
+            "type": template.node_type,
+            "max_qty": template.expected_qty,
+        }
+        for template in templates_list
+    }
     return templates.TemplateResponse(
         "event_new.html",
         {
@@ -1843,6 +1851,7 @@ def render_event_new_page(
             "template_index": template_index,
             "lot_payload": lot_payload,
             "template_groups": template_groups,
+            "template_payload": template_payload,
             "error": error,
         },
     )
@@ -1856,6 +1865,7 @@ def event_create(
     ends_at: str = Form(...),
     info: str = Form(""),
     template_ids: list[int] = Form([]),
+    template_quantities: str = Form("{}"),
     lot_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
@@ -1874,6 +1884,12 @@ def event_create(
         return render_event_new_page(
             request, user, db, error="La fin du poste doit être postérieure au début."
         )
+    try:
+        raw_quantities = json.loads(template_quantities or "{}")
+    except json.JSONDecodeError:
+        raw_quantities = {}
+    if not isinstance(raw_quantities, dict):
+        raw_quantities = {}
     copied_template_ids: set[int] = set()
     copy_plan: list[dict[str, Any]] = []
     all_lots = db.scalars(
@@ -1908,7 +1924,13 @@ def event_create(
                 if material.parent_id is not None or material.id in copied_template_ids:
                     continue
                 copied_template_ids.add(material.id)
-                copy_plan.append({"template_id": material.id, "lot": lot})
+                copy_plan.append(
+                    {
+                        "template_id": material.id,
+                        "lot": lot,
+                        "qty_override": raw_quantities.get(str(material.id)),
+                    }
+                )
     selected_templates = (
         db.scalars(
             select(MaterialTemplate).where(
@@ -1941,7 +1963,13 @@ def event_create(
             ),
             None,
         )
-        copy_plan.append({"template_id": template_id, "lot": source_lot})
+        copy_plan.append(
+            {
+                "template_id": template_id,
+                "lot": source_lot,
+                "qty_override": raw_quantities.get(str(template_id)),
+            }
+        )
     if not copy_plan:
         return render_event_new_page(
             request,
@@ -1949,6 +1977,23 @@ def event_create(
             db,
             error="Sélectionnez au moins un sac ou un lot.",
         )
+    selected_item_quantities: dict[int, int] = {}
+    for template in selected_templates:
+        if template.node_type != "item" or not template.expected_qty:
+            continue
+        raw_qty = raw_quantities.get(str(template.id), template.expected_qty)
+        try:
+            parsed_qty = int(raw_qty)
+        except (TypeError, ValueError):
+            parsed_qty = template.expected_qty
+        if parsed_qty < 1 or parsed_qty > template.expected_qty:
+            return render_event_new_page(
+                request,
+                user,
+                db,
+                error=f"Quantité invalide pour « {template.name} ».",
+            )
+        selected_item_quantities[template.id] = parsed_qty
     impacted_lots: dict[int, set[str] | None] = {
         lot.id: None for lot in lots
     }
@@ -1964,7 +2009,12 @@ def event_create(
             if any(material.id == template.id for material in lot.materials):
                 reserved_items = impacted_lots.setdefault(lot.id, set())
                 if reserved_items is not None:
-                    reserved_items.add(template.name)
+                    quantity = selected_item_quantities.get(template.id)
+                    reserved_items.add(
+                        f"{template.name} × {quantity}"
+                        if quantity is not None
+                        else template.name
+                    )
     impacted_conflicts = find_lot_conflicts(
         db,
         [
@@ -2013,6 +2063,21 @@ def event_create(
     for sort_order, plan_item in enumerate(copy_plan):
         root_template = db.get(MaterialTemplate, plan_item["template_id"])
         if root_template:
+            qty_override = None
+            raw_qty = plan_item.get("qty_override")
+            if root_template.node_type == "item" and root_template.expected_qty:
+                try:
+                    parsed_qty = int(raw_qty)
+                except (TypeError, ValueError):
+                    parsed_qty = root_template.expected_qty
+                if parsed_qty < 1 or parsed_qty > root_template.expected_qty:
+                    return render_event_new_page(
+                        request,
+                        user,
+                        db,
+                        error=f"Quantité invalide pour « {root_template.name} ».",
+                    )
+                qty_override = parsed_qty
             copy_template_to_event(
                 db,
                 event.id,
@@ -2020,6 +2085,7 @@ def event_create(
                 None,
                 lot=plan_item["lot"],
                 sort_order=sort_order,
+                expected_qty_override=qty_override,
             )
     db.commit()
     return RedirectResponse("/events", status_code=303)
@@ -3194,13 +3260,18 @@ def copy_template_to_event(
     parent_id: int | None,
     lot: Lot | None = None,
     sort_order: int | None = None,
+    expected_qty_override: int | None = None,
 ) -> None:
     is_root = parent_id is None
     node = EventNode(
         event_id=event_id,
         name=template.name,
         node_type=template.node_type,
-        expected_qty=template.expected_qty,
+        expected_qty=(
+            expected_qty_override
+            if is_root and expected_qty_override is not None
+            else template.expected_qty
+        ),
         parent_id=parent_id,
         source_lot_id=lot.id if is_root and lot else None,
         source_lot_name=lot.name if is_root and lot else None,
