@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Verif Matos Pro</title>
-  <link rel="stylesheet" href="/static/styles.css?v=materials-editor-2" />
+  <link rel="stylesheet" href="/static/styles.css?v=planning-lots-3" />
   <link
     rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
@@ -34,6 +34,7 @@
         {% endif %}
         {% if user.role in ['admin', 'chief'] %}
         <a href="/events" class="nav-link" data-path="/events"><span class="nav-icon">✚</span><span>Postes</span></a>
+        <a href="/lots/calendar" class="nav-link" data-path="/lots/calendar"><span class="nav-icon">▣</span><span>Planning lots</span></a>
         {% endif %}
         {% if user.role in ['admin', 'stock'] %}
         <a href="/stock/issues" class="nav-link" data-path="/stock/issues"><span class="nav-icon">!</span><span>Stock</span></a>

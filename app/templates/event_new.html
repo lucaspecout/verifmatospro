@@ -16,9 +16,15 @@
       <input type="text" name="name" required />
       <span class="help-text">Exemple : Festival été - J2</span>
     </label>
-    <label>Date
-      <input type="date" name="date_value" />
-    </label>
+    <div class="event-schedule-fields">
+      <label>Début du poste
+        <input type="datetime-local" name="starts_at" required />
+      </label>
+      <label>Fin du poste
+        <input type="datetime-local" name="ends_at" required />
+      </label>
+    </div>
+    <p class="help-text">Les lots sélectionnés seront automatiquement réservés pendant toute cette durée.</p>
     <label>Informations utiles
       <textarea name="info" rows="3" placeholder="Adresse, consignes, horaires..."></textarea>
     </label>
@@ -29,6 +35,7 @@
         {% endfor %}
       </select>
       <span class="help-text">Exemple : lot rouge, lot VPS, lot bleu.</span>
+      <a class="inline-link" href="/lots/calendar">Voir les disponibilités dans le calendrier</a>
     </label>
     <label>Sélectionner des sacs spécifiques
       <select name="template_ids" multiple id="template-select">

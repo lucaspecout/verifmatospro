@@ -79,6 +79,7 @@ def init_db() -> None:
 
     Base.metadata.create_all(bind=engine)
     ensure_user_columns()
+    ensure_event_columns()
     ensure_event_node_columns()
 
 
@@ -103,6 +104,26 @@ def ensure_user_columns() -> None:
             logging.warning("Adding missing column %s to users.", column_name)
             connection.execute(
                 text(f"ALTER TABLE users ADD COLUMN {column_name} {column_type}")
+            )
+
+
+def ensure_event_columns() -> None:
+    inspector = inspect(engine)
+    if "events" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("events")}
+    missing = []
+    if "starts_at" not in columns:
+        missing.append(("starts_at", "TIMESTAMP"))
+    if "ends_at" not in columns:
+        missing.append(("ends_at", "TIMESTAMP"))
+    if not missing:
+        return
+    with engine.begin() as connection:
+        for column_name, column_type in missing:
+            logging.warning("Adding missing column %s to events.", column_name)
+            connection.execute(
+                text(f"ALTER TABLE events ADD COLUMN {column_name} {column_type}")
             )
 
 

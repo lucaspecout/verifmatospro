@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date, datetime
+from datetime import date, datetime, time as datetime_time, timedelta
 from email.utils import parsedate_to_datetime
 from html import unescape
 import json
@@ -39,7 +39,15 @@ from app.ldap_auth import (
     ldap_config,
     run_ldap_diagnostic,
 )
-from app.models import AppSetting, Event, EventNode, Lot, MaterialTemplate, User
+from app.models import (
+    AppSetting,
+    Event,
+    EventNode,
+    Lot,
+    LotReservation,
+    MaterialTemplate,
+    User,
+)
 
 app = FastAPI()
 
@@ -962,6 +970,167 @@ def render_lots_page(
     )
 
 
+def parse_local_datetime(value: str) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def find_lot_conflicts(
+    db: Session,
+    lot_ids: list[int],
+    starts_at: datetime,
+    ends_at: datetime,
+) -> list[LotReservation]:
+    if not lot_ids:
+        return []
+    return db.scalars(
+        select(LotReservation)
+        .where(
+            LotReservation.lot_id.in_(lot_ids),
+            LotReservation.starts_at < ends_at,
+            LotReservation.ends_at > starts_at,
+        )
+        .options(selectinload(LotReservation.lot))
+        .order_by(LotReservation.starts_at)
+    ).all()
+
+
+@app.get("/lots/calendar", response_class=HTMLResponse)
+def lots_calendar(
+    request: Request,
+    week: str = "",
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    try:
+        requested_day = date.fromisoformat(week) if week else date.today()
+    except ValueError:
+        requested_day = date.today()
+    week_start = requested_day - timedelta(days=requested_day.weekday())
+    week_end = week_start + timedelta(days=7)
+    range_start = datetime.combine(week_start, datetime_time.min)
+    range_end = datetime.combine(week_end, datetime_time.min)
+    lots = db.scalars(select(Lot).order_by(Lot.name)).all()
+    reservations = db.scalars(
+        select(LotReservation)
+        .where(
+            LotReservation.starts_at < range_end,
+            LotReservation.ends_at > range_start,
+        )
+        .options(
+            selectinload(LotReservation.lot),
+            selectinload(LotReservation.event),
+        )
+        .order_by(LotReservation.starts_at)
+    ).all()
+    reservations_by_day: dict[date, list[LotReservation]] = defaultdict(list)
+    for reservation in reservations:
+        first_day = max(reservation.starts_at.date(), week_start)
+        inclusive_end = reservation.ends_at - timedelta(microseconds=1)
+        last_day = min(inclusive_end.date(), week_end - timedelta(days=1))
+        cursor = first_day
+        while cursor <= last_day:
+            reservations_by_day[cursor].append(reservation)
+            cursor += timedelta(days=1)
+    day_names = ("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")
+    days = [
+        {
+            "date": week_start + timedelta(days=index),
+            "name": day_names[index],
+            "reservations": reservations_by_day.get(
+                week_start + timedelta(days=index), []
+            ),
+        }
+        for index in range(7)
+    ]
+    return templates.TemplateResponse(
+        "lots_calendar.html",
+        {
+            "request": request,
+            "user": user,
+            "lots": lots,
+            "days": days,
+            "week_start": week_start,
+            "week_end_label": week_end - timedelta(days=1),
+            "previous_week": week_start - timedelta(days=7),
+            "next_week": week_start + timedelta(days=7),
+            "today": date.today(),
+            "error": request.query_params.get("error"),
+        },
+    )
+
+
+@app.post("/lots/calendar/reservations")
+def lot_reservation_create(
+    request: Request,
+    lot_id: int = Form(...),
+    title: str = Form(...),
+    starts_at: str = Form(...),
+    ends_at: str = Form(...),
+    week: str = Form(""),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    redirect_week = week or date.today().isoformat()
+    lot = db.get(Lot, lot_id)
+    start_value = parse_local_datetime(starts_at)
+    end_value = parse_local_datetime(ends_at)
+    clean_title = title.strip()
+    error = None
+    if not lot:
+        error = "Lot introuvable."
+    elif not clean_title:
+        error = "Le motif de la réservation est obligatoire."
+    elif not start_value or not end_value:
+        error = "Les dates et horaires sont obligatoires."
+    elif end_value <= start_value:
+        error = "La fin doit être postérieure au début."
+    elif find_lot_conflicts(db, [lot_id], start_value, end_value):
+        error = f"Le lot « {lot.name} » est déjà réservé sur ce créneau."
+    if error:
+        from urllib.parse import quote
+
+        return RedirectResponse(
+            f"/lots/calendar?week={redirect_week}&error={quote(error)}",
+            status_code=303,
+        )
+    db.add(
+        LotReservation(
+            lot_id=lot.id,
+            title=clean_title,
+            starts_at=start_value,
+            ends_at=end_value,
+        )
+    )
+    db.commit()
+    return RedirectResponse(f"/lots/calendar?week={redirect_week}", status_code=303)
+
+
+@app.post("/lots/calendar/reservations/{reservation_id}/delete")
+def lot_reservation_delete(
+    reservation_id: int,
+    week: str = Form(""),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    reservation = db.get(LotReservation, reservation_id)
+    if not reservation:
+        raise HTTPException(status_code=404, detail="Réservation introuvable")
+    if reservation.event_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Supprimez l'événement associé pour libérer cette réservation.",
+        )
+    db.delete(reservation)
+    db.commit()
+    return RedirectResponse(
+        f"/lots/calendar?week={week or date.today().isoformat()}",
+        status_code=303,
+    )
+
+
 @app.post("/materials")
 def materials_create(
     request: Request,
@@ -1350,6 +1519,7 @@ def lot_update(
 
 @app.post("/lots/{lot_id}/delete")
 def lot_delete(
+    request: Request,
     lot_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
@@ -1357,6 +1527,16 @@ def lot_delete(
     lot = db.get(Lot, lot_id)
     if not lot:
         raise HTTPException(status_code=404, detail="Lot introuvable")
+    reservation = db.scalar(
+        select(LotReservation).where(LotReservation.lot_id == lot_id)
+    )
+    if reservation:
+        return render_lots_page(
+            request,
+            user,
+            db,
+            error="Ce lot possède des réservations. Supprimez d'abord ses réservations manuelles ou les événements associés.",
+        )
     db.delete(lot)
     db.commit()
     return RedirectResponse("/lots", status_code=303)
@@ -1462,15 +1642,27 @@ def render_event_new_page(
 def event_create(
     request: Request,
     name: str = Form(...),
-    date_value: str = Form(""),
+    starts_at: str = Form(...),
+    ends_at: str = Form(...),
     info: str = Form(""),
     template_ids: list[int] = Form([]),
     lot_ids: list[int] = Form([]),
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
+    start_value = parse_local_datetime(starts_at)
+    end_value = parse_local_datetime(ends_at)
+    if not start_value or not end_value:
+        return render_event_new_page(
+            request, user, db, error="Renseignez la date et les horaires du poste."
+        )
+    if end_value <= start_value:
+        return render_event_new_page(
+            request, user, db, error="La fin du poste doit être postérieure au début."
+        )
     copied_template_ids: set[int] = set()
     copy_plan: list[dict[str, Any]] = []
+    lots: list[Lot] = []
     if lot_ids:
         lot_order = {lot_id: index for index, lot_id in enumerate(lot_ids)}
         lots = db.scalars(
@@ -1480,6 +1672,19 @@ def event_create(
         if len(lots) != len(set(lot_ids)):
             return render_event_new_page(
                 request, user, db, error="Lot sélectionné introuvable."
+            )
+        conflicts = find_lot_conflicts(
+            db, [lot.id for lot in lots], start_value, end_value
+        )
+        if conflicts:
+            conflict_names = ", ".join(
+                sorted({conflict.lot.name for conflict in conflicts})
+            )
+            return render_event_new_page(
+                request,
+                user,
+                db,
+                error=f"Créneau indisponible pour : {conflict_names}. Consultez le calendrier des lots.",
             )
         for lot in lots:
             for material in sorted(lot.materials, key=lambda item: item.name.lower()):
@@ -1499,15 +1704,26 @@ def event_create(
             db,
             error="Sélectionnez au moins un sac ou un lot.",
         )
-    parsed_date = date.fromisoformat(date_value) if date_value else None
     event = Event(
-        name=name,
-        date=parsed_date,
+        name=name.strip(),
+        date=start_value.date(),
+        starts_at=start_value,
+        ends_at=end_value,
         info=info or None,
         public_token=secrets.token_urlsafe(24),
     )
     db.add(event)
     db.flush()
+    for lot in lots:
+        db.add(
+            LotReservation(
+                lot_id=lot.id,
+                event_id=event.id,
+                title=event.name,
+                starts_at=start_value,
+                ends_at=end_value,
+            )
+        )
     for sort_order, plan_item in enumerate(copy_plan):
         root_template = db.get(MaterialTemplate, plan_item["template_id"])
         if root_template:
@@ -1533,6 +1749,12 @@ def event_detail(
     context = build_event_detail_payload(event_id, db)
     event = context["event"]
     event.date_label = format_date(event.date)
+    event.schedule_label = (
+        f"{event.starts_at.strftime('%d/%m/%Y %H:%M')} -> "
+        f"{event.ends_at.strftime('%d/%m/%Y %H:%M')}"
+        if event.starts_at and event.ends_at
+        else event.date_label
+    )
     event.created_label = format_date(event.created_at)
     event.started_label = format_date(event.verification_started_at, "Non démarré")
     event.completed_label = format_date(event.verification_completed_at, "En attente")
@@ -1778,6 +2000,34 @@ def event_materials_add_from_lot(
             nodes,
             db,
             error="Lot selectionne introuvable.",
+        )
+    existing_reservation = db.scalar(
+        select(LotReservation).where(
+            LotReservation.event_id == event.id,
+            LotReservation.lot_id == lot.id,
+        )
+    )
+    if event.starts_at and event.ends_at and not existing_reservation:
+        conflicts = find_lot_conflicts(
+            db, [lot.id], event.starts_at, event.ends_at
+        )
+        if conflicts:
+            return render_event_materials_page(
+                request,
+                user,
+                event,
+                nodes,
+                db,
+                error=f"Le lot « {lot.name} » est déjà réservé pendant ce poste.",
+            )
+        db.add(
+            LotReservation(
+                lot_id=lot.id,
+                event_id=event.id,
+                title=event.name,
+                starts_at=event.starts_at,
+                ends_at=event.ends_at,
+            )
         )
     root_templates = [
         material for material in lot.materials if material.parent_id is None
@@ -2180,8 +2430,13 @@ def event_delete(
     if not event:
         raise HTTPException(status_code=404)
     nodes = db.scalars(select(EventNode).where(EventNode.event_id == event_id)).all()
+    reservations = db.scalars(
+        select(LotReservation).where(LotReservation.event_id == event_id)
+    ).all()
     for node in nodes:
         db.delete(node)
+    for reservation in reservations:
+        db.delete(reservation)
     db.delete(event)
     db.commit()
     return RedirectResponse("/events", status_code=303)

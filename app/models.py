@@ -75,6 +75,8 @@ class Event(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     date: Mapped[datetime | None] = mapped_column(Date, nullable=True)
+    starts_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ends_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     info: Mapped[str | None] = mapped_column(Text, nullable=True)
     public_token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="open")
@@ -86,6 +88,21 @@ class Event(Base):
         DateTime, nullable=True
     )
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class LotReservation(Base):
+    __tablename__ = "lot_reservations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    lot_id: Mapped[int] = mapped_column(ForeignKey("lots.id"), nullable=False)
+    event_id: Mapped[int | None] = mapped_column(ForeignKey("events.id"), nullable=True)
+    title: Mapped[str] = mapped_column(String(120), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    lot = relationship("Lot", backref="reservations")
+    event = relationship("Event", backref="lot_reservations")
 
 
 class EventNode(Base):

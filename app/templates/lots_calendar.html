@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+{% if error %}
+  <p class="error">{{ error }}</p>
+{% endif %}
+
+<section class="card calendar-hero">
+  <div class="page-header">
+    <div>
+      <p class="eyebrow">Planification</p>
+      <h1 class="page-title">Disponibilité des lots</h1>
+      <p class="page-subtitle">Semaine du {{ week_start.strftime('%d/%m/%Y') }} au {{ week_end_label.strftime('%d/%m/%Y') }}</p>
+    </div>
+    <div class="page-actions">
+      <a class="btn secondary" href="/lots">Gérer les lots</a>
+      <a class="btn" href="/events/new">Créer un poste</a>
+    </div>
+  </div>
+  <div class="calendar-navigation">
+    <a class="btn secondary" href="/lots/calendar?week={{ previous_week.isoformat() }}">← Semaine précédente</a>
+    <a class="btn secondary" href="/lots/calendar">Cette semaine</a>
+    <a class="btn secondary" href="/lots/calendar?week={{ next_week.isoformat() }}">Semaine suivante →</a>
+  </div>
+</section>
+
+<section class="card reservation-create-card">
+  <div class="builder-header">
+    <div>
+      <h2>Réserver sans créer d’événement</h2>
+      <p class="muted">Utilisez ce formulaire pour une sortie, une maintenance ou toute autre immobilisation.</p>
+    </div>
+  </div>
+  <form method="post" action="/lots/calendar/reservations" class="reservation-form">
+    <input type="hidden" name="week" value="{{ week_start.isoformat() }}" />
+    <label>Lot
+      <select name="lot_id" required>
+        <option value="">Choisir un lot</option>
+        {% for lot in lots %}
+          <option value="{{ lot.id }}">{{ lot.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Motif
+      <input type="text" name="title" placeholder="Ex. Formation, maintenance…" required />
+    </label>
+    <label>Début
+      <input type="datetime-local" name="starts_at" required />
+    </label>
+    <label>Fin
+      <input type="datetime-local" name="ends_at" required />
+    </label>
+    <button class="btn" type="submit">Réserver le lot</button>
+  </form>
+</section>
+
+<section class="calendar-week" aria-label="Calendrier hebdomadaire des lots">
+  {% for day in days %}
+    <article class="calendar-day {% if day.date == today %}is-today{% endif %}">
+      <header class="calendar-day-header">
+        <span>{{ day.name }}</span>
+        <strong>{{ day.date.strftime('%d/%m') }}</strong>
+      </header>
+      <div class="calendar-lot-status">
+        {% for lot in lots %}
+          {% set availability = namespace(reserved=false) %}
+          {% for reservation in day.reservations %}
+            {% if reservation.lot_id == lot.id %}
+              {% set availability.reserved = true %}
+            {% endif %}
+          {% endfor %}
+          <span class="lot-availability {% if availability.reserved %}reserved{% else %}available{% endif %}">
+            <i aria-hidden="true"></i>
+            {{ lot.name }}
+          </span>
+        {% else %}
+          <span class="muted">Aucun lot configuré.</span>
+        {% endfor %}
+      </div>
+      <div class="calendar-reservations">
+        {% for reservation in day.reservations %}
+          <div class="calendar-reservation {% if reservation.event_id %}from-event{% else %}manual{% endif %}">
+            <div>
+              <span class="reservation-source">
+                {% if reservation.event_id %}Poste{% else %}Réservation{% endif %}
+              </span>
+              <strong>{{ reservation.lot.name }}</strong>
+              <span>{{ reservation.title }}</span>
+              <time>
+                {{ reservation.starts_at.strftime('%d/%m %H:%M') }}
+                → {{ reservation.ends_at.strftime('%d/%m %H:%M') }}
+              </time>
+            </div>
+            {% if reservation.event_id %}
+              <a class="calendar-reservation-link" href="/events/{{ reservation.event_id }}">Voir</a>
+            {% else %}
+              <form method="post" action="/lots/calendar/reservations/{{ reservation.id }}/delete">
+                <input type="hidden" name="week" value="{{ week_start.isoformat() }}" />
+                <button type="submit" class="calendar-delete" onclick="return confirm('Supprimer cette réservation ?');" aria-label="Supprimer la réservation">×</button>
+              </form>
+            {% endif %}
+          </div>
+        {% else %}
+          <p class="calendar-day-empty">Tous les lots sont disponibles.</p>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+</section>
+{% endblock %}

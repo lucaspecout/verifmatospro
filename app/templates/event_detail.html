@@ -8,6 +8,9 @@
         <h1>{{ event.name }}</h1>
         <div class="event-meta">
           <span class="meta-pill">Date: {{ event.date_label }}</span>
+          {% if event.starts_at and event.ends_at %}
+          <span class="meta-pill">Horaires : {{ event.schedule_label }}</span>
+          {% endif %}
           <span class="meta-pill {{ event_state_class }}">{{ event_state_label }}</span>
         </div>
       </div>
