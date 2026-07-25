@@ -2096,6 +2096,32 @@ body {
   }
 }
 
+.user-role-form {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0;
+}
+
+.user-role-form select,
+.mobile-user-form select {
+  width: 100%;
+  min-height: 46px;
+  padding: 0.65rem 0.75rem;
+  color: #172033;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 0.95rem;
+}
+
+@media (max-width: 720px) {
+  .user-role-form {
+    grid-template-columns: 1fr;
+  }
+}
+
 .wizard-grid {
   display: grid;
   gap: 1rem;

@@ -76,12 +76,24 @@
               {% if item.auth_source == 'ldap' %}
               <span class="pill">LDAP</span>
               {% endif %}
+              {% if item.role_override %}
+              <span class="pill ok">Rôle attribué localement</span>
+              {% endif %}
               {% if item.must_change_password %}
               <span class="pill pending">Mot de passe à changer</span>
               {% endif %}
             </div>
           </div>
           <div class="list-card-actions user-card-actions">
+            <form method="post" action="/users/{{ item.id }}/role" class="inline-form user-role-form">
+              <label class="sr-only" for="role-desktop-{{ item.id }}">Rôle de {{ item.username }}</label>
+              <select name="role" id="role-desktop-{{ item.id }}">
+                <option value="admin" {% if item.role == 'admin' %}selected{% endif %}>Administrateur</option>
+                <option value="chief" {% if item.role == 'chief' %}selected{% endif %}>Chef de poste</option>
+                <option value="stock" {% if item.role == 'stock' %}selected{% endif %}>Stock</option>
+              </select>
+              <button type="submit" class="btn small secondary">Changer le rôle</button>
+            </form>
             {% if item.auth_source == 'ldap' %}
             <span class="muted">Mot de passe géré dans LLDAP.</span>
             {% else %}
@@ -136,6 +148,9 @@
             {% if item.auth_source == 'ldap' %}
             <span class="pill">LDAP</span>
             {% endif %}
+            {% if item.role_override %}
+            <span class="pill ok">Rôle attribué localement</span>
+            {% endif %}
             {% if item.must_change_password %}
             <span class="pill pending">Mot de passe à changer</span>
             {% endif %}
@@ -155,6 +170,16 @@
             <button type="submit" class="btn">Changer le mot de passe</button>
           </form>
           {% endif %}
+          <form method="post" action="/users/{{ item.id }}/role" class="mobile-user-form">
+            <label>Rôle
+              <select name="role">
+                <option value="admin" {% if item.role == 'admin' %}selected{% endif %}>Administrateur</option>
+                <option value="chief" {% if item.role == 'chief' %}selected{% endif %}>Chef de poste</option>
+                <option value="stock" {% if item.role == 'stock' %}selected{% endif %}>Stock</option>
+              </select>
+            </label>
+            <button type="submit" class="btn secondary">Changer le rôle</button>
+          </form>
           <form method="post" action="/users/{{ item.id }}/delete" class="mobile-user-form">
             <button
               type="submit"
