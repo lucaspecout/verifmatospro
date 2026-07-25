@@ -3970,6 +3970,22 @@ summary {
   padding: 0.4rem 0.55rem;
 }
 
+#template-select optgroup {
+  margin: 0.35rem 0;
+  color: #1d4ed8;
+  font-weight: 800;
+}
+
+#template-select optgroup option {
+  color: #172033;
+  font-weight: 500;
+}
+
+#template-select optgroup option.unavailable-option {
+  color: #b91c1c;
+  font-weight: 700;
+}
+
 @media (max-width: 640px) {
   #template-select {
     min-height: 280px;

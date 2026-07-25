@@ -1811,6 +1811,28 @@ def render_event_new_page(
     error: str | None = None,
 ) -> HTMLResponse:
     templates_list, lots, template_index, lot_payload = load_event_template_data(db)
+    assigned_template_ids: set[int] = set()
+    template_groups = []
+    for lot in lots:
+        group_templates = [
+            material
+            for material in sorted(lot.materials, key=lambda item: item.name.lower())
+            if material.parent_id is None and material.id not in assigned_template_ids
+        ]
+        if group_templates:
+            template_groups.append({"label": lot.name, "templates": group_templates})
+            assigned_template_ids.update(
+                material.id for material in group_templates
+            )
+    ungrouped_templates = [
+        template
+        for template in templates_list
+        if template.id not in assigned_template_ids
+    ]
+    if ungrouped_templates:
+        template_groups.append(
+            {"label": "Hors lot", "templates": ungrouped_templates}
+        )
     return templates.TemplateResponse(
         "event_new.html",
         {
@@ -1820,6 +1842,7 @@ def render_event_new_page(
             "lots": lots,
             "template_index": template_index,
             "lot_payload": lot_payload,
+            "template_groups": template_groups,
             "error": error,
         },
     )

@@ -42,8 +42,12 @@
     </label>
     <label>Sélectionner des sacs spécifiques
       <select name="template_ids" multiple id="template-select" size="12">
-        {% for item in templates %}
-        <option value="{{ item.id }}" data-label="{{ item.name }}">{{ item.name }}</option>
+        {% for group in template_groups %}
+        <optgroup label="{{ group.label }}">
+          {% for item in group.templates %}
+          <option value="{{ item.id }}" data-label="{{ item.name }}">{{ item.name }}</option>
+          {% endfor %}
+        </optgroup>
         {% endfor %}
       </select>
       <span class="help-text">Choisissez des sacs supplémentaires si besoin.</span>
