@@ -20,6 +20,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(String(30), nullable=False)
+    role_override: Mapped[str | None] = mapped_column(String(30), nullable=True)
     must_change_password: Mapped[bool] = mapped_column(default=True)
     auth_source: Mapped[str] = mapped_column(String(20), default="local", nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True)

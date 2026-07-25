@@ -485,7 +485,8 @@ def provision_ldap_user(db: Session, ldap_user) -> User:
             must_change_password=False,
             auth_source=AUTH_SOURCE_LDAP,
         )
-    user.role = ldap_user.role
+    if not user.role_override:
+        user.role = ldap_user.role
     user.must_change_password = False
     user.auth_source = AUTH_SOURCE_LDAP
     user.email = ldap_user.email
@@ -780,6 +781,61 @@ def admin_change_password(
         user,
         db,
         success=f"Mot de passe mis à jour pour {target.username}.",
+    )
+
+
+@app.post("/users/{user_id}/role")
+def admin_change_user_role(
+    request: Request,
+    user_id: int,
+    role: str = Form(...),
+    db: Session = Depends(get_db),
+    user: User = Depends(require_roles(ROLE_ADMIN)),
+):
+    target = db.get(User, user_id)
+    if not target:
+        raise HTTPException(status_code=404)
+    allowed_roles = {ROLE_ADMIN, ROLE_CHIEF, ROLE_STOCK}
+    if role not in allowed_roles:
+        return render_users_page(
+            request,
+            user,
+            db,
+            error="Rôle invalide.",
+            status_code=400,
+        )
+    if target.id == user.id and role != ROLE_ADMIN:
+        return render_users_page(
+            request,
+            user,
+            db,
+            error="Vous ne pouvez pas retirer vos propres droits administrateur.",
+            status_code=400,
+        )
+    if target.role == ROLE_ADMIN and role != ROLE_ADMIN:
+        admins = db.scalars(select(User).where(User.role == ROLE_ADMIN)).all()
+        if len(admins) <= 1:
+            return render_users_page(
+                request,
+                user,
+                db,
+                error="Impossible de rétrograder le dernier administrateur.",
+                status_code=400,
+            )
+    target.role = role
+    target.role_override = role if is_ldap_user(target) else None
+    db.add(target)
+    db.commit()
+    role_labels = {
+        ROLE_ADMIN: "Administrateur",
+        ROLE_CHIEF: "Chef de poste",
+        ROLE_STOCK: "Stock",
+    }
+    return render_users_page(
+        request,
+        user,
+        db,
+        success=f"{target.username} est maintenant {role_labels[role]}.",
     )
 
 

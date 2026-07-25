@@ -97,6 +97,8 @@ def ensure_user_columns() -> None:
         missing.append(("display_name", "VARCHAR(120)"))
     if "ldap_dn" not in columns:
         missing.append(("ldap_dn", "VARCHAR(255)"))
+    if "role_override" not in columns:
+        missing.append(("role_override", "VARCHAR(30)"))
     if not missing:
         return
     with engine.begin() as connection:
