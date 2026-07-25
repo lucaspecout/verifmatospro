@@ -133,15 +133,26 @@
   </div>
 </section>
 
-<section class="card builder">
+<section class="card builder" id="material-editor">
   <form method="post" action="/materials/wizard" id="builder-form">
     <input type="hidden" name="wizard_payload" id="builder_payload" />
+    <div class="material-editor-heading">
+      <div>
+        <p class="eyebrow">Éditeur de modèle</p>
+        <h2>Composer le contenu</h2>
+        <p class="muted">Sélectionnez une ligne pour afficher ses actions. Les éléments sont rangés dans leur contenant.</p>
+      </div>
+      <div class="material-editor-heading-actions">
+        <button class="btn secondary" type="button" data-action="open-root-modal">Nouveau modèle</button>
+        <button class="btn" type="submit">Enregistrer</button>
+      </div>
+    </div>
     <div class="builder-grid">
       <div class="builder-canvas">
         <div class="builder-canvas-header">
           <div>
-            <h3>Structure modulable</h3>
-            <p class="muted">Cliquez un carré pour l’éditer. Les contenants accueillent d’autres carrés.</p>
+            <h3>Structure du modèle</h3>
+            <p class="muted">Dépliez les contenants pour parcourir leur contenu.</p>
           </div>
           <div class="builder-canvas-meta">
             <span class="builder-count-pill" id="builder-count">0 item</span>
@@ -149,28 +160,36 @@
           </div>
         </div>
         <div class="builder-root builder-visual" id="builder-root"></div>
-        <p class="builder-empty muted" id="builder-empty">
-          Créez un parent ou chargez un modèle existant pour démarrer.
-        </p>
+        <div class="builder-empty" id="builder-empty">
+          <span class="builder-empty-icon" aria-hidden="true">＋</span>
+          <strong>Aucun modèle ouvert</strong>
+          <span>Choisissez un modèle dans la bibliothèque ou créez-en un nouveau.</span>
+          <button class="btn" type="button" data-action="open-root-modal">Créer un modèle</button>
+        </div>
       </div>
       <aside class="builder-panel builder-helper" aria-label="Aide et actions du builder">
         <div class="builder-section-header-text">
-          <p class="eyebrow">Édition</p>
-          <h3>Actions rapides</h3>
-          <p class="muted">Sélectionnez un bloc dans la structure pour le modifier ou ajouter un sous-élément.</p>
+          <p class="eyebrow">Sélection</p>
+          <h3>Détails et actions</h3>
+          <p class="muted">Les actions disponibles dépendent du type d’élément sélectionné.</p>
         </div>
         <div class="builder-selected-card" id="builder-selected-summary">
           Aucun élément sélectionné.
         </div>
+        <div class="builder-context-actions" id="builder-context-actions">
+          <button class="btn" type="button" id="builder-add-child">Ajouter à l’intérieur</button>
+          <button class="btn secondary" type="button" id="builder-edit-node">Modifier</button>
+          <button class="btn secondary" type="button" id="builder-duplicate-node">Dupliquer</button>
+          <button class="btn danger" type="button" id="builder-delete-node">Supprimer</button>
+        </div>
+        <div class="builder-tip">
+          <strong>Comment organiser le matériel ?</strong>
+          <span>Un contenant peut recevoir des sous-contenants et des items. Un item représente le matériel avec sa quantité attendue.</span>
+        </div>
         <div class="builder-helper-actions">
-          <button class="btn secondary" type="button" data-action="open-root-modal">Nouveau modèle</button>
           <button class="btn secondary" type="button" id="reset-builder">Vider le builder</button>
-          <button class="btn" type="submit">Enregistrer le modèle</button>
         </div>
       </aside>
-    </div>
-    <div class="builder-actions">
-      <button class="btn" type="submit">Enregistrer le modèle</button>
     </div>
   </form>
 </section>
@@ -274,6 +293,11 @@
   const builderCount = document.getElementById("builder-count");
   const builderStatus = document.getElementById("builder-status");
   const builderSelectedSummary = document.getElementById("builder-selected-summary");
+  const builderContextActions = document.getElementById("builder-context-actions");
+  const builderAddChildButton = document.getElementById("builder-add-child");
+  const builderEditNodeButton = document.getElementById("builder-edit-node");
+  const builderDuplicateNodeButton = document.getElementById("builder-duplicate-node");
+  const builderDeleteNodeButton = document.getElementById("builder-delete-node");
   const resetBuilderButton = document.getElementById("reset-builder");
   const builderEmpty = document.getElementById("builder-empty");
   const builderForm = document.getElementById("builder-form");
@@ -550,29 +574,6 @@
   };
 
   const renderNode = (node) => {
-    const createActionButton = (label, variant, action) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = `btn small ${variant}`;
-      button.textContent = label;
-      button.dataset.action = action;
-      button.addEventListener("click", (event) => {
-        event.stopPropagation();
-        if (action === "edit") {
-          openNodeModal({ mode: "edit", nodeId: node.id });
-        }
-        if (action === "add") {
-          openNodeModal({ mode: "add", nodeId: node.id });
-        }
-        if (action === "delete") {
-          if (confirm("Supprimer cet élément ?")) {
-            deleteNodeById(node.id);
-          }
-        }
-      });
-      return button;
-    };
-
     if (node.type === "container") {
       const stats = getSubtreeStats(node.id);
       const details = document.createElement("details");
@@ -594,6 +595,7 @@
       });
 
       const titleWrap = document.createElement("div");
+      titleWrap.className = "builder-node-title";
       const subtitleParts = [
         `${stats.containers} sous-sac${stats.containers > 1 ? "s" : ""}`,
         `${stats.items} item${stats.items > 1 ? "s" : ""}`,
@@ -603,21 +605,12 @@
         <p class="section-subtitle">${subtitleParts.join(" · ")}</p>
       `;
 
-      const countPill = document.createElement("span");
-      countPill.className = "builder-count-pill";
-      countPill.textContent = `${stats.items} item${stats.items > 1 ? "s" : ""}`;
-
-      const actions = document.createElement("div");
-      actions.className = "builder-node-actions";
-      actions.appendChild(createActionButton("Modifier", "ghost", "edit"));
-      actions.appendChild(createActionButton("Ajouter", "secondary", "add"));
-      if (node.id !== builderState.rootId) {
-        actions.appendChild(createActionButton("Supprimer", "danger", "delete"));
-      }
+      const typeLabel = document.createElement("span");
+      typeLabel.className = "builder-node-kind";
+      typeLabel.textContent = node.id === builderState.rootId ? "Modèle" : "Contenant";
 
       summary.appendChild(titleWrap);
-      summary.appendChild(countPill);
-      summary.appendChild(actions);
+      summary.appendChild(typeLabel);
       details.appendChild(summary);
 
       const childrenWrap = document.createElement("div");
@@ -649,18 +642,16 @@
     info.className = "checklist-item-info";
     info.innerHTML = `
       <div class="checklist-item-name">
+        <span class="builder-item-icon" aria-hidden="true">•</span>
         <strong>${escapeHtml(node.name)}</strong>
-        <span class="qty">× ${node.qty ?? "-"}</span>
       </div>
     `;
-
-    const actions = document.createElement("div");
-    actions.className = "builder-node-actions";
-    actions.appendChild(createActionButton("Modifier", "ghost", "edit"));
-    actions.appendChild(createActionButton("Supprimer", "danger", "delete"));
+    const qty = document.createElement("span");
+    qty.className = "builder-item-qty";
+    qty.textContent = `Qté ${node.qty ?? "—"}`;
 
     row.appendChild(info);
-    row.appendChild(actions);
+    row.appendChild(qty);
     item.appendChild(row);
     item.addEventListener("click", (event) => {
       if (event.target.closest(".builder-node-actions")) {
@@ -684,16 +675,21 @@
         <strong>Aucune sélection</strong>
         <span>Ouvrez un modèle ou créez un parent pour commencer.</span>
       `;
+      builderContextActions?.classList.add("hidden");
       return;
     }
     const children = getChildren(selected.id);
     const label = selected.type === "container" ? "Contenant" : "Item";
     const qty = selected.type === "item" ? `Quantité: ${selected.qty ?? "-"}` : `${children.length} sous-élément${children.length > 1 ? "s" : ""}`;
     builderSelectedSummary.innerHTML = `
+      <span class="builder-selected-type">${label}</span>
       <strong>${escapeHtml(selected.name)}</strong>
-      <span>${label}</span>
       <span>${qty}</span>
     `;
+    builderContextActions?.classList.remove("hidden");
+    builderAddChildButton?.classList.toggle("hidden", selected.type !== "container");
+    builderDuplicateNodeButton.disabled = selected.id === builderState.rootId;
+    builderDeleteNodeButton.disabled = selected.id === builderState.rootId;
   };
 
   const renderBuilder = () => {
@@ -806,7 +802,7 @@
     closeDialog(nodeModal);
   });
 
-  duplicateNodeButton.addEventListener("click", () => {
+  const duplicateSelectedNode = () => {
     const node = findNode(builderState.selectedId);
     if (!node || node.id === builderState.rootId) {
       return;
@@ -823,6 +819,10 @@
     };
     cloneSubtree(node, node.parentId);
     renderBuilder();
+  };
+
+  duplicateNodeButton.addEventListener("click", () => {
+    duplicateSelectedNode();
     closeDialog(nodeModal);
   });
 
@@ -904,6 +904,29 @@
   resetBuilderButton?.addEventListener("click", () => {
     if (!builderState.rootId || confirm("Vider le builder en cours ?")) {
       resetBuilder();
+    }
+  });
+
+  builderAddChildButton?.addEventListener("click", () => {
+    if (builderState.selectedId) {
+      openNodeModal({ mode: "add", nodeId: builderState.selectedId });
+    }
+  });
+  builderEditNodeButton?.addEventListener("click", () => {
+    if (builderState.selectedId) {
+      openNodeModal({ mode: "edit", nodeId: builderState.selectedId });
+    }
+  });
+  builderDuplicateNodeButton?.addEventListener("click", () => {
+    duplicateSelectedNode();
+  });
+  builderDeleteNodeButton?.addEventListener("click", () => {
+    const node = findNode(builderState.selectedId);
+    if (!node || node.id === builderState.rootId) {
+      return;
+    }
+    if (confirm(`Supprimer « ${node.name} » et son contenu ?`)) {
+      deleteNodeById(node.id);
     }
   });
 
