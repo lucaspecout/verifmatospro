@@ -132,9 +132,11 @@
         <span class="qty">Qté attendue: {{ branch.node.expected_qty or '-' }}</span>
       </div>
       <div class="tree-item-actions">
+        {% if branch.node.parent_id is none %}
         <span class="tree-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>Destination: {{ branch.node.load_vehicle or '' }}</span>
+        {% endif %}
         <span class="status {{ branch.status }}" data-role="status">{{ status_label }}</span>
-        {% if show_parent_actions %}
+        {% if show_parent_actions and branch.node.parent_id is none %}
         <button class="btn small secondary" type="button" data-action="open-load-modal" data-node-id="{{ branch.node.id }}" data-node-name="{{ branch.node.name }}" data-load-mode="destination">
           {{ 'Modifier' if branch.node.load_vehicle else 'Destination' }}
         </button>
@@ -149,11 +151,13 @@
             OK
           </button>
         </form>
+        {% if show_parent_actions and branch.node.parent_id is none %}
         <form method="post" action="/events/{{ event.id }}/nodes/{{ branch.node.id }}/reset" class="inline-form" data-node-id="{{ branch.node.id }}">
           <button class="btn small ghost" type="submit" data-action="reset-item" data-node-id="{{ branch.node.id }}" onclick="return confirm('Remettre cet item en attente ?');">
             Remettre en attente
           </button>
         </form>
+        {% endif %}
       </div>
     </div>
     <div class="tree-note" data-role="comment">

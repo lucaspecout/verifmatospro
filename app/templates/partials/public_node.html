@@ -70,7 +70,9 @@
           {% endif %}
         </div>
         <span class="qty">Attendu: {{ branch.node.expected_qty or '-' }}</span>
+        {% if branch.node.parent_id is none %}
         <span class="section-destination" data-role="load-destination" {% if not branch.node.load_vehicle %}hidden{% endif %}>Destination: {{ branch.node.load_vehicle or '' }}</span>
+        {% endif %}
       </div>
       <form method="post" action="/public/{{ event.id }}/{{ token }}/item/{{ branch.node.id }}" class="checklist-form compact">
         <input type="hidden" name="status" value="ok" />
