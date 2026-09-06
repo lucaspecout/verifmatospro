@@ -42,6 +42,44 @@ class EventScheduleTests(unittest.TestCase):
     def test_own_reservations_are_excluded(self):
         self.assertTrue(self.check()["available"])
 
+    def test_edit_page_renders_reserved_materials(self):
+        response = main.event_edit(
+            Request({"type": "http"}), self.event.id,
+            User(role="admin", username="test"), self.db,
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.body.decode("utf-8")
+        self.assertIn("Sac", html)
+        self.assertIn("Lot", html)
+        self.assertIn('value="2026-10-01T08:00"', html)
+        self.assertIn('value="2026-10-01T18:00"', html)
+
+    def test_invalid_schedule_renders_form_and_preserves_dates(self):
+        response = main.event_update_schedule(
+            Request({"type": "http"}), self.event.id,
+            "2026-10-03T19:00", "2026-10-03T09:00",
+            User(role="admin", username="test"), self.db,
+        )
+        self.assertEqual(response.status_code, 200)
+        html = response.body.decode("utf-8")
+        self.assertIn('<p class="error">', html)
+        self.assertIn('value="2026-10-03T19:00"', html)
+        for item in (self.event, self.booking, self.lot_booking):
+            self.assertEqual(item.starts_at, self.start)
+            self.assertEqual(item.ends_at, self.end)
+
+    def test_unavailable_schedule_renders_material_warning(self):
+        self.bag.out_of_service = True
+        self.db.commit()
+        response = main.event_update_schedule(
+            Request({"type": "http"}), self.event.id,
+            "2026-10-03T09:00", "2026-10-03T19:00",
+            User(role="admin", username="test"), self.db,
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Hors service", response.body.decode("utf-8"))
+        self.assertEqual(self.event.starts_at, self.start)
+
     def test_other_reservations_block_but_adjacent_dates_do_not(self):
         self.db.add(TemplateReservation(template_id=self.bag.id, event_id=self.other.id, quantity=1, starts_at=self.start, ends_at=self.end))
         self.db.commit()

@@ -10,7 +10,7 @@
     <p class="help-text">La disponibilité du matériel déjà réservé est vérifiée sur le nouveau créneau. Les réservations de ce poste sont exclues des conflits.</p>
     <div id="schedule-availability" aria-live="polite">
       {% for error in availability.errors %}<p class="error">{{ error }}</p>{% endfor %}
-      {% for item in availability.items %}
+      {% for item in availability["items"] %}
       <p><span class="service-badge {{ 'service-up' if item.available else 'service-down' }}"><span class="service-dot" aria-hidden="true"></span>{{ item.name }}</span> — {{ item.detail }}</p>
       {% endfor %}
       {% if availability.available %}<p>Le nouveau créneau est disponible pour les réservations existantes.</p>{% endif %}
