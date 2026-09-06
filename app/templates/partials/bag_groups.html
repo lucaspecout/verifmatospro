@@ -1,0 +1,44 @@
+<section class="card" id="bag-groups">
+  <div class="page-header">
+    <div><h2>Groupes de sacs</h2><p class="muted">Un inventaire commun, des sacs aux noms individuels. Toute modification enregistrée dans un sac est répercutée sur les autres membres.</p></div>
+  </div>
+  <details class="bag-group-panel">
+    <summary>Créer un groupe</summary>
+    <form method="post" action="/materials/groups" class="form" id="bag-group-create-form">
+      <label>Nom du groupe<input name="name" maxlength="120" required placeholder="Ex. Sacs de premiers secours" /></label>
+      <label>1. Choisir le premier sac : la référence
+        <select name="reference_id" id="bag-group-reference" required>
+          <option value="">Choisir le sac dont l’inventaire sera repris</option>
+          {% for bag in sacs if not bag.group_id %}<option value="{{ bag.id }}">{{ bag.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <fieldset class="bag-group-members"><legend>2. Ajouter les autres sacs</legend>
+        {% for bag in sacs if not bag.group_id %}
+        <label><input type="checkbox" name="member_ids" value="{{ bag.id }}" />{{ bag.name }}</label>
+        {% else %}<p class="muted">Aucun sac sans groupe. Créez des sacs dans la bibliothèque pour commencer.</p>{% endfor %}
+      </fieldset>
+      <p class="bag-group-notice" id="bag-group-reference-notice" aria-live="polite">L’inventaire du premier sac choisi remplacera entièrement celui des autres sacs sélectionnés : objets, quantités et sous-contenants.</p>
+      <button type="submit" class="btn">Créer le groupe et synchroniser les inventaires</button>
+    </form>
+  </details>
+  {% for group in bag_groups %}
+  <details class="bag-group-panel" id="bag-group-{{ group.id }}">
+    <summary>{{ group.name }} <span class="pill">{{ group.bags | length }} sac(s)</span></summary>
+    <p class="muted">{% for bag in group.bags %}{{ bag.name }}{% if not loop.last %}, {% endif %}{% else %}Aucun sac dans ce groupe.{% endfor %}</p>
+    <form method="post" action="/materials/groups/{{ group.id }}" class="form">
+      <label>Nom du groupe<input name="name" value="{{ group.name }}" maxlength="120" required /></label>
+      <fieldset class="bag-group-members"><legend>Sacs du groupe</legend>
+        {% for bag in sacs if not bag.group_id or bag.group_id == group.id %}
+        <label><input type="checkbox" name="member_ids" value="{{ bag.id }}" {% if bag.group_id == group.id %}checked{% endif %} />{{ bag.name }}</label>
+        {% endfor %}
+      </fieldset>
+      <p class="help-text">Les sacs ajoutés recevront l’inventaire du groupe. Décochez un sac pour le rendre indépendant : il conserve son contenu actuel. Gardez au moins un membre existant.</p>
+      <button type="submit" class="btn">Enregistrer le groupe et synchroniser</button>
+    </form>
+    <form method="post" action="/materials/groups/{{ group.id }}/delete" class="bag-group-remove">
+      <button type="submit" class="btn secondary">Dissoudre le groupe et conserver les sacs</button>
+    </form>
+  </details>
+  {% else %}<p class="muted">Aucun groupe créé pour le moment.</p>{% endfor %}
+</section>
+<script src="/static/bag-groups.js" defer></script>

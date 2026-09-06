@@ -16,6 +16,7 @@
     <div class="page-actions">
       <button class="btn" type="button" id="jump-to-builder">Modifier une structure</button>
       <a class="btn secondary" href="/lots">Lots</a>
+      <a class="btn secondary" href="#bag-groups">Groupes de sacs</a>
       <button class="btn secondary" type="button" data-action="open-root-modal">Créer un modèle</button>
       <button class="btn secondary" type="button" data-action="trigger-import">Importer JSON</button>
     </div>
@@ -62,6 +63,8 @@
   </div>
 </section>
 
+{% include "partials/bag_groups.html" %}
+
 <section class="card sacs-overview">
   <div class="builder-header">
     <div>
@@ -89,6 +92,7 @@
             {% if item.node_type == 'item' %}Item racine{% else %}Contenant{% endif %}
           </span>
           <h3 class="material-status-title"><span class="service-dot material-status-dot {{ 'service-down' if item.out_of_service else 'service-up' }}" data-service-dot-id="{{ item.id }}" role="img" aria-label="{{ 'Hors service' if item.out_of_service else 'En service' }}" title="{{ 'Hors service' if item.out_of_service else 'En service' }}"></span>{{ item.name }}</h3>
+          {% if item.group %}<a class="pill bag-group-badge" href="#bag-group-{{ item.group.id }}">Groupe : {{ item.group.name }}</a>{% endif %}
           <div data-service-id="{{ item.id }}" aria-live="polite">
             <span class="service-badge {{ 'service-down' if item.out_of_service else 'service-up' }}"><span class="service-dot" aria-hidden="true"></span>{{ 'Hors service' if item.out_of_service else 'En service' }}</span>
             <p class="service-note">{{ item.service_note or '' }}</p>
@@ -152,6 +156,7 @@
 <section class="card builder" id="material-editor">
   <form method="post" action="/materials/wizard" id="builder-form">
     <input type="hidden" name="wizard_payload" id="builder_payload" />
+    <p class="bag-group-notice" id="builder-group-notice" hidden></p>
     <div class="material-editor-heading">
       <div>
         <p class="eyebrow">Éditeur de modèle</p>
@@ -569,7 +574,8 @@
       childQtyInput.value = "";
     } else {
       const existingChildren = getChildren(node.id);
-      const allowedTypes = existingChildren.length ? ["container"] : ["container", "item"];
+      const groupedRoot = node.id === builderState.rootId && materialMap.get(builderState.rootMaterialId)?.group_name;
+      const allowedTypes = existingChildren.length || groupedRoot ? ["container"] : ["container", "item"];
       renderNodeTypeOptions(nodeTypeSelect, allowedTypes, node.type);
 
       nodeNameInput.value = node.name;
@@ -693,6 +699,10 @@
   };
 
   const updateBuilderAssistant = () => {
+    const groupName = materialMap.get(builderState.rootMaterialId)?.group_name;
+    const groupNotice = document.getElementById('builder-group-notice');
+    groupNotice.hidden = !groupName;
+    groupNotice.textContent = groupName ? `Groupe « ${groupName} » : enregistrer cet inventaire mettra aussi à jour tous les autres sacs du groupe. Le nom de ce sac reste individuel.` : '';
     const selected = findNode(builderState.selectedId);
     if (builderStatus) {
       builderStatus.textContent = builderState.rootMaterialId ? "Modification" : "Brouillon";

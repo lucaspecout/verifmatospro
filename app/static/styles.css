@@ -4408,6 +4408,16 @@ summary {
 .service-dot { width: .7rem; height: .7rem; border-radius: 50%; background: currentColor; flex-shrink: 0; }
 .material-status-title { display: flex; align-items: center; gap: .5rem; }
 .material-status-dot { display: inline-block; width: .6rem; height: .6rem; }
+.bag-group-panel { margin: 1rem 0; padding: 1rem; border: 1px solid #cbd5e1; border-radius: .75rem; }
+.bag-group-panel > summary { cursor: pointer; font-weight: 700; }
+.bag-group-panel .form { margin-top: 1rem; }
+.bag-group-members { display: grid; gap: .6rem; max-height: 18rem; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: .5rem; padding: 1rem; }
+.bag-group-members label { display: flex; flex-direction: row; align-items: center; gap: .6rem; }
+.bag-group-members input[type="checkbox"] { width: auto; margin: 0; }
+.bag-group-notice { background: #eff6ff; color: #1e40af; padding: .85rem; border-radius: .5rem; }
+.bag-group-notice[hidden] { display: none; }
+.bag-group-remove { margin-top: 1rem; }
+.bag-group-badge { margin-bottom: .6rem; text-decoration: none; }
 .service-note { white-space: pre-wrap; overflow-wrap: anywhere; margin: .5rem 0; }
 .service-form { display: grid; gap: .6rem; margin-top: 1rem; }
 .service-summary { padding: .8rem 0; border-bottom: 1px solid #e5e7eb; }

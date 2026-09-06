@@ -83,6 +83,14 @@ def init_db() -> None:
     ensure_event_node_columns()
     ensure_lot_reservation_columns()
     ensure_material_service_columns()
+    ensure_material_group_columns()
+
+
+def ensure_material_group_columns() -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("material_templates")}
+    if "group_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE material_templates ADD COLUMN group_id INTEGER REFERENCES bag_groups(id)"))
 
 
 def ensure_material_service_columns() -> None:

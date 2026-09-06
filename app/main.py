@@ -32,6 +32,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth import AuthError, create_access_token, hash_password, verify_password
 from app.db import SessionLocal, init_db
+from app.bag_groups import lock_bag_group, root_bag, set_group_members, synchronize_group
 from app.ldap_auth import (
     LDAP_BIND_PASSWORD_SETTING_KEY,
     LdapAuthError,
@@ -41,6 +42,7 @@ from app.ldap_auth import (
 )
 from app.models import (
     AppSetting,
+    BagGroup,
     Event,
     EventNode,
     Lot,
@@ -1014,6 +1016,7 @@ def render_materials_page(
         {
             "id": item.id,
             "out_of_service": item.out_of_service,
+            "group_name": item.group.name if item.group else None,
             "name": item.name,
             "node_type": item.node_type,
             "expected_qty": item.expected_qty,
@@ -1030,6 +1033,7 @@ def render_materials_page(
             "materials": materials,
             "materials_index": materials_index,
             "materials_payload": materials_payload,
+            "bag_groups": db.scalars(select(BagGroup).order_by(BagGroup.name)).all(),
             "error": error,
         },
     )
@@ -1404,6 +1408,54 @@ def lot_reservation_delete(
     )
 
 
+@app.post("/materials/groups")
+def bag_group_create(request: Request, name: str = Form(...), reference_id: int = Form(...),
+                     member_ids: list[int] = Form([]), db: Session = Depends(get_db),
+                     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF))):
+    try:
+        set_group_members(db, name, [reference_id, *member_ids], reference_id)
+    except ValueError as exc:
+        db.rollback()
+        return render_materials_page(request, user, db, error=str(exc))
+    db.commit()
+    return RedirectResponse("/materials#bag-groups", status_code=303)
+
+
+@app.post("/materials/groups/{group_id}")
+def bag_group_update(request: Request, group_id: int, name: str = Form(...),
+                     member_ids: list[int] = Form([]), db: Session = Depends(get_db),
+                     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF))):
+    group = db.get(BagGroup, group_id)
+    if not group:
+        raise HTTPException(status_code=404)
+    reference = db.scalar(select(MaterialTemplate).where(
+        MaterialTemplate.group_id == group.id, MaterialTemplate.id.in_(member_ids)
+    ).order_by(MaterialTemplate.id))
+    if not reference:
+        return render_materials_page(request, user, db, error="Conservez au moins un sac du groupe, ou dissolvez le groupe.")
+    try:
+        set_group_members(db, name, member_ids, reference.id, group)
+    except ValueError as exc:
+        db.rollback()
+        return render_materials_page(request, user, db, error=str(exc))
+    db.commit()
+    return RedirectResponse("/materials#bag-groups", status_code=303)
+
+
+@app.post("/materials/groups/{group_id}/delete")
+def bag_group_delete(group_id: int, db: Session = Depends(get_db),
+                     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF))):
+    group = db.scalar(select(BagGroup).where(BagGroup.id == group_id).with_for_update())
+    if not group:
+        raise HTTPException(status_code=404)
+    for bag in db.scalars(select(MaterialTemplate).where(MaterialTemplate.group_id == group.id)).all():
+        bag.group_id = None
+    db.flush()
+    db.delete(group)
+    db.commit()
+    return RedirectResponse("/materials#bag-groups", status_code=303)
+
+
 @app.post("/materials")
 def materials_create(
     request: Request,
@@ -1414,6 +1466,13 @@ def materials_create(
     db: Session = Depends(get_db),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
 ):
+    source = None
+    if parent_id:
+        parent = db.get(MaterialTemplate, parent_id)
+        if not parent or parent.node_type != "container":
+            return render_materials_page(request, user, db, error="Le contenant sélectionné est introuvable.")
+        source = root_bag(db, parent)
+        lock_bag_group(db, source)
     material = MaterialTemplate(
         name=name,
         node_type=node_type,
@@ -1421,6 +1480,8 @@ def materials_create(
         parent_id=parent_id or None,
     )
     db.add(material)
+    if source:
+        synchronize_group(db, source)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
@@ -1458,12 +1519,12 @@ def materials_wizard_create(
             db,
             error="Le nom du parent est obligatoire.",
         )
-    if root_type == "container" and (not isinstance(children, list) or not children):
+    if root_type == "container" and not isinstance(children, list):
         return render_materials_page(
             request,
             user,
             db,
-            error="Ajoutez au moins un élément dans le parent.",
+            error="Le contenu du sac doit être une liste d’éléments.",
         )
     if root_type == "item" and children:
         return render_materials_page(
@@ -1492,13 +1553,16 @@ def materials_wizard_create(
     bag = None
     if root_id:
         bag = db.get(MaterialTemplate, root_id)
-        if not bag:
+        if not bag or bag.parent_id is not None:
             return render_materials_page(
                 request,
                 user,
                 db,
                 error="Le sac à modifier est introuvable.",
             )
+        lock_bag_group(db, bag)
+        if bag.group_id and root_type != "container":
+            return render_materials_page(request, user, db, error="Un sac appartenant à un groupe doit rester un contenant.")
         bag.name = bag_name
         bag.node_type = root_type
         bag.expected_qty = root_qty if root_type == "item" else None
@@ -1539,6 +1603,7 @@ def materials_wizard_create(
 
     for child in children:
         _create_tree(child, bag.id)
+    synchronize_group(db, bag)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
@@ -1720,6 +1785,8 @@ def materials_delete(
     material = db.get(MaterialTemplate, material_id)
     if not material:
         raise HTTPException(status_code=404, detail="Item introuvable")
+    source = root_bag(db, material)
+    lock_bag_group(db, source)
 
     def delete_descendants(node_id: int) -> None:
         children = db.scalars(
@@ -1731,6 +1798,8 @@ def materials_delete(
 
     delete_descendants(material.id)
     db.delete(material)
+    if source.id != material.id:
+        synchronize_group(db, source)
     db.commit()
     return RedirectResponse("/materials", status_code=303)
 
