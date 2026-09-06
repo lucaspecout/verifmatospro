@@ -17,6 +17,7 @@
       <div class="actions event-actions">
         <button class="btn" type="button" data-action="copy-public">Copier le lien public</button>
         <a class="btn secondary" href="/events/{{ event.id }}/materials">Modifier le matériel</a>
+        <a class="btn secondary" href="/events/{{ event.id }}/edit">Modifier le jour et les horaires</a>
         <form method="post" action="/events/{{ event.id }}/close">
           <button class="btn ghost" type="submit">Fermer le poste</button>
         </form>

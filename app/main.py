@@ -2262,6 +2262,112 @@ def event_detail(
     return templates.TemplateResponse("event_detail.html", context)
 
 
+def check_event_schedule(db: Session, event: Event, starts_at: str, ends_at: str) -> dict:
+    start = parse_local_datetime(starts_at)
+    end = parse_local_datetime(ends_at)
+    if not start or not end or end <= start:
+        return {"available": False, "errors": ["Renseignez une fin postérieure au début du poste."], "items": []}
+
+    own_templates = db.scalars(select(TemplateReservation).where(TemplateReservation.event_id == event.id)).all()
+    own_lots = db.scalars(select(LotReservation).where(LotReservation.event_id == event.id)).all()
+    demands: dict[int, int] = defaultdict(int)
+    for reservation in own_templates:
+        demands[reservation.template_id] += reservation.quantity
+    full_lot_ids = {r.lot_id for r in own_lots if r.reserved_items is None}
+    lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
+    # Include whole-lot bookings created before per-material reservations existed.
+    for lot in lots:
+        if lot.id in full_lot_ids:
+            for item in lot.materials:
+                if item.parent_id is None:
+                    demands.setdefault(item.id, item.expected_qty if item.node_type == "item" and item.expected_qty else 1)
+
+    related_lot_ids = {r.lot_id for r in own_lots}
+    related_lot_ids.update(lot.id for lot in lots if any(item.id in demands for item in lot.materials))
+    lot_conflicts = [r for r in find_lot_conflicts(db, list(related_lot_ids), start, end) if r.event_id != event.id]
+    template_conflicts = [r for r in find_template_reservations(db, list(demands), start, end) if r.event_id != event.id]
+    errors = []
+    rows = []
+    for own in own_lots:
+        conflicts = [r for r in lot_conflicts if r.lot_id == own.lot_id and (own.reserved_items is None or r.reserved_items is None)]
+        if conflicts:
+            errors.append(f"Le lot « {own.lot.name} » est déjà réservé sur ce créneau.")
+        rows.append({"name": own.lot.name, "available": not conflicts, "detail": "Lot déjà réservé" if conflicts else "Créneau disponible pour le lot"})
+    for template_id, quantity in demands.items():
+        template = db.get(MaterialTemplate, template_id)
+        if not template:
+            errors.append("Un matériel réservé n’existe plus dans le catalogue.")
+            continue
+        capacity = template.expected_qty if template.node_type == "item" and template.expected_qty else 1
+        # Peak simultaneous usage, not the sum of successive reservations.
+        changes: dict[datetime, int] = defaultdict(int)
+        for reservation in template_conflicts:
+            if reservation.template_id == template_id:
+                changes[max(start, reservation.starts_at)] += reservation.quantity
+                changes[min(end, reservation.ends_at)] -= reservation.quantity
+        peak = usage = 0
+        for point in sorted(changes):
+            usage += changes[point]
+            peak = max(peak, usage)
+        blocking_lots = {lot.id for lot in lots if any(item.id == template_id for item in lot.materials)}
+        whole_lot_conflict = any(r.lot_id in blocking_lots and r.reserved_items is None for r in lot_conflicts)
+        remaining = 0 if whole_lot_conflict or template.out_of_service else max(0, capacity - peak)
+        available = quantity <= remaining
+        detail = "Hors service" if template.out_of_service else f"{remaining} disponible(s), {quantity} nécessaire(s)"
+        rows.append({"name": template.name, "available": available, "detail": detail})
+        if not available:
+            errors.append(f"{template.name} : {detail}.")
+    return {"available": not errors, "errors": errors, "items": rows}
+
+
+def render_event_edit_page(request: Request, user: User, event: Event, db: Session,
+                           starts_at: str | None = None, ends_at: str | None = None):
+    start = starts_at if starts_at is not None else (event.starts_at.isoformat(timespec="minutes") if event.starts_at else "")
+    end = ends_at if ends_at is not None else (event.ends_at.isoformat(timespec="minutes") if event.ends_at else "")
+    return templates.TemplateResponse("event_edit.html", {
+        "request": request, "user": user, "event": event, "starts_at": start, "ends_at": end,
+        "availability": check_event_schedule(db, event, start, end),
+    })
+
+
+@app.get("/events/{event_id}/edit", response_class=HTMLResponse)
+def event_edit(request: Request, event_id: int,
+               user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)), db: Session = Depends(get_db)):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    return render_event_edit_page(request, user, event, db)
+
+
+@app.get("/events/{event_id}/schedule/availability")
+def event_schedule_availability(event_id: int, starts_at: str, ends_at: str,
+                                user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)), db: Session = Depends(get_db)):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    return JSONResponse(check_event_schedule(db, event, starts_at, ends_at), headers={"Cache-Control": "no-store"})
+
+
+@app.post("/events/{event_id}/edit")
+def event_update_schedule(request: Request, event_id: int, starts_at: str = Form(...), ends_at: str = Form(...),
+                          user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)), db: Session = Depends(get_db)):
+    event = db.get(Event, event_id)
+    if not event:
+        raise HTTPException(status_code=404)
+    result = check_event_schedule(db, event, starts_at, ends_at)
+    if not result["available"]:
+        return render_event_edit_page(request, user, event, db, starts_at, ends_at)
+    event.starts_at = parse_local_datetime(starts_at)
+    event.ends_at = parse_local_datetime(ends_at)
+    event.date = event.starts_at.date()
+    for model in (LotReservation, TemplateReservation):
+        for reservation in db.scalars(select(model).where(model.event_id == event.id)).all():
+            reservation.starts_at = event.starts_at
+            reservation.ends_at = event.ends_at
+    db.commit()
+    return RedirectResponse(f"/events/{event.id}", status_code=303)
+
+
 @app.get("/events/{event_id}/live")
 def event_detail_live(
     event_id: int,

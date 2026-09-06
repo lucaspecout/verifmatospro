@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <div class="page-header"><div><h1>Modifier le jour et les horaires</h1><p class="muted">{{ event.name }}</p></div></div>
+  <form method="post" action="/events/{{ event.id }}/edit" class="form" id="event-schedule-form" data-availability-url="/events/{{ event.id }}/schedule/availability">
+    <div class="event-schedule-fields">
+      <label>Début du poste<input type="datetime-local" name="starts_at" value="{{ starts_at }}" required /></label>
+      <label>Fin du poste<input type="datetime-local" name="ends_at" value="{{ ends_at }}" required /></label>
+    </div>
+    <p class="help-text">La disponibilité du matériel déjà réservé est vérifiée sur le nouveau créneau. Les réservations de ce poste sont exclues des conflits.</p>
+    <div id="schedule-availability" aria-live="polite">
+      {% for error in availability.errors %}<p class="error">{{ error }}</p>{% endfor %}
+      {% for item in availability.items %}
+      <p><span class="service-badge {{ 'service-up' if item.available else 'service-down' }}"><span class="service-dot" aria-hidden="true"></span>{{ item.name }}</span> — {{ item.detail }}</p>
+      {% endfor %}
+      {% if availability.available %}<p>Le nouveau créneau est disponible pour les réservations existantes.</p>{% endif %}
+    </div>
+    <p class="help-text">Les éléments ajoutés manuellement, sans réservation liée au catalogue, ne disposent pas d’un suivi de disponibilité.</p>
+    <div class="actions">
+      <button class="btn secondary" type="button" id="check-schedule">Vérifier les disponibilités</button>
+      <button class="btn" type="submit">Enregistrer les modifications</button>
+      <a class="btn secondary" href="/events/{{ event.id }}">Annuler</a>
+    </div>
+  </form>
+</section>
+<script src="/static/event-schedule.js" defer></script>
+{% endblock %}
