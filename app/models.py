@@ -45,6 +45,8 @@ class MaterialTemplate(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     node_type: Mapped[str] = mapped_column(String(20), nullable=False)
+    out_of_service: Mapped[bool] = mapped_column(default=False, server_default="false", nullable=False)
+    service_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     expected_qty: Mapped[int | None] = mapped_column(Integer, nullable=True)
     parent_id: Mapped[int | None] = mapped_column(
         ForeignKey("material_templates.id"), nullable=True

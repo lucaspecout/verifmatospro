@@ -582,6 +582,7 @@ def home(
             "stats": stats,
             "upcoming_events": upcoming_payload,
             "recent_issues": recent_issues,
+            "service_materials": [item for item in parents if item.out_of_service],
         },
     )
 
@@ -964,6 +965,42 @@ def materials_list(
     return render_materials_page(request, user, db)
 
 
+@app.get("/api/materials/service-status")
+def material_service_status(
+    user: User = Depends(get_current_user), db: Session = Depends(get_db),
+):
+    items = db.scalars(select(MaterialTemplate).where(MaterialTemplate.parent_id.is_(None))).all()
+    return JSONResponse({"materials": [
+        {"id": item.id, "name": item.name, "node_type": item.node_type,
+         "out_of_service": item.out_of_service, "service_note": item.service_note or ""}
+        for item in items
+    ]}, headers={"Cache-Control": "no-store"})
+
+
+@app.post("/materials/{material_id}/service-status")
+def material_service_update(
+    material_id: int, status: str = Form(...), service_note: str = Form(""),
+    user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
+    db: Session = Depends(get_db),
+):
+    item = db.get(MaterialTemplate, material_id)
+    if not item or item.parent_id is not None:
+        raise HTTPException(status_code=404)
+    if status not in {"available", "out_of_service"}:
+        raise HTTPException(status_code=400, detail="Statut invalide.")
+    item.out_of_service = status == "out_of_service"
+    item.service_note = service_note.strip()[:2000] if item.out_of_service else None
+    db.commit()
+    return RedirectResponse("/materials", status_code=303)
+
+
+def lot_service_error(lot: Lot) -> str | None:
+    names = [item.name for item in lot.materials if item.parent_id is None and item.out_of_service]
+    if names:
+        return "Réservation impossible : matériel hors service dans le lot « " + lot.name + " » : " + ", ".join(names) + "."
+    return None
+
+
 def render_materials_page(
     request: Request,
     user: User,
@@ -1140,7 +1177,7 @@ def lots_availability(
                 ],
             }
             for lot in lots
-            if lot.id in conflicts_by_lot
+            if lot.id in conflicts_by_lot or lot_service_error(lot)
         ],
         "template_availability": [
             {
@@ -1151,10 +1188,11 @@ def lots_availability(
                     else 1
                 ),
                 "reserved": reserved_by_template[template.id],
+                "out_of_service": template.out_of_service,
                 "remaining": max(
                     0,
                     0
-                    if template.id in full_reserved_template_ids
+                    if template.out_of_service or template.id in full_reserved_template_ids
                     else (
                         (
                             template.expected_qty
@@ -1313,6 +1351,8 @@ def lot_reservation_create(
     error = None
     if not lot:
         error = "Lot introuvable."
+    elif lot_service_error(lot):
+        error = lot_service_error(lot)
     elif not clean_title:
         error = "Le motif de la réservation est obligatoire."
     elif not start_value or not end_value:
@@ -2052,6 +2092,8 @@ def event_create(
         if not template:
             continue
         copy_templates[template.id] = template
+        if template.out_of_service:
+            return render_event_new_page(request, user, db, error=f"Le matériel « {template.name} » est hors service et ne peut pas être réservé.")
         capacity = (
             template.expected_qty
             if template.node_type == "item" and template.expected_qty
@@ -2261,6 +2303,7 @@ def render_event_materials_page(
             "id": template.id,
             "label": template.name,
             "node_type": template.node_type,
+            "out_of_service": template.out_of_service,
         }
         for template in templates_list
     ]
@@ -2271,6 +2314,7 @@ def render_event_materials_page(
         {
             "id": lot.id,
             "label": lot.name,
+            "out_of_service": bool(lot_service_error(lot)),
             "color": get_lot_color(lot),
             "count": len([material for material in lot.materials if material.parent_id is None]),
         }
@@ -2412,6 +2456,10 @@ def event_materials_add_from_template(
             error="Sélectionnez uniquement un parent (racine) du catalogue.",
         )
 
+    if template.out_of_service:
+        return render_event_materials_page(request, user, event, nodes, db,
+            error=f"Le matériel « {template.name} » est hors service et ne peut pas être réservé.")
+
     if event.starts_at and event.ends_at:
         capacity = (
             template.expected_qty
@@ -2537,6 +2585,8 @@ def event_materials_add_from_lot(
             db,
             error="Lot selectionne introuvable.",
         )
+    if lot_service_error(lot):
+        return render_event_materials_page(request, user, event, nodes, db, error=lot_service_error(lot))
     existing_reservation = db.scalar(
         select(LotReservation).where(
             LotReservation.event_id == event.id,

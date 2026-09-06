@@ -33,7 +33,7 @@
     </div>
     <div class="stat-card">
       <span class="stat-label">Sacs prêts</span>
-      <strong>{{ sacs | length }}</strong>
+      <strong id="service-ready-count">{{ sacs | rejectattr('out_of_service') | list | length }}</strong>
       <span class="pill ok">Utilisables</span>
     </div>
   </div>
@@ -89,6 +89,22 @@
             {% if item.node_type == 'item' %}Item racine{% else %}Contenant{% endif %}
           </span>
           <h3>{{ item.name }}</h3>
+          <div data-service-id="{{ item.id }}" aria-live="polite">
+            <span class="service-badge {{ 'service-down' if item.out_of_service else 'service-up' }}"><span class="service-dot" aria-hidden="true"></span>{{ 'Hors service' if item.out_of_service else 'En service' }}</span>
+            <p class="service-note">{{ item.service_note or '' }}</p>
+          </div>
+          <form method="post" action="/materials/{{ item.id }}/service-status" class="service-form">
+            <label>Statut
+              <select name="status">
+                <option value="available" {% if not item.out_of_service %}selected{% endif %}>En service</option>
+                <option value="out_of_service" {% if item.out_of_service %}selected{% endif %}>Hors service</option>
+              </select>
+            </label>
+            <label>Ce qui ne fonctionne pas
+              <textarea name="service_note" maxlength="2000" rows="2" placeholder="Décrivez la panne">{{ item.service_note or '' }}</textarea>
+            </label>
+            <button type="submit" class="btn small">Enregistrer le statut</button>
+          </form>
           {% if item.node_type == 'item' %}
             <p class="muted">
               Item racine{% if item.expected_qty is not none %} · Qté {{ item.expected_qty }}{% endif %}

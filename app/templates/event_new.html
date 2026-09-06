@@ -319,7 +319,7 @@
           option.disabled = true;
           option.selected = false;
           option.classList.add('unavailable-option');
-          option.textContent = `Indisponible — ${option.dataset.label}`;
+          option.textContent = `${availability.out_of_service ? '🔴 Hors service' : 'Indisponible'} — ${option.dataset.label}`;
         } else if (availability.remaining < availability.capacity) {
           option.textContent = `${option.dataset.label} — ${availability.remaining} restant(s)`;
         }

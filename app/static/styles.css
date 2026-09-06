@@ -4401,3 +4401,11 @@ summary {
     border-radius: 10px;
   }
 }
+/* Availability of catalogue bags. */
+.service-badge { display: inline-flex; align-items: center; gap: .45rem; font-weight: 700; }
+.service-down { color: #b91c1c; }
+.service-up { color: #15803d; }
+.service-dot { width: .7rem; height: .7rem; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.service-note { white-space: pre-wrap; overflow-wrap: anywhere; margin: .5rem 0; }
+.service-form { display: grid; gap: .6rem; margin-top: 1rem; }
+.service-summary { padding: .8rem 0; border-bottom: 1px solid #e5e7eb; }

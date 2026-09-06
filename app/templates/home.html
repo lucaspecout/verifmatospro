@@ -1,5 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
+<section class="card">
+  <div class="page-header"><div><h2>Sacs et matériel hors service</h2><p class="muted">Indisponibles à la réservation · mise à jour automatique toutes les 5 secondes.</p></div><a class="btn secondary" href="/materials">Gérer le matériel</a></div>
+  <div id="service-overview" aria-live="polite">
+    {% for item in service_materials %}
+    <div class="service-summary"><span class="service-badge service-down"><span class="service-dot" aria-hidden="true"></span>Hors service</span> <strong>{{ item.name }}</strong><p class="service-note">{{ item.service_note or 'Motif non renseigné' }}</p></div>
+    {% else %}<p>Aucun matériel hors service.</p>{% endfor %}
+  </div>
+  <p id="service-refresh-state" class="muted" role="status"></p>
+</section>
 <section class="card hero-card">
   <div class="page-header">
     <div>

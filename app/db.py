@@ -82,6 +82,16 @@ def init_db() -> None:
     ensure_event_columns()
     ensure_event_node_columns()
     ensure_lot_reservation_columns()
+    ensure_material_service_columns()
+
+
+def ensure_material_service_columns() -> None:
+    columns = {column["name"] for column in inspect(engine).get_columns("material_templates")}
+    with engine.begin() as connection:
+        if "out_of_service" not in columns:
+            connection.execute(text("ALTER TABLE material_templates ADD COLUMN out_of_service BOOLEAN NOT NULL DEFAULT FALSE"))
+        if "service_note" not in columns:
+            connection.execute(text("ALTER TABLE material_templates ADD COLUMN service_note TEXT"))
 
 
 def ensure_user_columns() -> None:

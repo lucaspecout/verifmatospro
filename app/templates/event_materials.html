@@ -60,7 +60,8 @@
         <select name="template_id" required>
           <option value="">Sélectionner un matériel</option>
           {% for template in material_templates %}
-            <option value="{{ template.id }}">
+            <option value="{{ template.id }}" {% if template.out_of_service %}disabled{% endif %}>
+              {% if template.out_of_service %}🔴 Hors service — {% endif %}
               {{ template.label }}{% if template.node_type == 'item' %} (Équipement){% else %} (Sac / Conteneur){% endif %}
             </option>
           {% endfor %}
@@ -86,7 +87,7 @@
         <select name="lot_id" required>
           <option value="">Selectionner un lot</option>
           {% for lot in lots %}
-            <option value="{{ lot.id }}">{{ lot.label }} ({{ lot.count }} sac(s))</option>
+            <option value="{{ lot.id }}" {% if lot.out_of_service %}disabled{% endif %}>{% if lot.out_of_service %}🔴 Matériel hors service — {% endif %}{{ lot.label }} ({{ lot.count }} sac(s))</option>
           {% endfor %}
         </select>
       </label>
