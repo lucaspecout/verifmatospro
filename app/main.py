@@ -1013,6 +1013,7 @@ def render_materials_page(
     materials_payload = [
         {
             "id": item.id,
+            "out_of_service": item.out_of_service,
             "name": item.name,
             "node_type": item.node_type,
             "expected_qty": item.expected_qty,

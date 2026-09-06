@@ -22,6 +22,16 @@
       const response = await fetch('/api/materials/service-status', {cache: 'no-store'});
       if (!response.ok) throw new Error('refresh');
       const {materials} = await response.json();
+      document.dispatchEvent(new CustomEvent('material-service-updated', {detail: materials}));
+      for (const dot of document.querySelectorAll('[data-service-dot-id]')) {
+        const item = materials.find(item => String(item.id) === dot.dataset.serviceDotId);
+        if (!item) continue;
+        const label = item.out_of_service ? 'Hors service' : 'En service';
+        dot.classList.toggle('service-down', item.out_of_service);
+        dot.classList.toggle('service-up', !item.out_of_service);
+        dot.setAttribute('aria-label', label);
+        dot.title = label;
+      }
       for (const target of badges) {
         const item = materials.find(item => String(item.id) === target.dataset.serviceId);
         if (item) target.replaceChildren(badge(item), note(item));

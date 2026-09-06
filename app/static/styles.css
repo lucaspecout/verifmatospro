@@ -4406,6 +4406,8 @@ summary {
 .service-down { color: #b91c1c; }
 .service-up { color: #15803d; }
 .service-dot { width: .7rem; height: .7rem; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.material-status-title { display: flex; align-items: center; gap: .5rem; }
+.material-status-dot { display: inline-block; width: .6rem; height: .6rem; }
 .service-note { white-space: pre-wrap; overflow-wrap: anywhere; margin: .5rem 0; }
 .service-form { display: grid; gap: .6rem; margin-top: 1rem; }
 .service-summary { padding: .8rem 0; border-bottom: 1px solid #e5e7eb; }

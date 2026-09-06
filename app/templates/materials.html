@@ -88,7 +88,7 @@
           <span class="material-type-badge {{ item.node_type }}">
             {% if item.node_type == 'item' %}Item racine{% else %}Contenant{% endif %}
           </span>
-          <h3>{{ item.name }}</h3>
+          <h3 class="material-status-title"><span class="service-dot material-status-dot {{ 'service-down' if item.out_of_service else 'service-up' }}" data-service-dot-id="{{ item.id }}" role="img" aria-label="{{ 'Hors service' if item.out_of_service else 'En service' }}" title="{{ 'Hors service' if item.out_of_service else 'En service' }}"></span>{{ item.name }}</h3>
           <div data-service-id="{{ item.id }}" aria-live="polite">
             <span class="service-badge {{ 'service-down' if item.out_of_service else 'service-up' }}"><span class="service-dot" aria-hidden="true"></span>{{ 'Hors service' if item.out_of_service else 'En service' }}</span>
             <p class="service-note">{{ item.service_note or '' }}</p>
@@ -500,6 +500,7 @@
       qty: materialNode.expected_qty,
       parentId,
     });
+    node.materialId = materialNode.id;
     materialNode.children.forEach((child) => cloneTree(child, node.id));
     return node.id;
   };
@@ -589,6 +590,19 @@
     }
   };
 
+  const renderServiceDot = (node) => {
+    const material = materialMap.get(node.materialId);
+    if (!material) return '';
+    const label = material.out_of_service ? 'Hors service' : 'En service';
+    return `<span class="service-dot material-status-dot ${material.out_of_service ? 'service-down' : 'service-up'}" data-service-dot-id="${material.id}" role="img" aria-label="${label}" title="${label}"></span>`;
+  };
+  document.addEventListener('material-service-updated', (event) => {
+    event.detail.forEach((item) => {
+      const material = materialMap.get(item.id);
+      if (material) material.out_of_service = item.out_of_service;
+    });
+  });
+
   const renderNode = (node) => {
     if (node.type === "container") {
       const stats = getSubtreeStats(node.id);
@@ -617,7 +631,7 @@
         `${stats.items} item${stats.items > 1 ? "s" : ""}`,
       ];
       titleWrap.innerHTML = `
-        <h2>${escapeHtml(node.name)}</h2>
+        <h2 class="material-status-title">${renderServiceDot(node)}${escapeHtml(node.name)}</h2>
         <p class="section-subtitle">${subtitleParts.join(" · ")}</p>
       `;
 
@@ -658,7 +672,7 @@
     info.className = "checklist-item-info";
     info.innerHTML = `
       <div class="checklist-item-name">
-        <span class="builder-item-icon" aria-hidden="true">•</span>
+        ${renderServiceDot(node)}
         <strong>${escapeHtml(node.name)}</strong>
       </div>
     `;
@@ -699,7 +713,7 @@
     const qty = selected.type === "item" ? `Quantité: ${selected.qty ?? "-"}` : `${children.length} sous-élément${children.length > 1 ? "s" : ""}`;
     builderSelectedSummary.innerHTML = `
       <span class="builder-selected-type">${label}</span>
-      <strong>${escapeHtml(selected.name)}</strong>
+      <strong class="material-status-title">${renderServiceDot(selected)}${escapeHtml(selected.name)}</strong>
       <span>${qty}</span>
     `;
     builderContextActions?.classList.remove("hidden");
