@@ -4412,8 +4412,29 @@ summary {
 .bag-group-panel > summary { cursor: pointer; font-weight: 700; }
 .bag-group-panel .form { margin-top: 1rem; }
 .bag-group-members { display: grid; gap: .6rem; max-height: 18rem; overflow-y: auto; border: 1px solid #cbd5e1; border-radius: .5rem; padding: 1rem; }
-.bag-group-members label { display: flex; flex-direction: row; align-items: center; gap: .6rem; }
-.bag-group-members input[type="checkbox"] { width: auto; margin: 0; }
+.form .bag-group-members label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: .75rem;
+  min-height: var(--tap-size);
+  padding: .5rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.form .bag-group-members input[type="checkbox"] {
+  flex: 0 0 1.25rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--primary);
+}
+.bag-group-members label:has(input:checked) { background: #eff6ff; border-color: var(--primary); }
+.bag-group-members label:has(input:disabled) { opacity: .55; cursor: default; }
 .bag-group-notice { background: #eff6ff; color: #1e40af; padding: .85rem; border-radius: .5rem; }
 .bag-group-notice[hidden] { display: none; }
 .bag-group-remove { margin-top: 1rem; }
