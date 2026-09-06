@@ -357,7 +357,7 @@
   const syncLoadStateFromDom = () => {
     loadState.clear();
     document
-      .querySelectorAll('.tree-node.is-container[data-load-vehicle]')
+      .querySelectorAll('.tree-node[data-load-vehicle]')
       .forEach((node) => {
         const vehicle = node.dataset.loadVehicle?.trim();
         const loaded = node.dataset.loaded === 'true';
@@ -386,7 +386,7 @@
     loadModal.dataset.activeNodeId = nodeId;
     const currentInfo = loadState.get(nodeId);
     const resolvedName = nodeName?.trim() || 'Sac';
-    loadModalSubtitle.textContent = `Où le sac "${resolvedName}" a-t-il été chargé ?`;
+    loadModalSubtitle.textContent = `Quelle est la destination de "${resolvedName}" ?`;
     loadVehicleInput.value = currentInfo?.vehicle || '';
     loadModal.classList.add('is-open');
     loadModal.setAttribute('aria-hidden', 'false');
@@ -406,7 +406,7 @@
     if (quickTile) {
       quickTile.classList.toggle('loaded', loaded);
     }
-    const treeNode = document.querySelector(`.tree-node.is-container[data-node-id="${nodeId}"]`);
+    const treeNode = document.querySelector(`.tree-node[data-node-id="${nodeId}"]`);
     if (!treeNode) {
       return;
     }
@@ -454,6 +454,7 @@
       return;
     }
     const nodeName =
+      button.dataset.nodeName ||
       container.querySelector('.tree-name')?.textContent?.trim() ||
       'Sac';
     openLoadModal(container.dataset.nodeId, nodeName);

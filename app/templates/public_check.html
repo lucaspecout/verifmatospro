@@ -274,7 +274,7 @@
     };
 
     const updateLoadDestination = (nodeId, vehicle, loaded = false) => {
-      const target = document.querySelector(`.checklist-section[data-node-id="${nodeId}"]`);
+      const target = document.querySelector(`.checklist-section[data-node-id="${nodeId}"], .checklist-item[data-node-id="${nodeId}"]`);
       if (!target) {
         return;
       }

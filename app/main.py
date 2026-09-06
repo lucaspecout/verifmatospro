@@ -2956,10 +2956,10 @@ def event_node_load(
     node = db.get(EventNode, node_id)
     if not node or node.event_id != event_id:
         raise HTTPException(status_code=404)
-    if node.node_type != "container":
+    if node.node_type not in {"container", "item"}:
         raise HTTPException(
             status_code=400,
-            detail="Le chargement est réservé aux contenants.",
+            detail="Type de noeud non supporté.",
         )
     vehicle = vehicle_name.strip()
     if not vehicle:
