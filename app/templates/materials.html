@@ -1032,7 +1032,7 @@
         return;
       }
       parentsImportPayload.value = text;
-      parentsImportForm?.submit();
+      parentsImportForm?.requestSubmit();
     };
     reader.readAsText(file);
   });
@@ -1059,6 +1059,61 @@
     builderPayload.value = JSON.stringify(payload);
   });
 
+  // Keep the view for the next form response in this tab only.
+  const materialViewKey = "materials-view-after-save";
+  document.addEventListener("submit", (event) => {
+    const form = event.target;
+    if (event.defaultPrevented || form.method !== "post" ||
+        new URL(form.action).pathname.indexOf("/materials/") !== 0) return;
+    const root = findNode(builderState.rootId);
+    const view = {
+      savedAt: Date.now(),
+      x: window.scrollX,
+      y: window.scrollY,
+      search: sacSearchInput?.value || "",
+      rootId: builderState.rootMaterialId,
+      newRootName: form === builderForm && !builderState.rootMaterialId ? root?.name : null,
+      parentIds: [...materialMap.values()].filter(item => !item.parent_id).map(item => item.id),
+      groups: [...document.querySelectorAll(".bag-group-panel")].map(panel => panel.open),
+      memberScroll: [...document.querySelectorAll(".bag-group-members")].map(list => list.scrollTop),
+      containers: [...builderRoot.querySelectorAll("details")].map(section => section.open),
+    };
+    try { sessionStorage.setItem(materialViewKey, JSON.stringify(view)); } catch (_) {}
+  });
+
   renderBuilder();
+  let savedView;
+  try {
+    savedView = JSON.parse(sessionStorage.getItem(materialViewKey));
+    sessionStorage.removeItem(materialViewKey);
+  } catch (_) {}
+  if (savedView && Date.now() - savedView.savedAt < 60000) {
+    sacSearchInput.value = savedView.search;
+    updateSacSearch();
+    document.querySelectorAll(".bag-group-panel").forEach((panel, index) => {
+      panel.open = Boolean(savedView.groups[index]);
+    });
+    let rootId = savedView.rootId;
+    if (!rootId && savedView.newRootName) {
+      rootId = [...materialMap.values()].find(item => !item.parent_id &&
+        item.name === savedView.newRootName && !savedView.parentIds.includes(item.id))?.id;
+    }
+    if (rootId && materialMap.has(rootId)) {
+      loadParentById(rootId);
+      builderRoot.querySelectorAll("details").forEach((section, index) => {
+        section.open = savedView.containers[index] ?? true;
+      });
+    }
+    const restorePosition = () => {
+      document.querySelectorAll(".bag-group-members").forEach((list, index) => {
+        list.scrollTop = savedView.memberScroll[index] || 0;
+      });
+      window.scrollTo({ left: savedView.x, top: savedView.y, behavior: "instant" });
+    };
+    window.addEventListener("load", () => {
+      const fontsReady = document.fonts?.ready || Promise.resolve();
+      fontsReady.then(() => requestAnimationFrame(restorePosition));
+    }, { once: true });
+  }
 </script>
 {% endblock %}
