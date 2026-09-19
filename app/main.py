@@ -2460,6 +2460,31 @@ def event_detail_live(
     )
 
 
+def event_material_remaining(db: Session, event: Event, template: MaterialTemplate) -> int:
+    if template.out_of_service or not event.starts_at or not event.ends_at:
+        return 0
+    capacity = (template.expected_qty if template.expected_qty is not None else 1) if template.node_type == "item" else 1
+    lots = db.scalars(select(Lot).join(Lot.materials).where(MaterialTemplate.id == template.id)).all()
+    if any(row.reserved_items is None for row in find_lot_conflicts(db, [lot.id for lot in lots], event.starts_at, event.ends_at)):
+        return 0
+    points = []
+    for row in find_template_reservations(db, [template.id], event.starts_at, event.ends_at):
+        points.extend([(max(event.starts_at, row.starts_at), row.quantity), (min(event.ends_at, row.ends_at), -row.quantity)])
+    usage = peak = 0
+    for _, change in sorted(points):
+        usage += change
+        peak = max(peak, usage)
+    return max(0, capacity - peak)
+
+
+def event_lot_available(db: Session, event: Event, lot: Lot) -> bool:
+    roots = [item for item in lot.materials if item.parent_id is None]
+    if not roots or lot_service_error(lot) or not event.starts_at or not event.ends_at:
+        return False
+    if find_lot_conflicts(db, [lot.id], event.starts_at, event.ends_at):
+        return False
+    return all(event_material_remaining(db, event, item) >= ((item.expected_qty if item.expected_qty is not None else 1) if item.node_type == "item" else 1) for item in roots)
+
 def render_event_materials_page(
     request: Request,
     user: User,
@@ -2483,6 +2508,8 @@ def render_event_materials_page(
         }
         for template in templates_list
     ]
+    remaining = {item.id: event_material_remaining(db, event, item) for item in templates_list}
+    template_choices = [dict(item, remaining=remaining[item["id"]]) for item in template_choices if remaining[item["id"]] > 0]
     template_choices.sort(key=lambda item: item["label"].lower())
     lots = db.scalars(select(Lot).options(selectinload(Lot.materials))).all()
     lots.sort(key=lambda item: item.name.lower())
@@ -2494,7 +2521,7 @@ def render_event_materials_page(
             "color": get_lot_color(lot),
             "count": len([material for material in lot.materials if material.parent_id is None]),
         }
-        for lot in lots
+        for lot in lots if event_lot_available(db, event, lot)
     ]
     parent_cards = [
         {
@@ -2596,6 +2623,7 @@ def event_materials_add_from_template(
     template_id: str = Form(...),
     user: User = Depends(require_roles(ROLE_ADMIN, ROLE_CHIEF)),
     db: Session = Depends(get_db),
+    quantity: str = Form("1"),
 ):
     event = db.get(Event, event_id)
     if not event:
@@ -2636,42 +2664,24 @@ def event_materials_add_from_template(
         return render_event_materials_page(request, user, event, nodes, db,
             error=f"Le matériel « {template.name} » est hors service et ne peut pas être réservé.")
 
+    try:
+        requested_qty = int(quantity) if isinstance(quantity, str) else 1
+    except ValueError:
+        requested_qty = 0
+    if requested_qty < 1 or (template.node_type != "item" and requested_qty != 1):
+        return render_event_materials_page(request, user, event, nodes, db, error="Quantité invalide : choisissez un entier positif.")
+    remaining = event_material_remaining(db, event, template)
+    if requested_qty > remaining:
+        return render_event_materials_page(request, user, event, nodes, db,
+            error=f"Il ne reste que {remaining} disponible(s) pour « {template.name} » sur ce créneau.")
     if event.starts_at and event.ends_at:
-        capacity = (
-            template.expected_qty
-            if template.node_type == "item" and template.expected_qty
-            else 1
-        )
-        existing_template_reservation = db.scalar(
-            select(TemplateReservation).where(
-                TemplateReservation.event_id == event.id,
-                TemplateReservation.template_id == template.id,
-            )
-        )
-        if not existing_template_reservation:
-            overlapping = find_template_reservations(
-                db, [template.id], event.starts_at, event.ends_at
-            )
-            reserved_qty = sum(item.quantity for item in overlapping)
-            remaining = max(0, capacity - reserved_qty)
-            if capacity > remaining:
-                return render_event_materials_page(
-                    request,
-                    user,
-                    event,
-                    nodes,
-                    db,
-                    error=f"Il ne reste que {remaining} disponible(s) pour « {template.name} ».",
-                )
-            db.add(
-                TemplateReservation(
-                    template_id=template.id,
-                    event_id=event.id,
-                    quantity=capacity,
-                    starts_at=event.starts_at,
-                    ends_at=event.ends_at,
-                )
-            )
+        existing = db.scalar(select(TemplateReservation).where(
+            TemplateReservation.event_id == event.id, TemplateReservation.template_id == template.id))
+        if existing:
+            existing.quantity += requested_qty
+        else:
+            db.add(TemplateReservation(template_id=template.id, event_id=event.id,
+                quantity=requested_qty, starts_at=event.starts_at, ends_at=event.ends_at))
         template_lots = db.scalars(
             select(Lot)
             .join(Lot.materials)
@@ -2694,17 +2704,6 @@ def event_materials_add_from_template(
                     item_names.add(template.name)
                     existing_reservation.reserved_items = ", ".join(sorted(item_names))
                 continue
-            if find_lot_conflicts(
-                db, [lot.id], event.starts_at, event.ends_at
-            ):
-                return render_event_materials_page(
-                    request,
-                    user,
-                    event,
-                    nodes,
-                    db,
-                    error=f"Le lot « {lot.name} » est déjà réservé pendant ce poste.",
-                )
             db.add(
                 LotReservation(
                     lot_id=lot.id,
@@ -2721,6 +2720,7 @@ def event_materials_add_from_template(
         template,
         None,
         sort_order=get_next_event_sort_order(db, event_id),
+        expected_qty_override=requested_qty if template.node_type == "item" else None,
     )
     db.commit()
     return RedirectResponse(f"/events/{event_id}/materials", status_code=303)
@@ -2763,6 +2763,8 @@ def event_materials_add_from_lot(
         )
     if lot_service_error(lot):
         return render_event_materials_page(request, user, event, nodes, db, error=lot_service_error(lot))
+    if not event_lot_available(db, event, lot):
+        return render_event_materials_page(request, user, event, nodes, db, error="Ce lot n'est pas entièrement disponible sur le créneau du poste.")
     existing_reservation = db.scalar(
         select(LotReservation).where(
             LotReservation.event_id == event.id,

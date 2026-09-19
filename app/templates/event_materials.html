@@ -48,7 +48,7 @@
     <div class="section-header">
       <div>
         <h2>Ajouter depuis le matériel existant</h2>
-        <p class="muted">Choisissez un parent déjà créé dans le catalogue.</p>
+        <p class="muted">Seul le matériel disponible sur les dates du poste est proposé.</p>
       </div>
     </div>
     {% if error %}
@@ -57,17 +57,23 @@
     <form method="post" action="/events/{{ event.id }}/materials/from-template" class="form">
       <label>
         Matériel
-        <select name="template_id" required>
+        <select name="template_id" id="material-template" required>
           <option value="">Sélectionner un matériel</option>
           {% for template in material_templates %}
-            <option value="{{ template.id }}" {% if template.out_of_service %}disabled{% endif %}>
+            <option value="{{ template.id }}" data-type="{{ template.node_type }}" data-remaining="{{ template.remaining }}">
               {% if template.out_of_service %}🔴 Hors service — {% endif %}
-              {{ template.label }}{% if template.node_type == 'item' %} (Équipement){% else %} (Sac / Conteneur){% endif %}
+              {{ template.label }}{% if template.node_type == 'item' %} (Équipement, {{ template.remaining }} disponible(s)){% else %} (Sac / Conteneur){% endif %}
             </option>
           {% endfor %}
         </select>
       </label>
-      <button class="btn" type="submit">Ajouter depuis le catalogue</button>
+      <label id="material-quantity-label" hidden>
+        Quantité à ajouter
+        <input id="material-quantity" type="number" name="quantity" min="1" step="1" value="1" required />
+        <span class="muted" id="material-quantity-help"></span>
+      </label>
+      {% if not material_templates %}<p class="muted">Aucun matériel disponible sur ce créneau. Vérifiez les dates du poste.</p>{% endif %}
+      <button class="btn" type="submit" {% if not material_templates %}disabled{% endif %}>Ajouter depuis le catalogue</button>
     </form>
   </section>
 
@@ -91,7 +97,8 @@
           {% endfor %}
         </select>
       </label>
-      <button class="btn" type="submit">Ajouter le lot</button>
+      {% if not lots %}<p class="muted">Aucun lot entièrement disponible sur ce créneau.</p>{% endif %}
+      <button class="btn" type="submit" {% if not lots %}disabled{% endif %}>Ajouter le lot</button>
     </form>
   </section>
 
@@ -136,4 +143,5 @@
     </div>
   </section>
 </section>
+<script src="/static/event-materials.js" defer></script>
 {% endblock %}
